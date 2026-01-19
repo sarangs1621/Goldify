@@ -270,72 +270,164 @@ class GoldShopERPTester:
         return False
 
     def test_jobcards(self):
-        """Test job cards"""
+        """Test job cards with new making charge and VAT fields"""
         if not self.created_resources['parties']:
             return False
             
         customer_id = self.created_resources['parties'][0]
         
-        jobcard_data = {
+        # Test 1: Job card with flat making charge and VAT
+        jobcard_data_flat = {
             "card_type": "individual",
             "customer_id": customer_id,
+            "customer_name": "Test Customer",
             "delivery_date": "2025-01-15",
-            "notes": "Test job card",
+            "notes": "Test job card with flat making charge",
+            "items": [{
+                "category": "Ring",
+                "description": "Gold ring with flat making charge",
+                "qty": 1,
+                "weight_in": 10.500,
+                "weight_out": 10.200,
+                "purity": 916,
+                "work_type": "polish",
+                "remarks": "Polish and clean",
+                "making_charge_type": "flat",
+                "making_charge_value": 10.0,
+                "vat_percent": 5.0
+            }]
+        }
+        
+        success1, jobcard1 = self.run_test(
+            "Create Job Card (Flat Making Charge)",
+            "POST",
+            "jobcards",
+            200,
+            data=jobcard_data_flat
+        )
+        
+        if success1 and jobcard1.get('id'):
+            self.created_resources['jobcards'].append(jobcard1['id'])
+        
+        # Test 2: Job card with per-gram making charge and VAT
+        jobcard_data_per_gram = {
+            "card_type": "individual",
+            "customer_id": customer_id,
+            "customer_name": "Test Customer",
+            "delivery_date": "2025-01-15",
+            "notes": "Test job card with per-gram making charge",
             "items": [{
                 "category": "Chain",
-                "description": "Gold chain repair",
+                "description": "Gold chain with per-gram making charge",
                 "qty": 1,
                 "weight_in": 15.500,
                 "weight_out": 15.200,
                 "purity": 916,
                 "work_type": "polish",
-                "remarks": "Polish and clean"
+                "remarks": "Polish and clean",
+                "making_charge_type": "per_gram",
+                "making_charge_value": 2.0,
+                "vat_percent": 5.0
             }]
         }
         
-        success, jobcard = self.run_test(
-            "Create Job Card",
+        success2, jobcard2 = self.run_test(
+            "Create Job Card (Per-Gram Making Charge)",
             "POST",
             "jobcards",
             200,
-            data=jobcard_data
+            data=jobcard_data_per_gram
         )
         
-        if success and jobcard.get('id'):
-            self.created_resources['jobcards'].append(jobcard['id'])
-            
-            # Get all job cards
-            success2, jobcards = self.run_test(
-                "Get All Job Cards",
-                "GET",
-                "jobcards",
-                200
-            )
-            
-            # Update job card status to completed
-            success3, update_result = self.run_test(
-                "Update Job Card Status",
+        if success2 and jobcard2.get('id'):
+            self.created_resources['jobcards'].append(jobcard2['id'])
+        
+        # Test 3: Job card WITHOUT new fields (backward compatibility)
+        jobcard_data_legacy = {
+            "card_type": "individual",
+            "customer_id": customer_id,
+            "customer_name": "Test Customer",
+            "delivery_date": "2025-01-15",
+            "notes": "Test job card without new fields",
+            "items": [{
+                "category": "Bracelet",
+                "description": "Gold bracelet (legacy format)",
+                "qty": 1,
+                "weight_in": 20.500,
+                "weight_out": 20.200,
+                "purity": 916,
+                "work_type": "repair",
+                "remarks": "Simple repair"
+            }]
+        }
+        
+        success3, jobcard3 = self.run_test(
+            "Create Job Card (Backward Compatibility)",
+            "POST",
+            "jobcards",
+            200,
+            data=jobcard_data_legacy
+        )
+        
+        if success3 and jobcard3.get('id'):
+            self.created_resources['jobcards'].append(jobcard3['id'])
+        
+        # Get all job cards
+        success4, jobcards = self.run_test(
+            "Get All Job Cards",
+            "GET",
+            "jobcards",
+            200
+        )
+        
+        return success1 and success2 and success3 and success4
+
+    def test_jobcard_to_invoice_conversion(self):
+        """Test converting job cards to invoices with new making charge calculations"""
+        if not self.created_resources['jobcards']:
+            return False
+        
+        results = []
+        
+        # Test conversion for each job card created
+        for i, jobcard_id in enumerate(self.created_resources['jobcards']):
+            # Update job card status to completed first
+            success_update, _ = self.run_test(
+                f"Update Job Card {i+1} Status",
                 "PATCH",
-                f"jobcards/{jobcard['id']}",
+                f"jobcards/{jobcard_id}",
                 200,
                 data={"status": "completed"}
             )
             
-            if success3:
+            if success_update:
                 # Convert to invoice
-                success4, invoice = self.run_test(
-                    "Convert Job Card to Invoice",
+                success_convert, invoice = self.run_test(
+                    f"Convert Job Card {i+1} to Invoice",
                     "POST",
-                    f"jobcards/{jobcard['id']}/convert-to-invoice",
+                    f"jobcards/{jobcard_id}/convert-to-invoice",
                     200
                 )
                 
-                if success4 and invoice.get('id'):
+                if success_convert and invoice.get('id'):
                     self.created_resources['invoices'].append(invoice['id'])
-                    return success2 and success4
-            
-            return success2
-        return False
+                    
+                    # Verify invoice has correct calculations
+                    if 'items' in invoice and len(invoice['items']) > 0:
+                        item = invoice['items'][0]
+                        print(f"   Invoice item calculations:")
+                        print(f"   - Gold Value: {item.get('gold_value', 0)}")
+                        print(f"   - Making Value: {item.get('making_value', 0)}")
+                        print(f"   - VAT Amount: {item.get('vat_amount', 0)}")
+                        print(f"   - Line Total: {item.get('line_total', 0)}")
+                    
+                    results.append(success_convert)
+                else:
+                    results.append(False)
+            else:
+                results.append(False)
+        
+        return all(results) if results else False
 
     def test_invoices(self):
         """Test invoices"""
