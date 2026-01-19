@@ -559,6 +559,123 @@ async def get_invoices(current_user: User = Depends(get_current_user)):
     invoices = await db.invoices.find({"is_deleted": False}, {"_id": 0}).sort("date", -1).to_list(1000)
     return invoices
 
+@api_router.get("/invoices/{invoice_id}", response_model=Invoice)
+async def get_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
+    invoice = await db.invoices.find_one({"id": invoice_id, "is_deleted": False}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return Invoice(**invoice)
+
+@api_router.patch("/invoices/{invoice_id}")
+async def update_invoice(invoice_id: str, update_data: dict, current_user: User = Depends(get_current_user)):
+    existing = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    await db.invoices.update_one({"id": invoice_id}, {"$set": update_data})
+    await create_audit_log(current_user.id, current_user.full_name, "invoice", invoice_id, "update", update_data)
+    return {"message": "Invoice updated successfully"}
+
+@api_router.delete("/invoices/{invoice_id}")
+async def delete_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
+    existing = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    await db.invoices.update_one(
+        {"id": invoice_id},
+        {"$set": {"is_deleted": True}}
+    )
+    await create_audit_log(current_user.id, current_user.full_name, "invoice", invoice_id, "delete")
+    return {"message": "Invoice deleted successfully"}
+
+@api_router.get("/invoices/{invoice_id}/pdf")
+async def generate_invoice_pdf(invoice_id: str, current_user: User = Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib.units import inch
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle
+    
+    invoice = await db.invoices.find_one({"id": invoice_id, "is_deleted": False}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    
+    # Header
+    p.setFont("Helvetica-Bold", 20)
+    p.drawString(50, height - 50, "Gold Shop ERP")
+    p.setFont("Helvetica", 10)
+    p.drawString(50, height - 70, "The Artisan Ledger")
+    
+    # Invoice details
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(50, height - 120, f"Invoice #{invoice.get('invoice_number', '')}")
+    p.setFont("Helvetica", 10)
+    p.drawString(50, height - 140, f"Date: {invoice.get('date', '')[:10]}")
+    p.drawString(50, height - 155, f"Customer: {invoice.get('customer_name', 'N/A')}")
+    p.drawString(50, height - 170, f"Type: {invoice.get('invoice_type', 'sale').upper()}")
+    p.drawString(50, height - 185, f"Status: {invoice.get('payment_status', 'unpaid').upper()}")
+    
+    # Items table
+    y_position = height - 230
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(50, y_position, "Item")
+    p.drawString(250, y_position, "Qty")
+    p.drawString(300, y_position, "Weight")
+    p.drawString(370, y_position, "Rate")
+    p.drawString(450, y_position, "Total")
+    
+    p.setFont("Helvetica", 9)
+    y_position -= 20
+    
+    for item in invoice.get('items', []):
+        p.drawString(50, y_position, item.get('description', '')[:30])
+        p.drawString(250, y_position, str(item.get('qty', 0)))
+        p.drawString(300, y_position, f"{item.get('weight', 0)}g")
+        p.drawString(370, y_position, f"{item.get('metal_rate', 0):.2f}")
+        p.drawString(450, y_position, f"{item.get('line_total', 0):.2f}")
+        y_position -= 15
+        
+        if y_position < 100:
+            p.showPage()
+            y_position = height - 50
+    
+    # Totals
+    y_position -= 20
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(370, y_position, "Subtotal:")
+    p.drawString(450, y_position, f"{invoice.get('subtotal', 0):.2f} OMR")
+    y_position -= 15
+    p.drawString(370, y_position, "VAT:")
+    p.drawString(450, y_position, f"{invoice.get('vat_total', 0):.2f} OMR")
+    y_position -= 15
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(370, y_position, "Grand Total:")
+    p.drawString(450, y_position, f"{invoice.get('grand_total', 0):.2f} OMR")
+    y_position -= 15
+    p.setFont("Helvetica", 10)
+    p.drawString(370, y_position, "Balance Due:")
+    p.drawString(450, y_position, f"{invoice.get('balance_due', 0):.2f} OMR")
+    
+    # Footer
+    p.setFont("Helvetica-Italic", 8)
+    p.drawString(50, 50, "Thank you for your business!")
+    
+    p.save()
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=invoice_{invoice.get('invoice_number', 'unknown')}.pdf"}
+    )
+
 @api_router.post("/invoices", response_model=Invoice)
 async def create_invoice(invoice_data: dict, current_user: User = Depends(get_current_user)):
     year = datetime.now(timezone.utc).year
