@@ -64,7 +64,9 @@ export default function JobCardsPage() {
           qty: parseInt(item.qty),
           weight_in: parseFloat(item.weight_in),
           weight_out: item.weight_out ? parseFloat(item.weight_out) : null,
-          purity: parseInt(item.purity)
+          purity: parseInt(item.purity),
+          making_charge_value: item.making_charge_value ? parseFloat(item.making_charge_value) : null,
+          vat_percent: item.vat_percent ? parseFloat(item.vat_percent) : null
         }))
       };
       
