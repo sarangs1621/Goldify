@@ -60,6 +60,22 @@ class GoldShopERPTester:
 
     def test_login(self):
         """Test login with admin credentials"""
+        # First try to register admin user if it doesn't exist
+        register_success, register_response = self.run_test(
+            "Register Admin User",
+            "POST",
+            "auth/register",
+            200,
+            data={
+                "username": "admin",
+                "password": "admin123",
+                "email": "admin@goldshop.com",
+                "full_name": "System Administrator",
+                "role": "admin"
+            }
+        )
+        
+        # Try to login (whether registration succeeded or failed due to existing user)
         success, response = self.run_test(
             "Admin Login",
             "POST",
