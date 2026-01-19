@@ -854,6 +854,163 @@ async def get_audit_logs(module: Optional[str] = None, current_user: User = Depe
     logs = await db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(500).to_list(500)
     return logs
 
+@api_router.get("/reports/inventory-export")
+async def export_inventory(current_user: User = Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill
+    
+    # Get all inventory data
+    movements = await db.stock_movements.find({"is_deleted": False}, {"_id": 0}).sort("date", -1).to_list(10000)
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Inventory Movements"
+    
+    # Headers
+    headers = ["Date", "Type", "Category", "Description", "Quantity", "Weight (g)", "Purity", "Notes"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center")
+    
+    # Data
+    for row_idx, movement in enumerate(movements, 2):
+        ws.cell(row=row_idx, column=1, value=str(movement.get('date', ''))[:10])
+        ws.cell(row=row_idx, column=2, value=movement.get('movement_type', ''))
+        ws.cell(row=row_idx, column=3, value=movement.get('header_name', ''))
+        ws.cell(row=row_idx, column=4, value=movement.get('description', ''))
+        ws.cell(row=row_idx, column=5, value=movement.get('qty_delta', 0))
+        ws.cell(row=row_idx, column=6, value=movement.get('weight_delta', 0))
+        ws.cell(row=row_idx, column=7, value=movement.get('purity', 0))
+        ws.cell(row=row_idx, column=8, value=movement.get('notes', ''))
+    
+    # Adjust column widths
+    for col in range(1, 9):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 15
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=inventory_export.xlsx"}
+    )
+
+@api_router.get("/reports/parties-export")
+async def export_parties(current_user: User = Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+    
+    parties = await db.parties.find({"is_deleted": False}, {"_id": 0}).to_list(10000)
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Parties"
+    
+    headers = ["Name", "Phone", "Type", "Address", "Notes", "Created At"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    
+    for row_idx, party in enumerate(parties, 2):
+        ws.cell(row=row_idx, column=1, value=party.get('name', ''))
+        ws.cell(row=row_idx, column=2, value=party.get('phone', ''))
+        ws.cell(row=row_idx, column=3, value=party.get('party_type', ''))
+        ws.cell(row=row_idx, column=4, value=party.get('address', ''))
+        ws.cell(row=row_idx, column=5, value=party.get('notes', ''))
+        ws.cell(row=row_idx, column=6, value=str(party.get('created_at', ''))[:10])
+    
+    for col in range(1, 7):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 20
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=parties_export.xlsx"}
+    )
+
+@api_router.get("/reports/invoices-export")
+async def export_invoices(current_user: User = Depends(get_current_user)):
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+    
+    invoices = await db.invoices.find({"is_deleted": False}, {"_id": 0}).sort("date", -1).to_list(10000)
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Invoices"
+    
+    headers = ["Invoice #", "Date", "Customer", "Type", "Grand Total", "Paid", "Balance", "Status"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    
+    for row_idx, inv in enumerate(invoices, 2):
+        ws.cell(row=row_idx, column=1, value=inv.get('invoice_number', ''))
+        ws.cell(row=row_idx, column=2, value=str(inv.get('date', ''))[:10])
+        ws.cell(row=row_idx, column=3, value=inv.get('customer_name', ''))
+        ws.cell(row=row_idx, column=4, value=inv.get('invoice_type', ''))
+        ws.cell(row=row_idx, column=5, value=inv.get('grand_total', 0))
+        ws.cell(row=row_idx, column=6, value=inv.get('paid_amount', 0))
+        ws.cell(row=row_idx, column=7, value=inv.get('balance_due', 0))
+        ws.cell(row=row_idx, column=8, value=inv.get('payment_status', ''))
+    
+    for col in range(1, 9):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 18
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=invoices_export.xlsx"}
+    )
+
+@api_router.get("/reports/financial-summary")
+async def get_financial_summary(current_user: User = Depends(get_current_user)):
+    # Get totals for financial summary
+    invoices = await db.invoices.find({"is_deleted": False}, {"_id": 0}).to_list(10000)
+    transactions = await db.transactions.find({"is_deleted": False}, {"_id": 0}).to_list(10000)
+    accounts = await db.accounts.find({"is_deleted": False}, {"_id": 0}).to_list(1000)
+    
+    total_sales = sum(inv.get('grand_total', 0) for inv in invoices if inv.get('invoice_type') == 'sale')
+    total_purchases = sum(inv.get('grand_total', 0) for inv in invoices if inv.get('invoice_type') == 'purchase')
+    total_outstanding = sum(inv.get('balance_due', 0) for inv in invoices)
+    
+    total_credit = sum(txn.get('amount', 0) for txn in transactions if txn.get('transaction_type') == 'credit')
+    total_debit = sum(txn.get('amount', 0) for txn in transactions if txn.get('transaction_type') == 'debit')
+    
+    total_account_balance = sum(acc.get('current_balance', 0) for acc in accounts)
+    
+    return {
+        "total_sales": total_sales,
+        "total_purchases": total_purchases,
+        "total_outstanding": total_outstanding,
+        "total_credit": total_credit,
+        "total_debit": total_debit,
+        "total_account_balance": total_account_balance,
+        "net_profit": total_sales - total_purchases
+    }
+
 app.include_router(api_router)
 
 app.add_middleware(
