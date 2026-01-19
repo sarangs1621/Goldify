@@ -129,6 +129,10 @@ class JobCardItem(BaseModel):
     purity: int
     work_type: str
     remarks: Optional[str] = None
+    making_charge_type: Optional[str] = None  # 'flat' or 'per_gram'
+    making_charge_value: Optional[float] = None
+    vat_percent: Optional[float] = None
+    vat_amount: Optional[float] = None
 
 class JobCard(BaseModel):
     model_config = ConfigDict(extra="ignore")
