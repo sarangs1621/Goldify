@@ -359,16 +359,16 @@ frontend:
         comment: "Need to implement user management interface"
 
   - task: "Reports UI"
-    implemented: false
-    working: "NA"
-    file: "frontend/src/pages/ReportsPage.js"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/ReportsPageEnhanced.js"
     stuck_count: 0
-    priority: "medium"
+    priority: "high"
     needs_retesting: true
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: "Reports page needs to be implemented"
+        comment: "Implemented comprehensive reports UI with filtering, date range, tabs, view capabilities, and individual report details. Includes inventory, invoices, parties, and transactions reports with export functionality."
 
   - task: "Confirmation Dialogs"
     implemented: false
