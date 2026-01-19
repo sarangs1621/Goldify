@@ -575,8 +575,19 @@ async def convert_jobcard_to_invoice(jobcard_id: str, current_user: User = Depen
         metal_rate = 20.0
         weight = item.get('weight_out', item.get('weight_in', 0))
         gold_value = weight * metal_rate
-        making_value = 5.0
-        vat_amount = (gold_value + making_value) * vat_percent / 100
+        
+        # Use making charge from job card if provided, otherwise use default
+        if item.get('making_charge_value') is not None:
+            if item.get('making_charge_type') == 'per_gram':
+                making_value = item.get('making_charge_value', 0) * weight
+            else:  # flat
+                making_value = item.get('making_charge_value', 0)
+        else:
+            making_value = 5.0  # Default
+        
+        # Use VAT from job card if provided, otherwise use default
+        item_vat_percent = item.get('vat_percent', vat_percent)
+        vat_amount = (gold_value + making_value) * item_vat_percent / 100
         line_total = gold_value + making_value + vat_amount
         
         invoice_items.append(InvoiceItem(
@@ -587,7 +598,7 @@ async def convert_jobcard_to_invoice(jobcard_id: str, current_user: User = Depen
             metal_rate=metal_rate,
             gold_value=gold_value,
             making_value=making_value,
-            vat_percent=vat_percent,
+            vat_percent=item_vat_percent,
             vat_amount=vat_amount,
             line_total=line_total
         ))
