@@ -261,6 +261,18 @@ backend:
         agent: "main"
         comment: "No indexes created, need to add for performance"
 
+  - task: "Enhanced Reports API with Filtering"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented comprehensive reports API with filtering support. Added query parameters for date range, status, type, and category filters. Created view endpoints that return JSON for UI display. Added individual report endpoints for invoices, party ledgers, and inventory stock reports."
+
 frontend:
   - task: "Login & Authentication UI"
     implemented: true
