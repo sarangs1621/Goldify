@@ -1,53 +1,133 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+import '@/App.css';
+import '@/index.css';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { DashboardLayout } from './components/DashboardLayout';
+import { Toaster } from './components/ui/sonner';
+import LoginPage from './pages/LoginPage';
+import Dashboard from './pages/Dashboard';
+import InventoryPage from './pages/InventoryPage';
+import JobCardsPage from './pages/JobCardsPage';
+import InvoicesPage from './pages/InvoicesPage';
+import PartiesPage from './pages/PartiesPage';
+import FinancePage from './pages/FinancePage';
+import DailyClosingPage from './pages/DailyClosingPage';
+import ReportsPage from './pages/ReportsPage';
+import AuditLogsPage from './pages/AuditLogsPage';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   return (
-    <div className="App">
+    <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Dashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <InventoryPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/jobcards"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <JobCardsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <InvoicesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parties"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PartiesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <FinancePage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daily-closing"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <DailyClosingPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ReportsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/audit-logs"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <AuditLogsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <SettingsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
-    </div>
+      <Toaster position="top-right" richColors />
+    </AuthProvider>
   );
 }
 
