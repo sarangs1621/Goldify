@@ -1,13 +1,117 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { API } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { CalendarCheck } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import { Badge } from '../components/ui/badge';
+import { toast } from 'sonner';
+import { CalendarCheck, Plus, Lock, Unlock } from 'lucide-react';
 
 export default function DailyClosingPage() {
+  const [closings, setClosings] = useState([]);
+  const [showDialog, setShowDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    opening_cash: 0,
+    total_credit: 0,
+    total_debit: 0,
+    actual_closing: 0,
+    notes: ''
+  });
+
+  useEffect(() => {
+    loadClosings();
+  }, []);
+
+  const loadClosings = async () => {
+    try {
+      const response = await axios.get(`${API}/daily-closings`);
+      setClosings(response.data);
+    } catch (error) {
+      toast.error('Failed to load daily closings');
+    }
+  };
+
+  const calculateExpectedClosing = () => {
+    const opening = parseFloat(formData.opening_cash) || 0;
+    const credit = parseFloat(formData.total_credit) || 0;
+    const debit = parseFloat(formData.total_debit) || 0;
+    return opening + credit - debit;
+  };
+
+  const calculateDifference = () => {
+    const expected = calculateExpectedClosing();
+    const actual = parseFloat(formData.actual_closing) || 0;
+    return actual - expected;
+  };
+
+  const handleCreateClosing = async () => {
+    try {
+      const expected = calculateExpectedClosing();
+      const difference = calculateDifference();
+      
+      const data = {
+        date: formData.date,
+        opening_cash: parseFloat(formData.opening_cash),
+        total_credit: parseFloat(formData.total_credit),
+        total_debit: parseFloat(formData.total_debit),
+        expected_closing: expected,
+        actual_closing: parseFloat(formData.actual_closing),
+        difference: difference,
+        is_locked: false,
+        notes: formData.notes
+      };
+      
+      await axios.post(`${API}/daily-closings`, data);
+      toast.success('Daily closing created successfully');
+      setShowDialog(false);
+      loadClosings();
+      
+      // Reset form
+      setFormData({
+        date: new Date().toISOString().split('T')[0],
+        opening_cash: 0,
+        total_credit: 0,
+        total_debit: 0,
+        actual_closing: 0,
+        notes: ''
+      });
+    } catch (error) {
+      toast.error('Failed to create daily closing');
+    }
+  };
+
+  const getDifferenceColor = (difference) => {
+    if (difference === 0) return 'text-green-600';
+    if (Math.abs(difference) <= 10) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getStatusBadge = (isLocked) => {
+    return isLocked ? (
+      <Badge className="bg-red-100 text-red-800">
+        <Lock className="w-3 h-3 mr-1" /> Locked
+      </Badge>
+    ) : (
+      <Badge className="bg-green-100 text-green-800">
+        <Unlock className="w-3 h-3 mr-1" /> Unlocked
+      </Badge>
+    );
+  };
+
   return (
     <div data-testid="daily-closing-page">
-      <div className="mb-8">
-        <h1 className="text-4xl font-serif font-semibold text-gray-900 mb-2">Daily Closing</h1>
-        <p className="text-muted-foreground">Daily cash reconciliation and closing</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-4xl font-serif font-semibold text-gray-900 mb-2">Daily Closing</h1>
+          <p className="text-muted-foreground">Daily cash reconciliation and closing</p>
+        </div>
+        <Button data-testid="create-closing-button" onClick={() => setShowDialog(true)}>
+          <Plus className="w-4 h-4 mr-2" /> Create Daily Closing
+        </Button>
       </div>
 
       <Card>
@@ -18,9 +122,171 @@ export default function DailyClosingPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">Daily closing feature coming soon...</p>
+          {closings.length === 0 ? (
+            <p className="text-muted-foreground">No daily closing records found. Create your first one!</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full" data-testid="closings-table">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Date</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Opening Cash</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Credit</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Debit</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Expected</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Actual</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Difference</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {closings.map((closing) => (
+                    <tr key={closing.id} className="border-t hover:bg-muted/30">
+                      <td className="px-4 py-3 font-mono">
+                        {new Date(closing.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {closing.opening_cash.toFixed(3)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-green-600">
+                        +{closing.total_credit.toFixed(3)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-red-600">
+                        -{closing.total_debit.toFixed(3)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold">
+                        {closing.expected_closing.toFixed(3)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-semibold">
+                        {closing.actual_closing.toFixed(3)}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-mono font-bold ${getDifferenceColor(closing.difference)}`}>
+                        {closing.difference >= 0 ? '+' : ''}{closing.difference.toFixed(3)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {getStatusBadge(closing.is_locked)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Daily Closing</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Date</Label>
+                <Input
+                  data-testid="closing-date-input"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Opening Cash (OMR)</Label>
+                <Input
+                  data-testid="opening-cash-input"
+                  type="number"
+                  step="0.001"
+                  value={formData.opening_cash}
+                  onChange={(e) => setFormData({...formData, opening_cash: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Total Credit (OMR)</Label>
+                <Input
+                  data-testid="total-credit-input"
+                  type="number"
+                  step="0.001"
+                  value={formData.total_credit}
+                  onChange={(e) => setFormData({...formData, total_credit: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label>Total Debit (OMR)</Label>
+                <Input
+                  data-testid="total-debit-input"
+                  type="number"
+                  step="0.001"
+                  value={formData.total_debit}
+                  onChange={(e) => setFormData({...formData, total_debit: e.target.value})}
+                />
+              </div>
+            </div>
+
+            {/* Calculated Values */}
+            <div className="p-4 bg-muted/30 rounded-md space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Expected Closing:</span>
+                <span className="text-lg font-bold">{calculateExpectedClosing().toFixed(3)} OMR</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                = Opening Cash ({parseFloat(formData.opening_cash || 0).toFixed(3)}) + 
+                Credit ({parseFloat(formData.total_credit || 0).toFixed(3)}) - 
+                Debit ({parseFloat(formData.total_debit || 0).toFixed(3)})
+              </div>
+            </div>
+
+            <div>
+              <Label>Actual Closing Cash (OMR)</Label>
+              <Input
+                data-testid="actual-closing-input"
+                type="number"
+                step="0.001"
+                value={formData.actual_closing}
+                onChange={(e) => setFormData({...formData, actual_closing: e.target.value})}
+              />
+            </div>
+
+            {/* Difference Display */}
+            {formData.actual_closing && (
+              <div className={`p-4 rounded-md border-2 ${
+                calculateDifference() === 0 ? 'bg-green-50 border-green-200' :
+                Math.abs(calculateDifference()) <= 10 ? 'bg-yellow-50 border-yellow-200' :
+                'bg-red-50 border-red-200'
+              }`}>
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Difference:</span>
+                  <span className={`text-xl font-bold ${getDifferenceColor(calculateDifference())}`}>
+                    {calculateDifference() >= 0 ? '+' : ''}{calculateDifference().toFixed(3)} OMR
+                  </span>
+                </div>
+                <p className="text-xs mt-1 text-muted-foreground">
+                  {calculateDifference() === 0 && 'Perfect match! ✓'}
+                  {calculateDifference() > 0 && 'Cash surplus detected'}
+                  {calculateDifference() < 0 && 'Cash shortage detected'}
+                </p>
+              </div>
+            )}
+
+            <div>
+              <Label>Notes (Optional)</Label>
+              <Input
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                placeholder="Any remarks or explanations"
+              />
+            </div>
+
+            <Button 
+              data-testid="save-closing-button" 
+              onClick={handleCreateClosing} 
+              className="w-full"
+            >
+              Create Daily Closing
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
