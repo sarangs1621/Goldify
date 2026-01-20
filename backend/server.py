@@ -222,6 +222,8 @@ class Transaction(BaseModel):
     amount: float
     category: str
     notes: Optional[str] = None
+    reference_type: Optional[str] = None  # "invoice", "jobcard", or None for general transactions
+    reference_id: Optional[str] = None  # UUID of the related invoice/jobcard
     created_by: str
     is_deleted: bool = False
 
