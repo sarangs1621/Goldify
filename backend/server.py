@@ -794,7 +794,9 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
             sales_account = default_account
         
         # Determine transaction type based on invoice type
-        transaction_type = "debit" if invoice.invoice_type == "sale" else "credit"
+        # For sales and service invoices, customer owes money (debit to customer account)
+        # For purchase invoices, we owe money (credit to supplier account)
+        transaction_type = "debit" if invoice.invoice_type in ["sale", "service"] else "credit"
         
         # Create ledger entry as a transaction
         ledger_entry = Transaction(
