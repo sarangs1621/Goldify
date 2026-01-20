@@ -277,8 +277,8 @@ export default function JobCardsPage() {
                           </Button>
                         )}
                         
-                        {/* Convert to Invoice button - only for completed unlocked job cards */}
-                        {jc.status === 'completed' && !jc.locked && (
+                        {/* Convert to Invoice button - only for completed job cards */}
+                        {jc.status === 'completed' && (
                           <Button
                             data-testid={`convert-${jc.job_card_number}`}
                             size="sm"
