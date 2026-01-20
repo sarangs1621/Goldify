@@ -1067,7 +1067,7 @@ async def add_payment_to_invoice(
     count = await db.transactions.count_documents({"transaction_number": {"$regex": f"^TXN-{year}"}})
     transaction_number = f"TXN-{year}-{str(count + 1).zfill(4)}"
     
-    # Create transaction record
+    # Create transaction record with invoice reference
     transaction = Transaction(
         transaction_number=transaction_number,
         transaction_type="credit",  # Money coming in
@@ -1079,6 +1079,8 @@ async def add_payment_to_invoice(
         amount=payment_amount,
         category="Invoice Payment",
         notes=f"Payment for {invoice.invoice_number}. {payment_data.get('notes', '')}".strip(),
+        reference_type="invoice",  # Link to invoice
+        reference_id=invoice_id,  # Invoice UUID
         created_by=current_user.id
     )
     
