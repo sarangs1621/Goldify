@@ -17,6 +17,15 @@ export default function JobCardsPage() {
   const [inventoryHeaders, setInventoryHeaders] = useState([]);
   const [showDialog, setShowDialog] = useState(false);
   const [editingJobCard, setEditingJobCard] = useState(null);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [convertingJobCard, setConvertingJobCard] = useState(null);
+  const [convertData, setConvertData] = useState({
+    customer_type: 'saved',
+    customer_id: '',
+    customer_name: '',
+    walk_in_name: '',
+    walk_in_phone: ''
+  });
   const [formData, setFormData] = useState({
     card_type: 'individual',
     customer_id: '',
