@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { FileText, Printer } from 'lucide-react';
+import { FileText, Printer, CheckCircle, Lock } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState([]);
+  const [finalizing, setFinalizing] = useState(null);
 
   useEffect(() => {
     loadInvoices();
