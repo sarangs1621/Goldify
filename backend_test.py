@@ -1666,7 +1666,16 @@ class GoldShopERPTester:
             "Parties View Reports": self.test_reports_parties_view(),
             "Transactions View Reports": self.test_reports_transactions_view(),
             "Export Endpoints": self.test_reports_export_endpoints(),
-            "Individual Reports": self.test_reports_individual_reports()
+            "Individual Reports": self.test_reports_individual_reports(),
+            
+            # ENHANCED INVOICE FINALIZATION TESTS
+            "🔥 Job Card Locking on Finalization": self.test_enhanced_invoice_finalization_job_card_locking(),
+            "🔥 Customer Ledger Entry Creation": self.test_enhanced_invoice_finalization_customer_ledger(),
+            "🔥 Outstanding Balance Tracking": self.test_enhanced_invoice_finalization_outstanding_balance(),
+            "🔥 Direct Invoice Finalization": self.test_enhanced_invoice_finalization_direct_invoice(),
+            "🔥 Default Sales Account Creation": self.test_enhanced_invoice_finalization_sales_account(),
+            "🔥 Full Workflow Test": self.test_enhanced_invoice_finalization_full_workflow(),
+            "🔥 Error Cases Testing": self.test_enhanced_invoice_finalization_error_cases()
         }
 
         # Print results summary
