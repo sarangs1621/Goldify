@@ -107,11 +107,11 @@ user_problem_statement: "Fix invoice print issues, complete daily closing, make 
 backend:
   - task: "Invoice State Management - Draft/Finalized Logic"
     implemented: true
-    working: true
+    working: "NA"
     file: "backend/server.py"
     stuck_count: 0
     priority: "critical"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
@@ -119,6 +119,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "COMPREHENSIVE TESTING COMPLETED - All 7 critical invoice state management scenarios tested and PASSED (100% success rate). ✅ Draft invoices created with NO stock deduction. ✅ Draft invoices can be edited successfully. ✅ Invoice finalization creates stock OUT movements with correct negative values. ✅ Finalized invoices correctly reject edit attempts (400 error). ✅ Finalized invoices correctly reject delete attempts (400 error). ✅ Already finalized invoices reject re-finalization (400 error). ✅ Draft invoices can be deleted successfully. Fixed minor serialization issue in finalize endpoint. CRITICAL BUSINESS LOGIC IS WORKING CORRECTLY."
+      - working: "NA"
+        agent: "main"
+        comment: "ENHANCED INVOICE FINALIZATION - Updated finalize_invoice endpoint to perform ALL required atomic operations: (1) ✅ Update invoice status to 'finalized' (ALREADY WORKING). (2) ✅ Create Stock OUT movements (ALREADY WORKING). (3) ✅ NEW: Lock linked job card - sets status='invoiced', locked=True, locked_at, locked_by. Prevents editing/deleting locked job cards. (4) ✅ NEW: Create customer ledger entry - creates Transaction record with party_id, amount=grand_total, category='Sales Invoice'. Auto-generates transaction number. Creates default 'Sales' account if needed. (5) ✅ NEW: Outstanding balance automatically updated - invoice.balance_due is used by party ledger calculations. Added JobCard model fields: locked, locked_at, locked_by for immutability tracking. Enhanced update_jobcard and delete_jobcard to reject locked job cards with 400 error."
   
   - task: "Job Card Schema Enhancement - Making Charge & VAT"
     implemented: true
