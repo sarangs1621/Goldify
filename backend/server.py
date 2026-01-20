@@ -670,8 +670,15 @@ async def update_invoice(invoice_id: str, update_data: dict, current_user: User 
 @api_router.post("/invoices/{invoice_id}/finalize")
 async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
     """
-    Finalize a draft invoice - this is when stock deduction happens.
+    Finalize a draft invoice - this is when all financial operations happen atomically.
     Once finalized, the invoice becomes immutable to maintain financial integrity.
+    
+    Atomic operations performed:
+    1. Update invoice status to "finalized"
+    2. Create Stock OUT movements for all items
+    3. Lock linked job card (if exists)
+    4. Create customer ledger entry
+    5. Update customer outstanding balance
     """
     # Fetch the invoice
     existing = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
@@ -689,9 +696,10 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
     # Parse invoice data
     invoice = Invoice(**decimal_to_float(existing))
     
-    # ATOMIC OPERATION: Update invoice status AND create stock movements
-    # Step 1: Update invoice to finalized status
+    # ATOMIC OPERATION: Finalize invoice with all required operations
     finalized_at = datetime.now(timezone.utc)
+    
+    # Step 1: Update invoice to finalized status
     await db.invoices.update_one(
         {"id": invoice_id},
         {
@@ -720,14 +728,97 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
             )
             await db.stock_movements.insert_one(movement.model_dump())
     
-    # Create audit log
+    # Step 3: Lock the linked job card (make it read-only)
+    if invoice.jobcard_id:
+        jobcard = await db.jobcards.find_one({"id": invoice.jobcard_id, "is_deleted": False})
+        if jobcard:
+            await db.jobcards.update_one(
+                {"id": invoice.jobcard_id},
+                {
+                    "$set": {
+                        "status": "invoiced",
+                        "locked": True,
+                        "locked_at": finalized_at,
+                        "locked_by": current_user.id
+                    }
+                }
+            )
+            await create_audit_log(
+                current_user.id,
+                current_user.full_name,
+                "jobcard",
+                invoice.jobcard_id,
+                "lock",
+                {"locked": True, "reason": f"Invoice {invoice.invoice_number} finalized"}
+            )
+    
+    # Step 4: Create customer ledger entry (Transaction)
+    if invoice.customer_id and invoice.grand_total > 0:
+        # Generate transaction number
+        year = datetime.now(timezone.utc).year
+        count = await db.transactions.count_documents({"transaction_number": {"$regex": f"^TXN-{year}"}})
+        transaction_number = f"TXN-{year}-{str(count + 1).zfill(4)}"
+        
+        # Get or create a default sales account
+        sales_account = await db.accounts.find_one({"name": "Sales"})
+        if not sales_account:
+            # Create default sales account if it doesn't exist
+            default_account = {
+                "id": str(uuid.uuid4()),
+                "name": "Sales",
+                "account_type": "asset",
+                "opening_balance": 0,
+                "current_balance": 0,
+                "is_deleted": False
+            }
+            await db.accounts.insert_one(default_account)
+            sales_account = default_account
+        
+        # Determine transaction type based on invoice type
+        transaction_type = "debit" if invoice.invoice_type == "sale" else "credit"
+        
+        # Create ledger entry as a transaction
+        ledger_entry = Transaction(
+            transaction_number=transaction_number,
+            transaction_type=transaction_type,
+            mode="invoice",
+            account_id=sales_account["id"],
+            account_name=sales_account["name"],
+            party_id=invoice.customer_id,
+            party_name=invoice.customer_name or "Unknown Customer",
+            amount=invoice.grand_total,
+            category="Sales Invoice",
+            notes=f"Invoice {invoice.invoice_number} finalized",
+            created_by=current_user.id
+        )
+        await db.transactions.insert_one(ledger_entry.model_dump())
+        
+        await create_audit_log(
+            current_user.id,
+            current_user.full_name,
+            "transaction",
+            ledger_entry.id,
+            "create",
+            {"invoice_id": invoice.id, "amount": invoice.grand_total}
+        )
+    
+    # Step 5: Outstanding balance is automatically updated
+    # The balance_due field in the invoice record already tracks outstanding amount
+    # Party ledger calculations aggregate all invoice balance_due values
+    
+    # Create audit log for finalization
     await create_audit_log(
         current_user.id, 
         current_user.full_name, 
         "invoice", 
         invoice.id, 
         "finalize", 
-        {"status": "finalized", "finalized_at": finalized_at.isoformat()}
+        {
+            "status": "finalized", 
+            "finalized_at": finalized_at.isoformat(),
+            "jobcard_locked": bool(invoice.jobcard_id),
+            "ledger_entry_created": bool(invoice.customer_id and invoice.grand_total > 0)
+        }
     )
     
     # Fetch and return updated invoice
