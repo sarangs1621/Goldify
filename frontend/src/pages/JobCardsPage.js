@@ -501,6 +501,8 @@ export default function JobCardsPage() {
                 </>
               )}
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Delivery Date</Label>
                 <Input
@@ -525,14 +527,15 @@ export default function JobCardsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Notes</Label>
-                <Input
-                  value={formData.notes}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  placeholder="Optional notes"
-                />
-              </div>
+            </div>
+            
+            <div>
+              <Label>Notes</Label>
+              <Input
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                placeholder="Optional notes"
+              />
             </div>
 
             <div>
