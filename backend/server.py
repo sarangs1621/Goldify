@@ -767,11 +767,11 @@ async def convert_jobcard_to_invoice(jobcard_id: str, invoice_data: dict, curren
     
     # Add customer-specific fields
     if customer_type == 'saved':
-        invoice_dict["customer_id"] = invoice_data.get('customer_id')
-        invoice_dict["customer_name"] = invoice_data.get('customer_name')
+        invoice_dict["customer_id"] = customer_id
+        invoice_dict["customer_name"] = customer_name
     else:  # walk_in
-        invoice_dict["walk_in_name"] = invoice_data.get('walk_in_name')
-        invoice_dict["walk_in_phone"] = invoice_data.get('walk_in_phone', '')
+        invoice_dict["walk_in_name"] = walk_in_name
+        invoice_dict["walk_in_phone"] = walk_in_phone
     
     invoice = Invoice(**invoice_dict)
     
