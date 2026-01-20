@@ -373,10 +373,10 @@ class InvoiceStateManagementTester:
         if not success:
             return self.log_result("Delete Draft Invoice", False, "Failed to delete draft invoice")
         
-        # Verify invoice is marked as deleted
-        success, deleted_invoice = self.make_request("GET", f"invoices/{invoice_id}", expected_status=404)
+        # Verify invoice is marked as deleted (should return 404)
+        success, deleted_invoice = self.make_request("GET", f"invoices/{invoice_id}")
         
-        if success:
+        if success and deleted_invoice.get('status_code') != 404:
             return self.log_result("Delete Draft Invoice", False, "Invoice should not be accessible after deletion")
         
         return self.log_result("Delete Draft Invoice", True, f"Successfully deleted draft invoice {invoice_id}")
