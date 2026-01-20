@@ -159,6 +159,19 @@ backend:
         agent: "main"
         comment: "IMPLEMENTED - Stock deduction now directly reduces from inventory category quantities and weights. Key changes: (1) InventoryHeader now has current_qty and current_weight fields that store actual stock levels. (2) When invoice is finalized, system matches invoice items to inventory categories by name and directly reduces the current stock values. (3) Stock movements are still created for audit trail but inventory totals come from header fields, not movement calculations. (4) Added validation to prevent stock from going negative with clear error messages showing available vs required quantities. (5) Migration script created to calculate current stock from existing movements for backward compatibility. Ready for testing to verify: (a) Stock movements update header values, (b) Invoice finalization reduces stock directly from headers, (c) Insufficient stock validation works, (d) Audit trail is maintained through movements, (e) Stock totals display correctly from header values."
   
+
+  - task: "Walk-in vs Saved Customer Handling"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "IMPLEMENTED - Walk-in vs Saved customer handling with payment tracking. Backend changes: (1) Updated Invoice model - Added customer_type field ('saved' or 'walk_in'), walk_in_name, walk_in_phone fields for walk-in customers only. Customer_id/customer_name now only for saved customers. (2) Modified POST /api/jobcards/{jobcard_id}/convert-to-invoice - Now accepts customer_type in request body. For saved: requires customer_id. For walk_in: requires walk_in_name. Validates customer data based on type. (3) Created NEW endpoint POST /api/invoices/{invoice_id}/add-payment - Accepts amount, payment_mode (Cash/Bank Transfer/Card/UPI/Online/Cheque), account_id (where money goes), notes. Creates Transaction record for ALL payments. For saved customers: links to party_id. For walk-in: party_id=None, party_name includes '(Walk-in)' suffix. Updates invoice paid_amount and balance_due. Returns warning flag is_walk_in_partial_payment if walk-in customer has outstanding balance. All payments now properly tracked in finance system. Ready for testing."
+
   - task: "Job Card Schema Enhancement - Making Charge & VAT"
     implemented: true
     working: true
