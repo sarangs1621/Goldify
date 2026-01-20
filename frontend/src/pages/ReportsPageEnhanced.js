@@ -213,7 +213,7 @@ export default function ReportsPageEnhanced() {
       const params = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
-      if (invoiceType) params.invoice_type = invoiceType;
+      if (invoiceType && invoiceType !== 'all') params.invoice_type = invoiceType;
       if (paymentStatus) params.payment_status = paymentStatus;
       if (selectedPartyId && selectedPartyId !== 'all') params.party_id = selectedPartyId;
       if (sortBy) params.sort_by = sortBy;
@@ -252,7 +252,7 @@ export default function ReportsPageEnhanced() {
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       if (selectedPartyId && selectedPartyId !== 'all') params.party_id = selectedPartyId;
-      if (invoiceType) params.invoice_type = invoiceType;
+      if (invoiceType && invoiceType !== 'all') params.invoice_type = invoiceType;
       if (paymentStatus) params.payment_status = paymentStatus;
       if (partyType && partyType !== 'all') params.party_type = partyType;
       if (movementType) params.movement_type = movementType;
@@ -284,7 +284,7 @@ export default function ReportsPageEnhanced() {
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       if (selectedPartyId && selectedPartyId !== 'all') params.party_id = selectedPartyId;
-      if (invoiceType) params.invoice_type = invoiceType;
+      if (invoiceType && invoiceType !== 'all') params.invoice_type = invoiceType;
       if (paymentStatus) params.payment_status = paymentStatus;
       if (partyType && partyType !== 'all') params.party_type = partyType;
       if (movementType) params.movement_type = movementType;
