@@ -1671,6 +1671,8 @@ async def view_transactions_report(
     end_date: Optional[str] = None,
     transaction_type: Optional[str] = None,
     account_id: Optional[str] = None,
+    party_id: Optional[str] = None,  # NEW: Filter by specific party
+    sort_by: Optional[str] = None,  # NEW: "date_asc", "date_desc", "amount_desc"
     current_user: User = Depends(get_current_user)
 ):
     """View financial transactions with filters - returns JSON for UI"""
@@ -1687,8 +1689,24 @@ async def view_transactions_report(
         query['transaction_type'] = transaction_type
     if account_id:
         query['account_id'] = account_id
+    if party_id:
+        query['party_id'] = party_id
     
-    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
+    # Apply sorting
+    sort_field = "date"
+    sort_direction = -1  # Default: newest first
+    
+    if sort_by == "date_asc":
+        sort_field = "date"
+        sort_direction = 1
+    elif sort_by == "date_desc":
+        sort_field = "date"
+        sort_direction = -1
+    elif sort_by == "amount_desc":
+        sort_field = "amount"
+        sort_direction = -1
+    
+    transactions = await db.transactions.find(query, {"_id": 0}).sort(sort_field, sort_direction).to_list(10000)
     
     # Calculate totals
     total_credit = sum(txn.get('amount', 0) for txn in transactions if txn.get('transaction_type') == 'credit')
