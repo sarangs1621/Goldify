@@ -951,7 +951,7 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
         # For purchase invoices, we owe money (credit to supplier account)
         transaction_type = "debit" if invoice.invoice_type in ["sale", "service"] else "credit"
         
-        # Create ledger entry as a transaction
+        # Create ledger entry as a transaction with invoice reference
         ledger_entry = Transaction(
             transaction_number=transaction_number,
             transaction_type=transaction_type,
@@ -963,6 +963,8 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
             amount=invoice.grand_total,
             category="Sales Invoice",
             notes=f"Invoice {invoice.invoice_number} finalized",
+            reference_type="invoice",  # Link to invoice
+            reference_id=invoice.id,  # Invoice UUID
             created_by=current_user.id
         )
         await db.transactions.insert_one(ledger_entry.model_dump())
