@@ -102,9 +102,21 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Fix invoice print issues, complete daily closing, make all reports load correctly, add making-charge (flat/per-gram) and VAT options in create job card, and allow removing/editing items in new job cards. All changes must be backward-compatible. CRITICAL: Implement invoice state management (Draft/Finalized) to fix stock deduction logic - stock should ONLY be deducted when invoice is finalized, not on creation."
+user_problem_statement: "Fix invoice print issues, complete daily closing, make all reports load correctly, add making-charge (flat/per-gram) and VAT options in create job card, and allow removing/editing items in new job cards. All changes must be backward-compatible. CRITICAL: Implement invoice state management (Draft/Finalized) to fix stock deduction logic - stock should ONLY be deducted when invoice is finalized, not on creation. ADDITIONAL: Implement job card locking with admin override and audit logging."
 
 backend:
+  - task: "Job Card Locking with Admin Override"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "ADMIN OVERRIDE IMPLEMENTATION - Enhanced job card locking mechanism with admin override capability and comprehensive audit logging. Changes: (1) Modified PATCH /api/jobcards/{id} endpoint - Locked job cards are READ-ONLY for regular users (403 error). Admins can override and edit locked job cards. Admin edits are logged with special 'admin_override_edit' action including reason, locked_at, locked_by, and changes. (2) Modified DELETE /api/jobcards/{id} endpoint - Locked job cards cannot be deleted by regular users (403 error). Admins can override and delete locked job cards. Admin deletes are logged with special 'admin_override_delete' action including reason, locked_at, locked_by, jobcard_number, and customer_name. (3) Enhanced audit trail - All admin overrides create detailed audit logs with override_details containing action, reason, original lock information, and changes made. This ensures complete accountability while allowing authorized personnel to make necessary corrections. Regular users receive clear error messages indicating admin-only override capability."
+
   - task: "Invoice State Management - Draft/Finalized Logic"
     implemented: true
     working: true
