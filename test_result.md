@@ -141,11 +141,14 @@ backend:
     file: "backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Daily closing GET and POST endpoints already implemented at lines 837-847. APIs ready for frontend integration."
+      - working: true
+        agent: "testing"
+        comment: "TESTED - Daily closing APIs working correctly. ✅ GET /api/daily-closings returns existing closings. ✅ POST /api/daily-closings creates new closing with calculations. ✅ Proper validation and data handling."
   
   - task: "Invoice PDF Generation API"
     implemented: true
