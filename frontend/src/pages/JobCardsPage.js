@@ -340,11 +340,21 @@ export default function JobCardsPage() {
                   
                   <div>
                     <Label className="text-xs">Category</Label>
-                    <Input
-                      data-testid={`item-category-${idx}`}
-                      value={item.category}
-                      onChange={(e) => updateItem(idx, 'category', e.target.value)}
-                    />
+                    <Select 
+                      value={item.category} 
+                      onValueChange={(val) => updateItem(idx, 'category', val)}
+                    >
+                      <SelectTrigger data-testid={`item-category-${idx}`}>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {inventoryHeaders.map(header => (
+                          <SelectItem key={header.id} value={header.name}>
+                            {header.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-xs">Description</Label>
