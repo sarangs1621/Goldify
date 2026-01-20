@@ -113,6 +113,7 @@ export default function JobCardsPage() {
       worker_id: jobcard.worker_id || '',
       delivery_date: deliveryDate,
       notes: jobcard.notes || '',
+      status: jobcard.status || 'created',
       items: jobcard.items.map(item => ({
         ...item,
         making_charge_type: item.making_charge_type || 'flat',
