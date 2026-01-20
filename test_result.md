@@ -357,6 +357,54 @@ frontend:
         agent: "main"
         comment: "IMPLEMENTED - Complete walk-in vs saved customer handling UI. JobCardsPage changes: (1) Updated handleConvertToInvoice to show customer type selection dialog before conversion. (2) Added convertData state for customer type, customer selection, walk-in name/phone. (3) Created Convert Dialog with radio buttons for customer type selection. For 'Saved Customer': Shows party dropdown with existing customers, displays info about ledger tracking and outstanding. For 'Walk-in Customer': Shows name input (required) and phone input (optional), displays warning that walk-in customers are NOT saved in Parties and full payment is recommended. (4) Updated Convert to Invoice button to pass entire jobcard object instead of just ID. InvoicesPage changes: (1) Added payment dialog functionality with accounts loading. (2) Updated invoice table to show 'Walk-in' badge for walk-in customers with walk_in_name display. (3) Added 'Add Payment' button for all invoices with balance_due > 0. (4) Created payment dialog with: amount input (default to full balance), payment mode dropdown (Cash/Bank Transfer/Card/UPI/Online/Cheque), account selection (where money goes), notes field. Shows walk-in warning for partial payments. (5) handleAddPayment function calls POST /api/invoices/{id}/add-payment and shows warning toast for walk-in partial payments. All features integrated and ready for testing."
 
+  - task: "Reports & Filters - Global Filter Component"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/ReportsPageEnhanced.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "IMPLEMENTED - Created GlobalFilters reusable component with comprehensive filtering. Features: (1) Date Presets dropdown: All Time, Today, Yesterday, This Week (Monday start per ISO), This Month, Custom Range. (2) Custom Date Range: Start Date and End Date inputs (shown when custom selected). (3) Party Filter dropdown: All Parties option + searchable list of all parties with type display. (4) Sort By dropdown: Latest First (date_desc), Oldest First (date_asc), Highest Amount (amount_desc), Highest Outstanding (outstanding_desc). (5) Clear Filters button to reset all filters. (6) Export buttons: Export PDF and Export Excel (shown when exportType prop provided). Component accepts props: showPartyFilter, showSorting, exportType for tab-specific customization. All filters trigger auto-reload when changed. Ready for testing."
+
+  - task: "Reports & Filters - Outstanding Report Tab"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/ReportsPageEnhanced.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "IMPLEMENTED - New Outstanding Report tab with complete UI. Features: (1) Summary Cards: Customer Due (green, receivable), Vendor Payable (red, payable), Total Outstanding (blue, net balance). (2) Overdue Buckets Visualization: 0-7 days (yellow), 8-30 days (orange), 31+ days (red) with color-coded cards and amounts. (3) Party-wise Outstanding Table: Columns - Party Name, Type (customer/vendor badge), Total Invoiced, Total Paid, Outstanding (bold), Overdue breakdowns (0-7d, 8-30d, 31+d color-coded), Last Invoice Date, Last Payment Date. (4) Party Type Filter: All Types, Customers Only, Vendors Only. (5) Integrates with Global Filters for date range and party selection. (6) Load Report button triggers data fetch. (7) Export PDF/Excel buttons with applied filters. Empty state handling. Ready for testing."
+
+  - task: "Reports & Filters - Enhanced Overview Tab"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/ReportsPageEnhanced.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "IMPLEMENTED - Enhanced Overview tab with comprehensive finance summary. NEW Cards Added: (1) Cash Balance card with Wallet icon (green) showing total cash account balance. (2) Bank Balance card with Building2 icon (blue) showing total bank account balance. (3) Total Credit card with ArrowUpCircle icon (green). (4) Total Debit card with ArrowDownCircle icon (red). (5) Net Flow card (large display) showing Credit - Debit with positive/negative color coding (green/red) and +/- prefix. (6) Daily Closing Difference card showing Actual - Expected closing with color coding and description. Existing cards preserved: Total Sales, Total Purchases, Net Profit, Outstanding. All cards responsive with grid layout. Date filters apply to all calculations. Ready for testing."
+
+  - task: "Reports & Filters - Integrated Filters Across All Tabs"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/ReportsPageEnhanced.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "IMPLEMENTED - Integrated global filters across ALL report tabs. Changes: (1) All tabs now display GlobalFilters component at top with appropriate props. (2) Filter state managed globally: datePreset, startDate, endDate, selectedPartyId, sortBy. (3) useEffect hook monitors filter changes and auto-reloads active tab data. (4) Tab-specific filters preserved: Invoice Type, Payment Status (Invoices tab), Party Type (Parties/Outstanding tabs), Transaction Type (Transactions tab), Movement Type & Category (Inventory tab). (5) All API calls include filter parameters: date range, party_id, sort_by. (6) Export functions (PDF/Excel) pass all applied filters to backend. (7) Tabs: Overview (no party filter), Outstanding (with party type), Invoices (full filters), Parties (sort only), Transactions (full filters), Inventory (sort + type filters). Filter persistence across tab switches. Ready for testing."
+
     needs_retesting: true
     status_history:
       - working: true
