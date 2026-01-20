@@ -757,24 +757,11 @@ async def create_invoice(invoice_data: dict, current_user: User = Depends(get_cu
     count = await db.invoices.count_documents({"invoice_number": {"$regex": f"^INV-{year}"}})
     invoice_number = f"INV-{year}-{str(count + 1).zfill(4)}"
     
+    # Create invoice in draft status - NO stock deduction happens here
     invoice = Invoice(**invoice_data, invoice_number=invoice_number, created_by=current_user.id)
     await db.invoices.insert_one(invoice.model_dump())
     
-    for item in invoice.items:
-        if item.weight > 0:
-            movement = StockMovement(
-                movement_type="Stock OUT",
-                header_id="",
-                header_name=item.description,
-                description=f"Invoice {invoice_number}",
-                qty_delta=-item.qty,
-                weight_delta=-item.weight,
-                purity=item.purity,
-                reference_type="invoice",
-                reference_id=invoice.id,
-                created_by=current_user.id
-            )
-            await db.stock_movements.insert_one(movement.model_dump())
+    # Stock movements will ONLY happen when invoice is finalized via /invoices/{id}/finalize endpoint
     
     await create_audit_log(current_user.id, current_user.full_name, "invoice", invoice.id, "create")
     return invoice
