@@ -253,6 +253,8 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "PHASE COMPLETE: Fixed all requested issues. Backend: Added optional making_charge and VAT fields to JobCardItem (backward compatible). Frontend: Enhanced job card form with making charge type, value, VAT %, and remove item button. Implemented complete daily closing page. Improved invoice PDF generation with better formatting and error handling. All report APIs already exist. Ready for backend testing."
+  - agent: "main"
+    message: "CRITICAL BUSINESS LOGIC FIX IMPLEMENTED: Invoice state management now properly implemented. Invoices are created in 'draft' status with NO stock deduction. Stock OUT movements ONLY happen when invoice is explicitly finalized via new POST /api/invoices/{id}/finalize endpoint. Finalized invoices are immutable (cannot be edited or deleted). This ensures financial integrity and prevents premature inventory deduction. READY FOR COMPREHENSIVE TESTING - please test all invoice workflows: create draft, edit draft, finalize, attempt to edit finalized (should fail), verify stock movements only happen on finalization."
     implemented: false
     working: "NA"
     file: "backend/server.py"
