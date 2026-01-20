@@ -28,7 +28,11 @@ export default function JobCardsPage() {
   });
   const [formData, setFormData] = useState({
     card_type: 'individual',
+    customer_type: 'saved',  // 'saved' or 'walk_in'
     customer_id: '',
+    customer_name: '',
+    walk_in_name: '',
+    walk_in_phone: '',
     worker_id: '',
     delivery_date: '',
     notes: '',
