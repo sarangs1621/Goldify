@@ -231,6 +231,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "USER REPORTED ISSUES FIX - Two critical issues fixed: (1) EDIT/DELETE FUNCTIONALITY: Added missing Edit and Delete buttons in the Actions column of job cards table. Previously, the handleEditJobCard and handleDeleteJobCard functions existed but had no UI buttons to trigger them. Now shows Edit and Delete buttons for all unlocked job cards. Locked job cards display 'Locked' badge instead. Updated dialog title to show 'Edit Job Card' vs 'Create New Job Card' and button text changes to 'Update Job Card' vs 'Create Job Card'. (2) CATEGORY DROPDOWN: Replaced plain text Input field with Select dropdown for item categories. Now loads inventory headers from GET /api/inventory/headers and populates dropdown with available categories. Users can select from existing inventory categories (e.g., Gold 24K, Gold 22K, Silver, etc.) instead of manually typing. Default category uses first inventory header if available, fallback to 'Chain'. Both issues are now fully functional and ready for testing."
+      - working: true
+        agent: "main"
+        comment: "CONFIRMED WORKING - User tested and confirmed all fixes are working correctly: (1) Login issue resolved with admin user creation. (2) Edit/Delete buttons visible and functional for unlocked job cards. (3) Category dropdown populated from inventory headers. (4) Convert to Invoice button restored for all completed job cards (original behavior maintained). All features working as expected."
   
   - task: "Job Card Form - Remove Items"
     implemented: true
