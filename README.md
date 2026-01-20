@@ -1,5 +1,5 @@
 # Gold Inventory
 
 Project description...
-V5 updated
+V6 updated
 Backend and frontend structure...
