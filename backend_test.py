@@ -720,6 +720,919 @@ class GoldShopERPTester:
         
         return all(results) if results else True
 
+    def test_enhanced_invoice_finalization_job_card_locking(self):
+        """Test Scenario 1: Job Card Locking on Invoice Finalization"""
+        print("\n🔥 TESTING ENHANCED INVOICE FINALIZATION - JOB CARD LOCKING")
+        
+        # Create a customer party
+        customer_data = {
+            "name": f"Finalization Test Customer {datetime.now().strftime('%H%M%S')}",
+            "phone": "+968 9876 5432",
+            "address": "Test Address for Finalization",
+            "party_type": "customer",
+            "notes": "Customer for testing invoice finalization"
+        }
+        
+        success, customer = self.run_test(
+            "Create Customer for Finalization Test",
+            "POST",
+            "parties",
+            200,
+            data=customer_data
+        )
+        
+        if not success or not customer.get('id'):
+            return False
+        
+        customer_id = customer['id']
+        
+        # Create a job card linked to that customer
+        jobcard_data = {
+            "card_type": "individual",
+            "customer_id": customer_id,
+            "customer_name": customer['name'],
+            "delivery_date": "2025-01-20",
+            "notes": "Job card for finalization testing",
+            "items": [{
+                "category": "Ring",
+                "description": "Gold ring for finalization test",
+                "qty": 1,
+                "weight_in": 12.500,
+                "weight_out": 12.200,
+                "purity": 916,
+                "work_type": "polish",
+                "remarks": "Polish and clean for finalization test",
+                "making_charge_type": "flat",
+                "making_charge_value": 15.0,
+                "vat_percent": 5.0
+            }]
+        }
+        
+        success, jobcard = self.run_test(
+            "Create Job Card for Finalization Test",
+            "POST",
+            "jobcards",
+            200,
+            data=jobcard_data
+        )
+        
+        if not success or not jobcard.get('id'):
+            return False
+        
+        jobcard_id = jobcard['id']
+        
+        # Convert job card to invoice (should be draft status)
+        success, invoice = self.run_test(
+            "Convert Job Card to Invoice (Draft)",
+            "POST",
+            f"jobcards/{jobcard_id}/convert-to-invoice",
+            200
+        )
+        
+        if not success or not invoice.get('id'):
+            return False
+        
+        invoice_id = invoice['id']
+        
+        # Verify invoice is in draft status
+        if invoice.get('status') != 'draft':
+            print(f"❌ Invoice should be in draft status, got: {invoice.get('status')}")
+            return False
+        
+        print(f"✅ Invoice created in draft status: {invoice.get('status')}")
+        
+        # Finalize the invoice
+        success, finalized_invoice = self.run_test(
+            "Finalize Invoice (Atomic Operations)",
+            "POST",
+            f"invoices/{invoice_id}/finalize",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Verify invoice status changed to finalized
+        if finalized_invoice.get('status') != 'finalized':
+            print(f"❌ Invoice should be finalized, got: {finalized_invoice.get('status')}")
+            return False
+        
+        print(f"✅ Invoice finalized successfully: {finalized_invoice.get('status')}")
+        
+        # Verify job card status changed to "invoiced", locked=True, locked_at and locked_by are set
+        success, updated_jobcard = self.run_test(
+            "Get Updated Job Card (Should be Locked)",
+            "GET",
+            f"jobcards/{jobcard_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Check job card locking
+        if updated_jobcard.get('status') != 'invoiced':
+            print(f"❌ Job card status should be 'invoiced', got: {updated_jobcard.get('status')}")
+            return False
+        
+        if not updated_jobcard.get('locked'):
+            print(f"❌ Job card should be locked, got: {updated_jobcard.get('locked')}")
+            return False
+        
+        if not updated_jobcard.get('locked_at'):
+            print(f"❌ Job card should have locked_at timestamp")
+            return False
+        
+        if not updated_jobcard.get('locked_by'):
+            print(f"❌ Job card should have locked_by user ID")
+            return False
+        
+        print(f"✅ Job card locked successfully: status={updated_jobcard.get('status')}, locked={updated_jobcard.get('locked')}")
+        
+        # Try to edit the locked job card (should get 400 error)
+        success, error_response = self.run_test(
+            "Try to Edit Locked Job Card (Should Fail)",
+            "PATCH",
+            f"jobcards/{jobcard_id}",
+            400,  # Expecting 400 error
+            data={"notes": "Trying to edit locked job card"}
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error when editing locked job card")
+            return False
+        
+        print(f"✅ Locked job card correctly rejected edit attempt")
+        
+        # Try to delete the locked job card (should get 400 error)
+        success, error_response = self.run_test(
+            "Try to Delete Locked Job Card (Should Fail)",
+            "DELETE",
+            f"jobcards/{jobcard_id}",
+            400  # Expecting 400 error
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error when deleting locked job card")
+            return False
+        
+        print(f"✅ Locked job card correctly rejected delete attempt")
+        
+        # Store for other tests
+        self.finalization_test_data = {
+            'customer_id': customer_id,
+            'jobcard_id': jobcard_id,
+            'invoice_id': invoice_id
+        }
+        
+        return True
+
+    def test_enhanced_invoice_finalization_customer_ledger(self):
+        """Test Scenario 2: Customer Ledger Entry Creation"""
+        print("\n🔥 TESTING ENHANCED INVOICE FINALIZATION - CUSTOMER LEDGER ENTRY")
+        
+        if not hasattr(self, 'finalization_test_data'):
+            print("❌ Finalization test data not available, run job card locking test first")
+            return False
+        
+        customer_id = self.finalization_test_data['customer_id']
+        invoice_id = self.finalization_test_data['invoice_id']
+        
+        # Get the finalized invoice to check grand_total
+        success, invoice = self.run_test(
+            "Get Finalized Invoice Details",
+            "GET",
+            f"invoices/{invoice_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        grand_total = invoice.get('grand_total', 0)
+        customer_name = invoice.get('customer_name', '')
+        invoice_number = invoice.get('invoice_number', '')
+        
+        print(f"   Invoice grand_total: {grand_total}")
+        
+        # Get all transactions to find the ledger entry
+        success, transactions = self.run_test(
+            "Get All Transactions (Find Ledger Entry)",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find the transaction created for this invoice
+        ledger_entry = None
+        for txn in transactions:
+            if (txn.get('party_id') == customer_id and 
+                txn.get('category') == 'Sales Invoice' and
+                invoice_number in txn.get('notes', '')):
+                ledger_entry = txn
+                break
+        
+        if not ledger_entry:
+            print(f"❌ No ledger entry found for customer {customer_id} and invoice {invoice_number}")
+            return False
+        
+        # Verify Transaction record properties
+        if ledger_entry.get('party_id') != customer_id:
+            print(f"❌ Ledger entry party_id mismatch: expected {customer_id}, got {ledger_entry.get('party_id')}")
+            return False
+        
+        if ledger_entry.get('party_name') != customer_name:
+            print(f"❌ Ledger entry party_name mismatch: expected {customer_name}, got {ledger_entry.get('party_name')}")
+            return False
+        
+        if ledger_entry.get('amount') != grand_total:
+            print(f"❌ Ledger entry amount mismatch: expected {grand_total}, got {ledger_entry.get('amount')}")
+            return False
+        
+        if ledger_entry.get('category') != 'Sales Invoice':
+            print(f"❌ Ledger entry category mismatch: expected 'Sales Invoice', got {ledger_entry.get('category')}")
+            return False
+        
+        if ledger_entry.get('transaction_type') != 'debit':
+            print(f"❌ Ledger entry transaction_type mismatch: expected 'debit', got {ledger_entry.get('transaction_type')}")
+            return False
+        
+        # Check transaction number format (TXN-YYYY-NNNN)
+        txn_number = ledger_entry.get('transaction_number', '')
+        if not txn_number.startswith('TXN-2025-'):
+            print(f"❌ Transaction number format incorrect: {txn_number}")
+            return False
+        
+        # Check notes contains invoice number reference
+        notes = ledger_entry.get('notes', '')
+        if invoice_number not in notes:
+            print(f"❌ Transaction notes should contain invoice number {invoice_number}, got: {notes}")
+            return False
+        
+        print(f"✅ Ledger entry created correctly:")
+        print(f"   - Transaction Number: {txn_number}")
+        print(f"   - Amount: {ledger_entry.get('amount')}")
+        print(f"   - Type: {ledger_entry.get('transaction_type')}")
+        print(f"   - Category: {ledger_entry.get('category')}")
+        print(f"   - Notes: {notes}")
+        
+        # Get the party ledger and verify the transaction appears
+        success, party_ledger = self.run_test(
+            "Get Party Ledger (Verify Transaction)",
+            "GET",
+            f"parties/{customer_id}/ledger",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Check if the transaction appears in party ledger
+        ledger_transactions = party_ledger.get('transactions', [])
+        found_in_ledger = any(
+            txn.get('id') == ledger_entry.get('id') 
+            for txn in ledger_transactions
+        )
+        
+        if not found_in_ledger:
+            print(f"❌ Transaction not found in party ledger")
+            return False
+        
+        print(f"✅ Transaction appears in party ledger correctly")
+        
+        return True
+
+    def test_enhanced_invoice_finalization_outstanding_balance(self):
+        """Test Scenario 3: Outstanding Balance Tracking"""
+        print("\n🔥 TESTING ENHANCED INVOICE FINALIZATION - OUTSTANDING BALANCE TRACKING")
+        
+        if not hasattr(self, 'finalization_test_data'):
+            print("❌ Finalization test data not available")
+            return False
+        
+        customer_id = self.finalization_test_data['customer_id']
+        invoice_id = self.finalization_test_data['invoice_id']
+        
+        # Get the invoice to check balance_due
+        success, invoice = self.run_test(
+            "Get Invoice for Balance Check",
+            "GET",
+            f"invoices/{invoice_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        expected_balance = invoice.get('balance_due', 0)
+        print(f"   Expected outstanding balance: {expected_balance}")
+        
+        # Get party ledger to verify outstanding balance
+        success, party_ledger = self.run_test(
+            "Get Party Ledger for Outstanding Balance",
+            "GET",
+            f"parties/{customer_id}/ledger",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        actual_outstanding = party_ledger.get('outstanding', 0)
+        print(f"   Actual outstanding balance: {actual_outstanding}")
+        
+        if actual_outstanding != expected_balance:
+            print(f"❌ Outstanding balance mismatch: expected {expected_balance}, got {actual_outstanding}")
+            return False
+        
+        print(f"✅ Outstanding balance tracking working correctly: {actual_outstanding}")
+        
+        return True
+
+    def test_enhanced_invoice_finalization_direct_invoice(self):
+        """Test Scenario 4: Direct Invoice Finalization (No Job Card)"""
+        print("\n🔥 TESTING ENHANCED INVOICE FINALIZATION - DIRECT INVOICE (NO JOB CARD)")
+        
+        # Create a customer for direct invoice
+        customer_data = {
+            "name": f"Direct Invoice Customer {datetime.now().strftime('%H%M%S')}",
+            "phone": "+968 1111 2222",
+            "address": "Direct Invoice Address",
+            "party_type": "customer",
+            "notes": "Customer for direct invoice testing"
+        }
+        
+        success, customer = self.run_test(
+            "Create Customer for Direct Invoice",
+            "POST",
+            "parties",
+            200,
+            data=customer_data
+        )
+        
+        if not success or not customer.get('id'):
+            return False
+        
+        customer_id = customer['id']
+        
+        # Create a draft invoice without jobcard_id
+        invoice_data = {
+            "customer_id": customer_id,
+            "customer_name": customer['name'],
+            "invoice_type": "sale",
+            "items": [{
+                "description": "Direct sale gold item",
+                "qty": 1,
+                "weight": 10.0,
+                "purity": 916,
+                "metal_rate": 25.0,
+                "gold_value": 250.0,
+                "making_value": 20.0,
+                "vat_percent": 5.0,
+                "vat_amount": 13.5,
+                "line_total": 283.5
+            }],
+            "subtotal": 270.0,
+            "vat_total": 13.5,
+            "grand_total": 283.5,
+            "balance_due": 283.5,
+            "notes": "Direct invoice without job card"
+        }
+        
+        success, invoice = self.run_test(
+            "Create Direct Invoice (Draft)",
+            "POST",
+            "invoices",
+            200,
+            data=invoice_data
+        )
+        
+        if not success or not invoice.get('id'):
+            return False
+        
+        invoice_id = invoice['id']
+        
+        # Verify invoice is in draft status and has no jobcard_id
+        if invoice.get('status') != 'draft':
+            print(f"❌ Direct invoice should be in draft status, got: {invoice.get('status')}")
+            return False
+        
+        if invoice.get('jobcard_id'):
+            print(f"❌ Direct invoice should not have jobcard_id, got: {invoice.get('jobcard_id')}")
+            return False
+        
+        print(f"✅ Direct invoice created without job card: status={invoice.get('status')}")
+        
+        # Finalize the direct invoice
+        success, finalized_invoice = self.run_test(
+            "Finalize Direct Invoice",
+            "POST",
+            f"invoices/{invoice_id}/finalize",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Verify invoice is finalized
+        if finalized_invoice.get('status') != 'finalized':
+            print(f"❌ Direct invoice should be finalized, got: {finalized_invoice.get('status')}")
+            return False
+        
+        print(f"✅ Direct invoice finalized successfully")
+        
+        # Verify stock movements were created
+        success, movements = self.run_test(
+            "Get Stock Movements (Direct Invoice)",
+            "GET",
+            "inventory/movements",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find stock movements for this invoice
+        invoice_movements = [
+            m for m in movements 
+            if m.get('reference_type') == 'invoice' and m.get('reference_id') == invoice_id
+        ]
+        
+        if not invoice_movements:
+            print(f"❌ No stock movements found for direct invoice {invoice_id}")
+            return False
+        
+        print(f"✅ Stock movements created for direct invoice: {len(invoice_movements)} movements")
+        
+        # Verify ledger entry was created
+        success, transactions = self.run_test(
+            "Get Transactions (Direct Invoice Ledger)",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find ledger entry for this invoice
+        invoice_number = finalized_invoice.get('invoice_number', '')
+        ledger_entry = None
+        for txn in transactions:
+            if (txn.get('party_id') == customer_id and 
+                txn.get('category') == 'Sales Invoice' and
+                invoice_number in txn.get('notes', '')):
+                ledger_entry = txn
+                break
+        
+        if not ledger_entry:
+            print(f"❌ No ledger entry found for direct invoice")
+            return False
+        
+        print(f"✅ Ledger entry created for direct invoice: {ledger_entry.get('transaction_number')}")
+        
+        # Verify no job card locking was attempted (should not cause errors)
+        print(f"✅ Direct invoice finalization completed without job card locking")
+        
+        return True
+
+    def test_enhanced_invoice_finalization_sales_account(self):
+        """Test Scenario 5: Default Sales Account Creation"""
+        print("\n🔥 TESTING ENHANCED INVOICE FINALIZATION - DEFAULT SALES ACCOUNT CREATION")
+        
+        # Check if "Sales" account exists
+        success, accounts = self.run_test(
+            "Get All Accounts (Check Sales Account)",
+            "GET",
+            "accounts",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Look for Sales account
+        sales_account = None
+        for account in accounts:
+            if account.get('name') == 'Sales':
+                sales_account = account
+                break
+        
+        if sales_account:
+            print(f"✅ Sales account already exists: {sales_account.get('id')}")
+            
+            # Verify account properties
+            if sales_account.get('account_type') != 'asset':
+                print(f"❌ Sales account should be 'asset' type, got: {sales_account.get('account_type')}")
+                return False
+            
+            print(f"✅ Sales account has correct properties: type={sales_account.get('account_type')}")
+        else:
+            print(f"ℹ️  Sales account does not exist, will be created during invoice finalization")
+            
+            # Create a test invoice to trigger Sales account creation
+            customer_data = {
+                "name": f"Sales Account Test Customer {datetime.now().strftime('%H%M%S')}",
+                "phone": "+968 3333 4444",
+                "address": "Sales Account Test Address",
+                "party_type": "customer"
+            }
+            
+            success, customer = self.run_test(
+                "Create Customer for Sales Account Test",
+                "POST",
+                "parties",
+                200,
+                data=customer_data
+            )
+            
+            if not success:
+                return False
+            
+            # Create and finalize invoice to trigger Sales account creation
+            invoice_data = {
+                "customer_id": customer['id'],
+                "customer_name": customer['name'],
+                "invoice_type": "sale",
+                "items": [{
+                    "description": "Test item for sales account creation",
+                    "qty": 1,
+                    "weight": 5.0,
+                    "purity": 916,
+                    "metal_rate": 20.0,
+                    "gold_value": 100.0,
+                    "making_value": 10.0,
+                    "vat_percent": 5.0,
+                    "vat_amount": 5.5,
+                    "line_total": 115.5
+                }],
+                "subtotal": 110.0,
+                "vat_total": 5.5,
+                "grand_total": 115.5,
+                "balance_due": 115.5
+            }
+            
+            success, invoice = self.run_test(
+                "Create Invoice for Sales Account Test",
+                "POST",
+                "invoices",
+                200,
+                data=invoice_data
+            )
+            
+            if not success:
+                return False
+            
+            # Finalize invoice to trigger Sales account creation
+            success, finalized = self.run_test(
+                "Finalize Invoice (Create Sales Account)",
+                "POST",
+                f"invoices/{invoice['id']}/finalize",
+                200
+            )
+            
+            if not success:
+                return False
+            
+            # Check if Sales account was created
+            success, updated_accounts = self.run_test(
+                "Get Accounts After Finalization",
+                "GET",
+                "accounts",
+                200
+            )
+            
+            if not success:
+                return False
+            
+            # Look for newly created Sales account
+            new_sales_account = None
+            for account in updated_accounts:
+                if account.get('name') == 'Sales':
+                    new_sales_account = account
+                    break
+            
+            if not new_sales_account:
+                print(f"❌ Sales account was not created during invoice finalization")
+                return False
+            
+            # Verify account properties
+            if new_sales_account.get('account_type') != 'asset':
+                print(f"❌ Created Sales account should be 'asset' type, got: {new_sales_account.get('account_type')}")
+                return False
+            
+            print(f"✅ Sales account created successfully during finalization:")
+            print(f"   - ID: {new_sales_account.get('id')}")
+            print(f"   - Name: {new_sales_account.get('name')}")
+            print(f"   - Type: {new_sales_account.get('account_type')}")
+        
+        return True
+
+    def test_enhanced_invoice_finalization_full_workflow(self):
+        """Test Scenario 6: Full Workflow Test"""
+        print("\n🔥 TESTING ENHANCED INVOICE FINALIZATION - FULL WORKFLOW")
+        
+        # Create customer party
+        customer_data = {
+            "name": f"Full Workflow Customer {datetime.now().strftime('%H%M%S')}",
+            "phone": "+968 5555 6666",
+            "address": "Full Workflow Address",
+            "party_type": "customer",
+            "notes": "Customer for full workflow testing"
+        }
+        
+        success, customer = self.run_test(
+            "Full Workflow: Create Customer",
+            "POST",
+            "parties",
+            200,
+            data=customer_data
+        )
+        
+        if not success:
+            return False
+        
+        customer_id = customer['id']
+        
+        # Create job card
+        jobcard_data = {
+            "card_type": "individual",
+            "customer_id": customer_id,
+            "customer_name": customer['name'],
+            "delivery_date": "2025-01-25",
+            "notes": "Full workflow job card",
+            "items": [{
+                "category": "Necklace",
+                "description": "Gold necklace for full workflow test",
+                "qty": 1,
+                "weight_in": 25.500,
+                "weight_out": 25.200,
+                "purity": 916,
+                "work_type": "repair",
+                "remarks": "Full repair and polish",
+                "making_charge_type": "per_gram",
+                "making_charge_value": 3.0,
+                "vat_percent": 5.0
+            }]
+        }
+        
+        success, jobcard = self.run_test(
+            "Full Workflow: Create Job Card",
+            "POST",
+            "jobcards",
+            200,
+            data=jobcard_data
+        )
+        
+        if not success:
+            return False
+        
+        jobcard_id = jobcard['id']
+        
+        # Convert to invoice (draft)
+        success, invoice = self.run_test(
+            "Full Workflow: Convert to Invoice (Draft)",
+            "POST",
+            f"jobcards/{jobcard_id}/convert-to-invoice",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        invoice_id = invoice['id']
+        
+        # Verify: invoice status="draft", NO stock movements yet
+        if invoice.get('status') != 'draft':
+            print(f"❌ Invoice should be draft, got: {invoice.get('status')}")
+            return False
+        
+        print(f"✅ Invoice created in draft status: {invoice.get('status')}")
+        
+        # Check that no stock movements exist for this invoice yet
+        success, movements_before = self.run_test(
+            "Full Workflow: Check Stock Movements Before Finalization",
+            "GET",
+            "inventory/movements",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        invoice_movements_before = [
+            m for m in movements_before 
+            if m.get('reference_type') == 'invoice' and m.get('reference_id') == invoice_id
+        ]
+        
+        if invoice_movements_before:
+            print(f"❌ No stock movements should exist before finalization, found: {len(invoice_movements_before)}")
+            return False
+        
+        print(f"✅ No stock movements exist before finalization (correct)")
+        
+        # Finalize invoice
+        success, finalized_invoice = self.run_test(
+            "Full Workflow: Finalize Invoice (All Atomic Operations)",
+            "POST",
+            f"invoices/{invoice_id}/finalize",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Verify ALL atomic operations:
+        
+        # 1. Invoice status="finalized"
+        if finalized_invoice.get('status') != 'finalized':
+            print(f"❌ Invoice should be finalized, got: {finalized_invoice.get('status')}")
+            return False
+        
+        print(f"✅ Operation 1: Invoice status finalized")
+        
+        # 2. Stock OUT movements created with negative values
+        success, movements_after = self.run_test(
+            "Full Workflow: Check Stock Movements After Finalization",
+            "GET",
+            "inventory/movements",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        invoice_movements_after = [
+            m for m in movements_after 
+            if m.get('reference_type') == 'invoice' and m.get('reference_id') == invoice_id
+        ]
+        
+        if not invoice_movements_after:
+            print(f"❌ Stock movements should exist after finalization")
+            return False
+        
+        # Check that movements have negative values (Stock OUT)
+        for movement in invoice_movements_after:
+            if movement.get('qty_delta', 0) >= 0 or movement.get('weight_delta', 0) >= 0:
+                print(f"❌ Stock movements should have negative values (OUT), got qty: {movement.get('qty_delta')}, weight: {movement.get('weight_delta')}")
+                return False
+        
+        print(f"✅ Operation 2: Stock OUT movements created with negative values: {len(invoice_movements_after)} movements")
+        
+        # 3. Job card locked (status="invoiced", locked=True)
+        success, locked_jobcard = self.run_test(
+            "Full Workflow: Check Job Card Locking",
+            "GET",
+            f"jobcards/{jobcard_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        if locked_jobcard.get('status') != 'invoiced' or not locked_jobcard.get('locked'):
+            print(f"❌ Job card should be locked with status 'invoiced', got status: {locked_jobcard.get('status')}, locked: {locked_jobcard.get('locked')}")
+            return False
+        
+        print(f"✅ Operation 3: Job card locked (status={locked_jobcard.get('status')}, locked={locked_jobcard.get('locked')})")
+        
+        # 4. Transaction/ledger entry created
+        success, transactions = self.run_test(
+            "Full Workflow: Check Ledger Entry Creation",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        invoice_number = finalized_invoice.get('invoice_number', '')
+        ledger_entry = None
+        for txn in transactions:
+            if (txn.get('party_id') == customer_id and 
+                txn.get('category') == 'Sales Invoice' and
+                invoice_number in txn.get('notes', '')):
+                ledger_entry = txn
+                break
+        
+        if not ledger_entry:
+            print(f"❌ Ledger entry should be created for finalized invoice")
+            return False
+        
+        print(f"✅ Operation 4: Ledger entry created ({ledger_entry.get('transaction_number')})")
+        
+        # 5. Party outstanding balance updated
+        success, party_ledger = self.run_test(
+            "Full Workflow: Check Outstanding Balance Update",
+            "GET",
+            f"parties/{customer_id}/ledger",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        outstanding = party_ledger.get('outstanding', 0)
+        expected_outstanding = finalized_invoice.get('balance_due', 0)
+        
+        if outstanding != expected_outstanding:
+            print(f"❌ Outstanding balance mismatch: expected {expected_outstanding}, got {outstanding}")
+            return False
+        
+        print(f"✅ Operation 5: Outstanding balance updated correctly: {outstanding}")
+        
+        print(f"🎉 ALL 5 ATOMIC OPERATIONS COMPLETED SUCCESSFULLY!")
+        
+        return True
+
+    def test_enhanced_invoice_finalization_error_cases(self):
+        """Test Error Cases for Enhanced Invoice Finalization"""
+        print("\n🔥 TESTING ENHANCED INVOICE FINALIZATION - ERROR CASES")
+        
+        results = []
+        
+        # Error Case 1: Attempt to edit locked job card (should return 400)
+        if hasattr(self, 'finalization_test_data'):
+            jobcard_id = self.finalization_test_data['jobcard_id']
+            
+            success, _ = self.run_test(
+                "Error Case: Edit Locked Job Card",
+                "PATCH",
+                f"jobcards/{jobcard_id}",
+                400,  # Expecting 400 error
+                data={"notes": "Attempting to edit locked job card"}
+            )
+            results.append(success)
+            
+            # Error Case 2: Attempt to delete locked job card (should return 400)
+            success, _ = self.run_test(
+                "Error Case: Delete Locked Job Card",
+                "DELETE",
+                f"jobcards/{jobcard_id}",
+                400  # Expecting 400 error
+            )
+            results.append(success)
+            
+            # Error Case 3: Attempt to finalize already finalized invoice
+            invoice_id = self.finalization_test_data['invoice_id']
+            
+            success, _ = self.run_test(
+                "Error Case: Re-finalize Already Finalized Invoice",
+                "POST",
+                f"invoices/{invoice_id}/finalize",
+                400  # Expecting 400 error
+            )
+            results.append(success)
+        
+        # Error Case 4: Finalize invoice without customer_id (should skip ledger entry gracefully)
+        invoice_data = {
+            "invoice_type": "sale",
+            "items": [{
+                "description": "Test item without customer",
+                "qty": 1,
+                "weight": 5.0,
+                "purity": 916,
+                "metal_rate": 20.0,
+                "gold_value": 100.0,
+                "making_value": 10.0,
+                "vat_percent": 5.0,
+                "vat_amount": 5.5,
+                "line_total": 115.5
+            }],
+            "subtotal": 110.0,
+            "vat_total": 5.5,
+            "grand_total": 115.5,
+            "balance_due": 115.5,
+            "notes": "Invoice without customer for error testing"
+        }
+        
+        success, invoice = self.run_test(
+            "Error Case: Create Invoice Without Customer",
+            "POST",
+            "invoices",
+            200,
+            data=invoice_data
+        )
+        
+        if success:
+            # This should succeed but skip ledger entry creation
+            success, finalized = self.run_test(
+                "Error Case: Finalize Invoice Without Customer (Should Skip Ledger)",
+                "POST",
+                f"invoices/{invoice['id']}/finalize",
+                200  # Should succeed but skip ledger entry
+            )
+            results.append(success)
+            
+            if success:
+                print(f"✅ Invoice without customer finalized gracefully (ledger entry skipped)")
+        
+        return all(results) if results else True
+
     def run_all_tests(self):
         """Run all tests in sequence"""
         print("🚀 Starting Gold Shop ERP Backend Tests")
