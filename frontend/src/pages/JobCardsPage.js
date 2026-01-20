@@ -352,6 +352,21 @@ export default function JobCardsPage() {
                 />
               </div>
               <div>
+                <Label>Status</Label>
+                <Select value={formData.status} onValueChange={(val) => setFormData({...formData, status: val})}>
+                  <SelectTrigger data-testid="status-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="created">Created</SelectItem>
+                    <SelectItem value="in progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="delivered">Delivered</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label>Notes</Label>
                 <Input
                   value={formData.notes}
