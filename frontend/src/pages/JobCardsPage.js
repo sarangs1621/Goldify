@@ -335,7 +335,7 @@ export default function JobCardsPage() {
                             data-testid={`convert-${jc.job_card_number}`}
                             size="sm"
                             variant="outline"
-                            onClick={() => handleConvertToInvoice(jc.id)}
+                            onClick={() => handleConvertToInvoice(jc)}
                           >
                             <FileText className="w-4 h-4 mr-1" /> Convert to Invoice
                           </Button>
