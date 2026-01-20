@@ -206,16 +206,35 @@ export default function InvoicesPage() {
                     <td className="px-4 py-3 capitalize text-sm">{inv.invoice_type}</td>
                     <td className="px-4 py-3 text-right font-mono">{inv.grand_total.toFixed(3)}</td>
                     <td className="px-4 py-3 text-right font-mono">{inv.balance_due.toFixed(3)}</td>
+                    <td className="px-4 py-3">{getInvoiceStatusBadge(inv.status || 'draft')}</td>
                     <td className="px-4 py-3">{getPaymentStatusBadge(inv.payment_status)}</td>
                     <td className="px-4 py-3">
-                      <Button
-                        data-testid={`print-${inv.invoice_number}`}
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handlePrintInvoice(inv)}
-                      >
-                        <Printer className="w-4 h-4 mr-1" /> Print
-                      </Button>
+                      <div className="flex gap-2">
+                        {(inv.status === 'draft' || !inv.status) && (
+                          <Button
+                            data-testid={`finalize-${inv.invoice_number}`}
+                            size="sm"
+                            variant="default"
+                            className="bg-emerald-600 hover:bg-emerald-700"
+                            onClick={() => handleFinalizeInvoice(inv.id, inv.invoice_number)}
+                            disabled={finalizing === inv.id}
+                          >
+                            {finalizing === inv.id ? (
+                              <>Processing...</>
+                            ) : (
+                              <><CheckCircle className="w-4 h-4 mr-1" /> Finalize</>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          data-testid={`print-${inv.invoice_number}`}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePrintInvoice(inv)}
+                        >
+                          <Printer className="w-4 h-4 mr-1" /> Print
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
