@@ -591,16 +591,49 @@ async def delete_jobcard(jobcard_id: str, current_user: User = Depends(get_curre
     if not existing:
         raise HTTPException(status_code=404, detail="Job card not found")
     
-    # Prevent deleting locked job cards
+    # Check if job card is locked (linked to finalized invoice)
     if existing.get("locked", False):
-        raise HTTPException(
-            status_code=400, 
-            detail="Cannot delete locked job card. This job card is linked to a finalized invoice."
-        )
+        # Admin override: Allow admins to delete locked job cards
+        if current_user.role == 'admin':
+            # Perform the delete (soft delete)
+            await db.jobcards.update_one(
+                {"id": jobcard_id},
+                {"$set": {"is_deleted": True, "deleted_at": datetime.now(timezone.utc), "deleted_by": current_user.id}}
+            )
+            
+            # Log admin override with special action
+            override_details = {
+                "action": "admin_override_delete_locked_jobcard",
+                "reason": "Admin deleted a locked job card that is linked to a finalized invoice",
+                "locked_at": existing.get("locked_at"),
+                "locked_by": existing.get("locked_by"),
+                "jobcard_number": existing.get("job_card_number"),
+                "customer_name": existing.get("customer_name")
+            }
+            await create_audit_log(
+                current_user.id, 
+                current_user.full_name, 
+                "jobcard", 
+                jobcard_id, 
+                "admin_override_delete", 
+                override_details
+            )
+            
+            return {
+                "message": "Job card deleted successfully (admin override)",
+                "warning": "This job card was locked and linked to a finalized invoice"
+            }
+        else:
+            # Non-admin users cannot delete locked job cards
+            raise HTTPException(
+                status_code=403, 
+                detail="Cannot delete locked job card. This job card is linked to a finalized invoice. Only admins can override."
+            )
     
+    # Normal delete for unlocked job cards
     await db.jobcards.update_one(
         {"id": jobcard_id},
-        {"$set": {"is_deleted": True}}
+        {"$set": {"is_deleted": True, "deleted_at": datetime.now(timezone.utc), "deleted_by": current_user.id}}
     )
     await create_audit_log(current_user.id, current_user.full_name, "jobcard", jobcard_id, "delete")
     return {"message": "Job card deleted successfully"}
