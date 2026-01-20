@@ -783,7 +783,12 @@ async def generate_invoice_pdf(invoice_id: str, current_user: User = Depends(get
     p.setFont("Helvetica-Bold", 16)
     p.drawString(50, height - 120, f"Invoice #{invoice.get('invoice_number', '')}")
     p.setFont("Helvetica", 10)
-    p.drawString(50, height - 140, f"Date: {invoice.get('date', '')[:10]}")
+    invoice_date = invoice.get('date', '')
+    if isinstance(invoice_date, str):
+        date_str = invoice_date[:10]
+    else:
+        date_str = str(invoice_date)[:10]
+    p.drawString(50, height - 140, f"Date: {date_str}")
     p.drawString(50, height - 155, f"Customer: {invoice.get('customer_name', 'N/A')}")
     p.drawString(50, height - 170, f"Type: {invoice.get('invoice_type', 'sale').upper()}")
     p.drawString(50, height - 185, f"Status: {invoice.get('payment_status', 'unpaid').upper()}")
