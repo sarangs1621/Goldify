@@ -28,6 +28,7 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     loadInvoices();
+    loadAccounts();
   }, []);
 
   const loadInvoices = async () => {
@@ -36,6 +37,15 @@ export default function InvoicesPage() {
       setInvoices(response.data);
     } catch (error) {
       toast.error('Failed to load invoices');
+    }
+  };
+
+  const loadAccounts = async () => {
+    try {
+      const response = await axios.get(`${API}/accounts`);
+      setAccounts(response.data);
+    } catch (error) {
+      console.error('Failed to load accounts:', error);
     }
   };
 
