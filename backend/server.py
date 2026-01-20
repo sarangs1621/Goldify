@@ -996,6 +996,141 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
     updated_invoice = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
     return decimal_to_float(updated_invoice)
 
+@api_router.post("/invoices/{invoice_id}/add-payment")
+async def add_payment_to_invoice(
+    invoice_id: str, 
+    payment_data: dict, 
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Add payment to an invoice and create a transaction record.
+    
+    Required fields in payment_data:
+    - amount: float
+    - payment_mode: str (Cash, Bank Transfer, Card, UPI/Online, Cheque)
+    - account_id: str (which account receives the payment)
+    - notes: Optional[str]
+    
+    For walk-in customers: Recommend full payment but allow partial
+    For saved customers: Allow partial payments (outstanding tracked in ledger)
+    """
+    # Validate required fields
+    if not payment_data.get('amount') or payment_data['amount'] <= 0:
+        raise HTTPException(status_code=400, detail="Payment amount must be greater than 0")
+    
+    if not payment_data.get('payment_mode'):
+        raise HTTPException(status_code=400, detail="Payment mode is required")
+    
+    if not payment_data.get('account_id'):
+        raise HTTPException(status_code=400, detail="Account ID is required")
+    
+    # Fetch invoice
+    existing = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    invoice = Invoice(**decimal_to_float(existing))
+    
+    # Calculate new paid amount and balance
+    payment_amount = float(payment_data['amount'])
+    new_paid_amount = invoice.paid_amount + payment_amount
+    new_balance_due = invoice.grand_total - new_paid_amount
+    
+    # Validate payment doesn't exceed balance
+    if new_balance_due < -0.01:  # Allow small rounding errors
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Payment amount ({payment_amount}) exceeds remaining balance ({invoice.balance_due})"
+        )
+    
+    # Fetch account
+    account = await db.accounts.find_one({"id": payment_data['account_id'], "is_deleted": False}, {"_id": 0})
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Determine party details based on customer type
+    party_id = None
+    party_name = ""
+    
+    if invoice.customer_type == "saved":
+        party_id = invoice.customer_id
+        party_name = invoice.customer_name or "Unknown Customer"
+    else:  # walk_in
+        party_id = None
+        party_name = f"{invoice.walk_in_name or 'Walk-in Customer'} (Walk-in)"
+    
+    # Generate transaction number
+    year = datetime.now(timezone.utc).year
+    count = await db.transactions.count_documents({"transaction_number": {"$regex": f"^TXN-{year}"}})
+    transaction_number = f"TXN-{year}-{str(count + 1).zfill(4)}"
+    
+    # Create transaction record
+    transaction = Transaction(
+        transaction_number=transaction_number,
+        transaction_type="credit",  # Money coming in
+        mode=payment_data['payment_mode'],
+        account_id=payment_data['account_id'],
+        account_name=account['name'],
+        party_id=party_id,
+        party_name=party_name,
+        amount=payment_amount,
+        category="Invoice Payment",
+        notes=f"Payment for {invoice.invoice_number}. {payment_data.get('notes', '')}".strip(),
+        created_by=current_user.id
+    )
+    
+    # Insert transaction
+    await db.transactions.insert_one(transaction.model_dump())
+    
+    # Update invoice payment details
+    new_payment_status = "paid" if new_balance_due < 0.01 else "partial"
+    await db.invoices.update_one(
+        {"id": invoice_id},
+        {
+            "$set": {
+                "paid_amount": new_paid_amount,
+                "balance_due": max(0, new_balance_due),  # Ensure no negative balance
+                "payment_status": new_payment_status
+            }
+        }
+    )
+    
+    # Create audit logs
+    await create_audit_log(
+        current_user.id,
+        current_user.full_name,
+        "transaction",
+        transaction.id,
+        "create",
+        {"invoice_id": invoice_id, "payment_amount": payment_amount}
+    )
+    
+    await create_audit_log(
+        current_user.id,
+        current_user.full_name,
+        "invoice",
+        invoice_id,
+        "add_payment",
+        {
+            "amount": payment_amount,
+            "new_paid_amount": new_paid_amount,
+            "new_balance_due": max(0, new_balance_due),
+            "payment_mode": payment_data['payment_mode']
+        }
+    )
+    
+    # Return success response with updated invoice details
+    return {
+        "message": "Payment added successfully",
+        "transaction_id": transaction.id,
+        "transaction_number": transaction_number,
+        "new_paid_amount": new_paid_amount,
+        "new_balance_due": max(0, new_balance_due),
+        "payment_status": new_payment_status,
+        "is_walk_in_partial_payment": invoice.customer_type == "walk_in" and new_balance_due > 0.01
+    }
+
+
 @api_router.delete("/invoices/{invoice_id}")
 async def delete_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
     existing = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
