@@ -144,8 +144,11 @@ class JobCard(BaseModel):
     date_created: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     delivery_date: Optional[datetime] = None
     status: str = "created"
-    customer_id: Optional[str] = None
-    customer_name: Optional[str] = None
+    customer_type: str = "saved"  # "saved" or "walk_in"
+    customer_id: Optional[str] = None  # For saved customers only
+    customer_name: Optional[str] = None  # For saved customers only
+    walk_in_name: Optional[str] = None  # For walk-in customers only
+    walk_in_phone: Optional[str] = None  # For walk-in customers only
     worker_id: Optional[str] = None
     worker_name: Optional[str] = None
     items: List[JobCardItem] = []
