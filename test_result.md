@@ -126,11 +126,14 @@ backend:
     file: "backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Added optional fields to JobCardItem: making_charge_type (flat/per_gram), making_charge_value, vat_percent, vat_amount. All fields are optional for backward compatibility. Updated convert_jobcard_to_invoice to use new fields if present."
+      - working: true
+        agent: "testing"
+        comment: "TESTED - Job card creation with new making charge and VAT fields working correctly. ✅ Flat making charge calculation working. ✅ Per-gram making charge calculation working. ✅ Backward compatibility maintained (job cards without new fields work). ✅ Job card to invoice conversion handles all scenarios correctly. Fixed minor null handling issue in VAT calculation."
   
   - task: "Daily Closing APIs"
     implemented: true
