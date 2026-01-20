@@ -731,7 +731,7 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
     )
     
     # Fetch and return updated invoice
-    updated_invoice = await db.invoices.find_one({"id": invoice_id})
+    updated_invoice = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
     return decimal_to_float(updated_invoice)
 
 @api_router.delete("/invoices/{invoice_id}")
