@@ -202,6 +202,18 @@ backend:
         comment: "TESTED - All report APIs working correctly. ✅ Financial summary with/without date filters. ✅ Inventory view with multiple filter options. ✅ Invoices view with date/status filters. ✅ Parties view with type filters. ✅ Transactions view with date/type filters. ✅ All export endpoints (Excel) working. ✅ Individual report endpoints (invoice, party ledger, inventory stock) working. Overall backend test success rate: 93.6% (44/47 tests passed)."
 
 frontend:
+  - task: "Invoice Finalization UI - Critical User Workflow Fix"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/InvoicesPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "CRITICAL FIX - Added missing invoice finalization UI that was preventing users from finalizing invoices. Changes: (1) Added invoice status badge column showing 'Draft' (blue) or 'Finalized' (green with lock icon). (2) Added 'Finalize' button for draft invoices with confirmation dialog explaining all consequences (stock deduction, invoice lock, job card lock, ledger entry creation). (3) Separated invoice status from payment status for clarity. (4) Added informational card explaining Draft vs Finalized workflow. (5) Button shows loading state while finalizing and is disabled during process. (6) Finalized invoices only show Print button, draft invoices show both Finalize and Print buttons. This completes the full invoice state management implementation - backend was correct but frontend lacked the UI to trigger finalization, meaning all invoices stayed in draft state forever with no stock deduction happening. Now users can properly finalize invoices through a clear, safe workflow."
+
   - task: "Job Card Form - Making Charge & VAT Fields"
     implemented: true
     working: true
