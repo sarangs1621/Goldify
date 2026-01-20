@@ -2636,6 +2636,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_db_init():
+    """Initialize database with default users on startup"""
+    try:
+        from init_db import initialize_database
+        await initialize_database()
+    except Exception as e:
+        logger.warning(f"Database initialization warning: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
