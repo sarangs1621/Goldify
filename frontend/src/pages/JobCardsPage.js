@@ -246,16 +246,51 @@ export default function JobCardsPage() {
                     <td className="px-4 py-3">{getStatusBadge(jc.status)}</td>
                     <td className="px-4 py-3 text-sm">{jc.items.length} items</td>
                     <td className="px-4 py-3">
-                      {jc.status === 'completed' && (
-                        <Button
-                          data-testid={`convert-${jc.job_card_number}`}
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleConvertToInvoice(jc.id)}
-                        >
-                          <FileText className="w-4 h-4 mr-1" /> Convert to Invoice
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {/* Edit button - show for all unlocked job cards */}
+                        {!jc.locked && (
+                          <Button
+                            data-testid={`edit-${jc.job_card_number}`}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditJobCard(jc)}
+                          >
+                            <Edit className="w-4 h-4 mr-1" /> Edit
+                          </Button>
+                        )}
+                        
+                        {/* Delete button - show for all unlocked job cards */}
+                        {!jc.locked && (
+                          <Button
+                            data-testid={`delete-${jc.job_card_number}`}
+                            size="sm"
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteJobCard(jc.id, jc.job_card_number)}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" /> Delete
+                          </Button>
+                        )}
+                        
+                        {/* Convert to Invoice button - only for completed unlocked job cards */}
+                        {jc.status === 'completed' && !jc.locked && (
+                          <Button
+                            data-testid={`convert-${jc.job_card_number}`}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleConvertToInvoice(jc.id)}
+                          >
+                            <FileText className="w-4 h-4 mr-1" /> Convert to Invoice
+                          </Button>
+                        )}
+                        
+                        {/* Locked indicator */}
+                        {jc.locked && (
+                          <Badge className="bg-gray-100 text-gray-700">
+                            <AlertTriangle className="w-3 h-3 mr-1" /> Locked
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
