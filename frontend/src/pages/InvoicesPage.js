@@ -192,7 +192,8 @@ export default function InvoicesPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Type</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Grand Total</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Balance Due</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Invoice Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Payment Status</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Actions</th>
                 </tr>
               </thead>
