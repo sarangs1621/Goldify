@@ -156,11 +156,14 @@ backend:
     file: "backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "PDF generation endpoint exists at /api/invoices/{invoice_id}/pdf using reportlab"
+      - working: true
+        agent: "testing"
+        comment: "TESTED - Invoice PDF generation working correctly. ✅ GET /api/invoices/{id}/pdf generates PDF successfully. ✅ Proper formatting and content. Fixed font name issue (Helvetica-Italic -> Helvetica-Oblique) and datetime handling."
   
   - task: "Reports APIs (View & Export)"
     implemented: true
