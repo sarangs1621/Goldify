@@ -686,15 +686,21 @@ async def convert_jobcard_to_invoice(jobcard_id: str, invoice_data: dict, curren
     if not jobcard:
         raise HTTPException(status_code=404, detail="Job card not found")
     
-    # Extract customer type and details from invoice_data
-    customer_type = invoice_data.get('customer_type', 'saved')
+    # Use customer type from job card (or allow override from invoice_data)
+    customer_type = invoice_data.get('customer_type', jobcard.get('customer_type', 'saved'))
     
-    # Validate customer data based on type
+    # Validate and get customer data
     if customer_type == 'saved':
-        if not invoice_data.get('customer_id'):
+        # Use job card customer or require in invoice_data
+        customer_id = invoice_data.get('customer_id', jobcard.get('customer_id'))
+        customer_name = invoice_data.get('customer_name', jobcard.get('customer_name'))
+        if not customer_id:
             raise HTTPException(status_code=400, detail="customer_id is required for saved customers")
     elif customer_type == 'walk_in':
-        if not invoice_data.get('walk_in_name'):
+        # Use job card walk-in data or require in invoice_data
+        walk_in_name = invoice_data.get('walk_in_name', jobcard.get('walk_in_name'))
+        walk_in_phone = invoice_data.get('walk_in_phone', jobcard.get('walk_in_phone', ''))
+        if not walk_in_name:
             raise HTTPException(status_code=400, detail="walk_in_name is required for walk-in customers")
     
     year = datetime.now(timezone.utc).year
