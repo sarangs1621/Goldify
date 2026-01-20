@@ -343,7 +343,7 @@ export default function ReportsPageEnhanced() {
                 <SelectValue placeholder="Select period" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Time</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
                 <SelectItem value="today">Today</SelectItem>
                 <SelectItem value="yesterday">Yesterday</SelectItem>
                 <SelectItem value="this_week">This Week</SelectItem>
@@ -384,7 +384,7 @@ export default function ReportsPageEnhanced() {
                   <SelectValue placeholder="All Parties" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Parties</SelectItem>
+                  <SelectItem value="all">All Parties</SelectItem>
                   {parties.map(party => (
                     <SelectItem key={party.id} value={party.id}>
                       {party.name} ({party.party_type})
@@ -591,7 +591,7 @@ export default function ReportsPageEnhanced() {
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="customer">Customers Only</SelectItem>
                       <SelectItem value="vendor">Vendors Only</SelectItem>
                     </SelectContent>
@@ -774,7 +774,7 @@ export default function ReportsPageEnhanced() {
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="sale">Sale</SelectItem>
                       <SelectItem value="purchase">Purchase</SelectItem>
                     </SelectContent>
@@ -787,7 +787,7 @@ export default function ReportsPageEnhanced() {
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Status</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="partial">Partial</SelectItem>
                       <SelectItem value="unpaid">Unpaid</SelectItem>
@@ -919,7 +919,7 @@ export default function ReportsPageEnhanced() {
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="customer">Customers</SelectItem>
                       <SelectItem value="vendor">Vendors</SelectItem>
                     </SelectContent>
@@ -1005,7 +1005,7 @@ export default function ReportsPageEnhanced() {
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="credit">Credit</SelectItem>
                       <SelectItem value="debit">Debit</SelectItem>
                     </SelectContent>
@@ -1128,7 +1128,7 @@ export default function ReportsPageEnhanced() {
                       <SelectValue placeholder="All Types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       <SelectItem value="Stock IN">Stock IN</SelectItem>
                       <SelectItem value="Stock OUT">Stock OUT</SelectItem>
                     </SelectContent>
@@ -1141,7 +1141,7 @@ export default function ReportsPageEnhanced() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       {categories.map(cat => (
                         <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                       ))}
