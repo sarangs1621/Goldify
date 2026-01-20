@@ -1541,6 +1541,7 @@ async def view_inventory_report(
     end_date: Optional[str] = None,
     movement_type: Optional[str] = None,
     category: Optional[str] = None,
+    sort_by: Optional[str] = None,  # NEW: "date_asc", "date_desc"
     current_user: User = Depends(get_current_user)
 ):
     """View inventory movements with filters - returns JSON for UI"""
@@ -1558,7 +1559,16 @@ async def view_inventory_report(
     if category:
         query['header_name'] = category
     
-    movements = await db.stock_movements.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
+    # Apply sorting
+    sort_field = "date"
+    sort_direction = -1  # Default: newest first
+    
+    if sort_by == "date_asc":
+        sort_direction = 1
+    elif sort_by == "date_desc":
+        sort_direction = -1
+    
+    movements = await db.stock_movements.find(query, {"_id": 0}).sort(sort_field, sort_direction).to_list(10000)
     
     # Calculate totals
     total_in = sum(m.get('qty_delta', 0) for m in movements if m.get('qty_delta', 0) > 0)
