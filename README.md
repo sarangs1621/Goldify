@@ -2,5 +2,5 @@
 # Gold Inventory
 
 Project description...
-V10 updated
+updated with module 1/10
 Backend and frontend structure...
