@@ -344,6 +344,133 @@ backend:
         agent: "main"
         comment: "✅ COMPREHENSIVE TESTING COMPLETED - ALL 10 TESTS PASSED (100% SUCCESS RATE): (1) ✅ Create IN Entry - Party gives gold to shop, weight precision correct at 3 decimals (125.456g). (2) ✅ Create OUT Entry - Shop gives gold to party, weight precision correct at 3 decimals (50.123g). (3) ✅ Get All Entries - Retrieved all gold ledger entries correctly. (4) ✅ Filter by Party ID - All entries filtered correctly by party. (5) ✅ Filter by Date Range - Date filtering working correctly. (6) ✅ Party Gold Summary - Balance calculation ACCURATE: gold_due_from_party=125.456g, gold_due_to_party=50.123g, net_gold_balance=75.333g (party owes shop). (7) ✅ Soft Delete - Entry deleted and excluded from listings, is_deleted flag working. (8) ✅ Validation: Invalid Type - Correctly rejects invalid types (must be IN or OUT). (9) ✅ Validation: Invalid Purpose - Correctly rejects invalid purposes (must be job_work, exchange, advance_gold, or adjustment). (10) ✅ Validation: Non-existent Party - Correctly rejects entries for non-existent parties. CRITICAL FEATURES VERIFIED: Weight precision maintained at 3 decimals, Type validation (IN/OUT only) working, Purpose validation working, Party existence checks working, Date range filtering functional, Gold balance calculations accurate with proper sign (positive = party owes shop), Soft delete functionality working. Gold Ledger module is production-ready and fully functional."
 
+
+  - task: "MODULE 3/10 - Purchases Module (Stock IN + Vendor Payable)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          PURCHASES MODULE IMPLEMENTED - Complete vendor purchase tracking with stock IN and vendor payable management.
+          
+          Backend Implementation:
+          
+          1. ✅ Purchase Model Created (after line 276):
+             - id: UUID for unique identification
+             - vendor_party_id: Must be vendor type party (validated)
+             - date: Purchase date (defaults to current UTC time)
+             - description: Purchase description/notes
+             - weight_grams: Actual weight (3 decimal precision)
+             - entered_purity: Purity as claimed by vendor (e.g., 999, 995, 916)
+             - valuation_purity_fixed: ALWAYS 916 for stock calculations and accounting
+             - rate_per_gram: Rate per gram at 916 purity (2 decimal precision)
+             - amount_total: Total amount (2 decimal precision)
+             - status: "draft" or "finalized" (controls when stock IN and payable created)
+             - finalized_at, finalized_by: Finalization tracking
+             - locked, locked_at, locked_by: Prevents editing finalized purchases
+             - created_at, created_by: Creation audit
+             - is_deleted, deleted_at, deleted_by: Soft delete support
+          
+          2. ✅ POST /api/purchases Endpoint:
+             - Creates purchase in draft status
+             - Validates vendor_party_id exists and is vendor type (not customer)
+             - Rounds weight_grams to 3 decimals
+             - Rounds rate_per_gram and amount_total to 2 decimals
+             - Forces valuation_purity_fixed = 916
+             - Creates audit log
+             - Returns created purchase
+          
+          3. ✅ GET /api/purchases Endpoint:
+             - Retrieves all purchases (non-deleted only)
+             - Filter by vendor_party_id (optional)
+             - Filter by date range: start_date, end_date (optional)
+             - Filter by status: draft/finalized (optional)
+             - Sorted by date descending (newest first)
+          
+          4. ✅ PATCH /api/purchases/{id} Endpoint:
+             - Only allows editing draft purchases
+             - Rejects finalized purchases with 400 error and clear message
+             - Validates vendor if vendor_party_id is updated
+             - Rounds numeric fields to proper precision
+             - Creates audit log for changes
+             - Returns updated purchase
+          
+          5. ✅ POST /api/purchases/{id}/finalize Endpoint (CRITICAL):
+             Performs 5 ATOMIC operations to maintain financial integrity:
+             
+             a. UPDATE PURCHASE STATUS:
+                - Sets status = "finalized"
+                - Records finalized_at, finalized_by
+                - Sets locked = True to prevent further edits
+                - Records locked_at, locked_by
+             
+             b. CREATE STOCK IN MOVEMENT:
+                - Finds/creates inventory header for 916 purity (22K gold)
+                - Header name format: "Gold 22K" (calculated from 916 purity)
+                - Creates StockMovement with:
+                  * movement_type = "Stock IN"
+                  * qty_delta = 1 (positive - adding stock)
+                  * weight_delta = weight_grams (positive - adding weight)
+                  * purity = 916 (valuation_purity_fixed, NOT entered_purity)
+                  * reference_type = "purchase"
+                  * reference_id = purchase_id
+                  * notes = includes both entered_purity and valuation_purity
+                - Updates inventory header current_qty and current_weight
+             
+             c. CREATE VENDOR PAYABLE TRANSACTION:
+                - Generates transaction_number (TXN-YYYY-NNNN format)
+                - Finds/creates "Purchases" account (expense type)
+                - Creates Transaction with:
+                  * transaction_type = "credit" (we owe vendor)
+                  * mode = "Vendor Payable"
+                  * party_id = vendor_party_id
+                  * party_name = vendor name
+                  * amount = amount_total
+                  * category = "Purchase"
+                  * reference_type = "purchase"
+                  * reference_id = purchase_id
+             
+             d. CREATE AUDIT LOG:
+                - Records finalization action
+                - Includes stock_movement_id, transaction_id
+                - Records weight_added, purity_used, vendor_payable_amount
+             
+             e. RETURN COMPREHENSIVE RESPONSE:
+                - Success message
+                - purchase_id, stock_movement_id, transaction_id
+                - vendor_payable amount
+          
+          Key Business Rules Implemented:
+          - ✅ entered_purity stores what vendor claimed (informational)
+          - ✅ valuation_purity_fixed = 916 ALWAYS used for stock and accounting
+          - ✅ Only draft purchases can be edited
+          - ✅ Finalized purchases are locked and immutable
+          - ✅ Stock IN uses 916 purity regardless of entered purity
+          - ✅ Vendor payable created as credit transaction (liability)
+          - ✅ All operations are atomic - either all succeed or all fail
+          - ✅ Complete audit trail maintained
+          - ✅ Proper precision: 3 decimals for weight, 2 decimals for money
+          
+          READY FOR COMPREHENSIVE TESTING - Need to verify:
+          1. Create draft purchase with vendor validation
+          2. Edit draft purchase successfully
+          3. Attempt to edit finalized purchase (should fail with 400)
+          4. Finalize purchase and verify ALL 5 atomic operations:
+             a. Purchase status changed to finalized and locked
+             b. Stock IN movement created with correct weight and 916 purity
+             c. Inventory header current stock increased
+             d. Vendor payable transaction created as credit
+             e. Audit log created with all details
+          5. Attempt to finalize already finalized purchase (should fail)
+          6. Filter purchases by vendor, date range, status
+          7. Verify entered_purity stored but valuation uses 916
+
+
 backend:
   - task: "Job Card Locking with Admin Override"
     implemented: true
