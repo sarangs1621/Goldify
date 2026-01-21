@@ -806,6 +806,283 @@ async def get_party_summary(party_id: str, current_user: User = Depends(get_curr
         }
     }
 
+
+# ===========================
+# PURCHASES MODULE (Stock IN + Vendor Payable)
+# ===========================
+
+@api_router.post("/purchases", response_model=Purchase)
+async def create_purchase(purchase: Purchase, current_user: User = Depends(get_current_user)):
+    """Create a new purchase in draft status"""
+    # Validate vendor exists and is vendor type
+    vendor = await db.parties.find_one({"id": purchase.vendor_party_id, "is_deleted": False})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    if vendor.get("party_type") != "vendor":
+        raise HTTPException(status_code=400, detail="Party must be a vendor type")
+    
+    # Round to proper precision
+    purchase.weight_grams = round(purchase.weight_grams, 3)
+    purchase.rate_per_gram = round(purchase.rate_per_gram, 2)
+    purchase.amount_total = round(purchase.amount_total, 2)
+    
+    # Ensure valuation purity is always 916
+    purchase.valuation_purity_fixed = 916
+    
+    # Set creation metadata
+    purchase.created_by = current_user.username
+    purchase.status = "draft"
+    
+    # Insert purchase
+    await db.purchases.insert_one(purchase.model_dump())
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user.id,
+        user_name=current_user.username,
+        module="purchases",
+        record_id=purchase.id,
+        action="create",
+        changes={
+            "vendor_party_id": purchase.vendor_party_id,
+            "weight_grams": purchase.weight_grams,
+            "entered_purity": purchase.entered_purity,
+            "amount_total": purchase.amount_total,
+            "status": "draft"
+        }
+    )
+    
+    return purchase
+
+@api_router.get("/purchases", response_model=List[Purchase])
+async def get_purchases(
+    vendor_party_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Get all purchases with optional filters"""
+    query = {"is_deleted": False}
+    
+    # Filter by vendor
+    if vendor_party_id:
+        query["vendor_party_id"] = vendor_party_id
+    
+    # Filter by date range
+    if start_date or end_date:
+        query["date"] = {}
+        if start_date:
+            query["date"]["$gte"] = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        if end_date:
+            query["date"]["$lte"] = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+    
+    # Filter by status
+    if status:
+        query["status"] = status
+    
+    purchases = await db.purchases.find(query).sort("date", -1).to_list(None)
+    return purchases
+
+@api_router.patch("/purchases/{purchase_id}")
+async def update_purchase(
+    purchase_id: str,
+    updates: Dict,
+    current_user: User = Depends(get_current_user)
+):
+    """Update a purchase (only draft purchases can be edited)"""
+    # Get existing purchase
+    existing = await db.purchases.find_one({"id": purchase_id, "is_deleted": False})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Check if purchase is finalized
+    if existing.get("status") == "finalized":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot edit finalized purchase. Finalized purchases are immutable to maintain financial integrity."
+        )
+    
+    # Validate vendor if being updated
+    if "vendor_party_id" in updates:
+        vendor = await db.parties.find_one({"id": updates["vendor_party_id"], "is_deleted": False})
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+        if vendor.get("party_type") != "vendor":
+            raise HTTPException(status_code=400, detail="Party must be a vendor type")
+    
+    # Round numeric fields to proper precision
+    if "weight_grams" in updates:
+        updates["weight_grams"] = round(updates["weight_grams"], 3)
+    if "rate_per_gram" in updates:
+        updates["rate_per_gram"] = round(updates["rate_per_gram"], 2)
+    if "amount_total" in updates:
+        updates["amount_total"] = round(updates["amount_total"], 2)
+    
+    # Update purchase
+    await db.purchases.update_one(
+        {"id": purchase_id},
+        {"$set": updates}
+    )
+    
+    # Create audit log
+    await create_audit_log(
+        user_id=current_user.id,
+        user_name=current_user.username,
+        module="purchases",
+        record_id=purchase_id,
+        action="update",
+        changes=updates
+    )
+    
+    # Get updated purchase
+    updated = await db.purchases.find_one({"id": purchase_id})
+    return updated
+
+@api_router.post("/purchases/{purchase_id}/finalize")
+async def finalize_purchase(purchase_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Finalize a purchase - performs all required operations atomically:
+    1. Update purchase status to 'finalized'
+    2. Create Stock IN movement (adds to inventory using valuation_purity_fixed = 916)
+    3. Create vendor payable transaction (credit entry)
+    4. Lock the purchase to prevent further edits
+    5. Create audit log
+    """
+    # Get purchase
+    purchase = await db.purchases.find_one({"id": purchase_id, "is_deleted": False})
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Check if already finalized
+    if purchase.get("status") == "finalized":
+        raise HTTPException(status_code=400, detail="Purchase is already finalized")
+    
+    # Get vendor details
+    vendor = await db.parties.find_one({"id": purchase["vendor_party_id"], "is_deleted": False})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    
+    # === OPERATION 1: Update purchase status ===
+    finalize_time = datetime.now(timezone.utc)
+    await db.purchases.update_one(
+        {"id": purchase_id},
+        {"$set": {
+            "status": "finalized",
+            "finalized_at": finalize_time,
+            "finalized_by": current_user.username,
+            "locked": True,
+            "locked_at": finalize_time,
+            "locked_by": current_user.username
+        }}
+    )
+    
+    # === OPERATION 2: Create Stock IN movement ===
+    # Find or create inventory header for 916 purity (22K gold)
+    purity = purchase["valuation_purity_fixed"]  # Always 916
+    header_name = f"Gold {purity // 41.6:.0f}K"  # 916 = 22K, 999 = 24K
+    
+    header = await db.inventory_headers.find_one({"name": header_name, "is_deleted": False})
+    if not header:
+        # Create new inventory header
+        header = InventoryHeader(
+            name=header_name,
+            purity=purity,
+            current_qty=0,
+            current_weight=0,
+            created_by=current_user.username
+        )
+        await db.inventory_headers.insert_one(header.model_dump())
+    
+    # Create Stock IN movement (positive values for incoming stock)
+    movement = StockMovement(
+        date=purchase["date"],
+        movement_type="Stock IN",
+        header_id=header.get("id") if isinstance(header, dict) else header.id,
+        header_name=header_name,
+        description=f"Purchase from {vendor['name']}: {purchase['description']}",
+        qty_delta=1,  # 1 piece added
+        weight_delta=purchase["weight_grams"],  # Positive value for incoming
+        purity=purity,
+        reference_type="purchase",
+        reference_id=purchase_id,
+        created_by=current_user.username,
+        notes=f"Entered purity: {purchase['entered_purity']}, Valuation purity: {purity}"
+    )
+    await db.stock_movements.insert_one(movement.model_dump())
+    
+    # Update inventory header current stock
+    header_id = header.get("id") if isinstance(header, dict) else header.id
+    await db.inventory_headers.update_one(
+        {"id": header_id},
+        {"$inc": {
+            "current_qty": 1,
+            "current_weight": purchase["weight_grams"]
+        }}
+    )
+    
+    # === OPERATION 3: Create vendor payable transaction (credit) ===
+    # Generate transaction number
+    current_year = datetime.now(timezone.utc).year
+    existing_txns = await db.transactions.count_documents({"transaction_number": {"$regex": f"^TXN-{current_year}-"}})
+    txn_number = f"TXN-{current_year}-{existing_txns + 1:04d}"
+    
+    # Get or create Purchases account
+    purchases_account = await db.accounts.find_one({"name": "Purchases", "is_deleted": False})
+    if not purchases_account:
+        purchases_account = Account(
+            name="Purchases",
+            account_type="expense",
+            balance=0,
+            created_by=current_user.username
+        )
+        await db.accounts.insert_one(purchases_account.model_dump())
+    
+    # Create transaction (credit = we owe vendor)
+    transaction = Transaction(
+        transaction_number=txn_number,
+        date=purchase["date"],
+        transaction_type="credit",  # Credit = liability, we owe vendor
+        mode="Vendor Payable",
+        account_id=purchases_account.get("id") if isinstance(purchases_account, dict) else purchases_account.id,
+        account_name="Purchases",
+        party_id=purchase["vendor_party_id"],
+        party_name=vendor["name"],
+        amount=purchase["amount_total"],
+        category="Purchase",
+        reference_type="purchase",
+        reference_id=purchase_id,
+        notes=f"Vendor payable for purchase: {purchase['description']} ({purchase['weight_grams']}g @ {purchase['rate_per_gram']}/g)",
+        created_by=current_user.username
+    )
+    await db.transactions.insert_one(transaction.model_dump())
+    
+    # === OPERATION 4: Create audit log ===
+    await create_audit_log(
+        user_id=current_user.id,
+        user_name=current_user.username,
+        module="purchases",
+        record_id=purchase_id,
+        action="finalize",
+        changes={
+            "status": "finalized",
+            "stock_movement_id": movement.id,
+            "transaction_id": transaction.id,
+            "weight_added": purchase["weight_grams"],
+            "purity_used": purity,
+            "vendor_payable_amount": purchase["amount_total"]
+        }
+    )
+    
+    return {
+        "message": "Purchase finalized successfully",
+        "purchase_id": purchase_id,
+        "stock_movement_id": movement.id,
+        "transaction_id": transaction.id,
+        "vendor_payable": purchase["amount_total"]
+    }
+
+
 @api_router.get("/jobcards", response_model=List[JobCard])
 async def get_jobcards(current_user: User = Depends(get_current_user)):
     jobcards = await db.jobcards.find({"is_deleted": False}, {"_id": 0}).sort("date_created", -1).to_list(1000)
