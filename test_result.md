@@ -692,6 +692,52 @@ agent_communication:
     message: "CRITICAL FIX - LOGIN ISSUE RESOLVED: User reported 'Invalid credentials' error. Root cause: No users existed in the database. Created default admin user with credentials: username='admin', password='admin123'. Login is now fully functional. User can access the application with these credentials. Additionally fixed job card issues: (1) Added missing Edit/Delete buttons in Actions column. (2) Replaced category text input with dropdown populated from inventory headers."
   - agent: "main"
     message: "CRITICAL BUSINESS LOGIC FIX IMPLEMENTED: Invoice state management now properly implemented. Invoices are created in 'draft' status with NO stock deduction. Stock OUT movements ONLY happen when invoice is explicitly finalized via new POST /api/invoices/{id}/finalize endpoint. Finalized invoices are immutable (cannot be edited or deleted). This ensures financial integrity and prevents premature inventory deduction. READY FOR COMPREHENSIVE TESTING - please test all invoice workflows: create draft, edit draft, finalize, attempt to edit finalized (should fail), verify stock movements only happen on finalization."
+  - agent: "testing"
+    message: |
+      🎯 MODULE 2/10 PARTY SUMMARY ENDPOINT TESTING COMPLETED - PERFECT SUCCESS (100%)
+      
+      Test Request: Test the newly implemented GET /api/parties/{party_id}/summary endpoint with comprehensive verification of party info, gold summary, and money summary calculations.
+      
+      ✅ COMPREHENSIVE TEST EXECUTION:
+      1. ✅ Created test party: Summary Test Party 202400 (customer type)
+      2. ✅ Created 3 gold ledger entries with mixed IN/OUT types:
+         - IN: 125.456g (job_work) - Party gives gold to shop
+         - OUT: 50.123g (exchange) - Shop gives gold to party  
+         - IN: 30.250g (advance_gold) - Additional gold from party
+      3. ✅ Created invoice with outstanding balance: INV-2026-0001 (459.375 OMR balance_due)
+      4. ✅ Created credit transaction: TXN-2026-0001 (150.0 OMR credit type)
+      5. ✅ Tested GET /api/parties/{party_id}/summary endpoint successfully
+      
+      ✅ RESPONSE STRUCTURE VERIFICATION - ALL SECTIONS PRESENT:
+      - Party section: id, name, phone, address, party_type, notes, created_at ✅
+      - Gold section: gold_due_from_party, gold_due_to_party, net_gold_balance, total_entries ✅
+      - Money section: money_due_from_party, money_due_to_party, net_money_balance, total_invoices, total_transactions ✅
+      
+      ✅ CALCULATION ACCURACY VERIFICATION:
+      Gold Calculations (3 decimal precision):
+      - Gold due from party: 155.706g (125.456 + 30.250 IN entries) ✅
+      - Gold due to party: 50.123g (OUT entries) ✅  
+      - Net gold balance: 105.583g (positive = party owes shop) ✅
+      - Total entries: 3 ✅
+      
+      Money Calculations (2 decimal precision):
+      - Money due from party: 459.38 OMR (invoice balance_due aggregation) ✅
+      - Money due to party: 150.00 OMR (credit transaction aggregation) ✅
+      - Net money balance: 309.38 OMR (positive = party owes shop) ✅
+      - Total invoices: 1, Total transactions: 1 ✅
+      
+      ✅ PRECISION FORMATTING VERIFICATION:
+      - Gold values maintain exactly 3 decimal places ✅
+      - Money values maintain exactly 2 decimal places ✅
+      
+      🔥 CRITICAL BUSINESS LOGIC CONFIRMED:
+      - IN entries correctly add to gold_due_from_party (party owes shop)
+      - OUT entries correctly add to gold_due_to_party (shop owes party)
+      - Invoice balance_due correctly aggregates to money_due_from_party
+      - Credit transactions correctly aggregate to money_due_to_party
+      - Net balances calculated correctly (positive = party owes shop)
+      
+      ENDPOINT IS PRODUCTION READY - All test scenarios passed, calculations accurate, response structure complete.
   - agent: "main"
     message: "ENHANCED INVOICE FINALIZATION LOGIC - Implemented all 5 required atomic operations: (1) Lock invoice ✅ DONE. (2) Create Stock OUT movements ✅ DONE. (3) Lock linked job card ✅ NEW - Added locked, locked_at, locked_by fields to JobCard model. When invoice is finalized, linked job card is locked (status='invoiced', locked=True). Prevented editing/deleting locked job cards in update_jobcard and delete_jobcard endpoints. (4) Create customer ledger entry ✅ NEW - Creates Transaction record with party_id, amount=grand_total, category='Sales Invoice', auto-generated transaction_number. Creates default 'Sales' account if needed. (5) Update outstanding balance ✅ AUTOMATIC - Party ledger calculations use invoice.balance_due. READY FOR COMPREHENSIVE TESTING of new features."
   - agent: "testing"
