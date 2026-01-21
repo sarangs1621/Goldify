@@ -1185,3 +1185,96 @@ agent_communication:
     message: "Initial assessment completed. App is functional but missing critical production features like edit/delete operations, validation, security enhancements, and user experience improvements. Will implement systematically starting with backend CRUD operations, then frontend, then enhancements."
   - agent: "main"
     message: "PHASE 1 & 2 COMPLETED: Enhanced Reports API and UI implemented. Added comprehensive filtering (date range, status, type, category), view endpoints for displaying data in UI, individual report details (invoice, party ledger, inventory stock), and export with filters. Reports page now has tabbed interface with Inventory, Invoices, Parties, and Transactions sections. Backend CRUD operations were already implemented. Now ready for testing."
+  - agent: "main"
+    message: |
+      🎯 MODULE 3/10 - PURCHASES MODULE IMPLEMENTED (Stock IN + Vendor Payable)
+      
+      Complete vendor purchase tracking system with draft/finalized workflow, stock management, and vendor payable accounting.
+      
+      BACKEND IMPLEMENTATION COMPLETE:
+      
+      1. ✅ Purchase Model Created (lines 277-298):
+         - Complete draft/finalized workflow (status field)
+         - Vendor validation (vendor_party_id must be vendor type)
+         - Dual purity tracking: entered_purity (informational) + valuation_purity_fixed (always 916 for calculations)
+         - Financial fields: weight_grams (3 decimals), rate_per_gram (2 decimals), amount_total (2 decimals)
+         - Lock mechanism for finalized purchases (locked, locked_at, locked_by)
+         - Complete audit trail (created_at, created_by, finalized_at, finalized_by)
+         - Soft delete support (is_deleted, deleted_at, deleted_by)
+      
+      2. ✅ POST /api/purchases - Create Draft Purchase:
+         - Validates vendor_party_id exists and is vendor type (not customer)
+         - Enforces proper precision (3 decimals for weight, 2 for money)
+         - Forces valuation_purity_fixed = 916 for all purchases
+         - Creates audit log
+      
+      3. ✅ GET /api/purchases - Retrieve Purchases:
+         - Filter by vendor_party_id (optional)
+         - Filter by date range: start_date, end_date (optional)
+         - Filter by status: draft/finalized (optional)
+         - Sorted by date descending
+      
+      4. ✅ PATCH /api/purchases/{id} - Edit Draft Purchase:
+         - Only draft purchases can be edited (finalized purchases rejected with 400)
+         - Validates vendor if changed
+         - Enforces precision on all numeric updates
+         - Creates audit log
+      
+      5. ✅ POST /api/purchases/{id}/finalize - CRITICAL ATOMIC OPERATIONS:
+         
+         a. UPDATE PURCHASE STATUS:
+            - status = "finalized"
+            - finalized_at, finalized_by recorded
+            - locked = True (prevents further edits)
+            - locked_at, locked_by recorded
+         
+         b. CREATE STOCK IN MOVEMENT:
+            - Finds/creates inventory header for 916 purity (Gold 22K)
+            - Creates StockMovement with positive values (adding stock)
+            - Uses valuation_purity_fixed (916) NOT entered_purity
+            - Links to purchase via reference_type/reference_id
+            - Updates inventory header current_qty and current_weight
+         
+         c. CREATE VENDOR PAYABLE TRANSACTION:
+            - Auto-generates transaction_number (TXN-YYYY-NNNN)
+            - Creates Transaction with transaction_type = "credit" (we owe vendor)
+            - Links to vendor party
+            - Links to purchase via reference_type/reference_id
+            - Category = "Purchase"
+         
+         d. CREATE AUDIT LOG:
+            - Records all IDs (purchase, stock movement, transaction)
+            - Records weight_added, purity_used, vendor_payable_amount
+         
+         e. RETURN COMPREHENSIVE RESPONSE:
+            - All IDs for verification
+            - Success message
+      
+      KEY BUSINESS RULES IMPLEMENTED:
+      - ✅ Entered purity stored as vendor claimed (e.g., 999, 995) for reference
+      - ✅ Valuation purity ALWAYS 916 for stock calculations and accounting
+      - ✅ Only draft purchases can be edited (finalized are immutable)
+      - ✅ Stock IN adds to inventory at 916 purity (22K gold)
+      - ✅ Vendor payable created as credit transaction (liability)
+      - ✅ All finalization operations are atomic (all succeed or all fail)
+      - ✅ Complete audit trail maintained
+      - ✅ Proper precision enforced (3 decimals weight, 2 decimals money)
+      
+      READY FOR COMPREHENSIVE BACKEND TESTING:
+      
+      Test Scenarios Required:
+      1. ✅ Create draft purchase - verify vendor validation, precision rounding, defaults
+      2. ✅ Edit draft purchase - verify updates work, validation applied
+      3. ✅ Attempt to edit finalized purchase - must fail with 400 and clear error
+      4. ✅ Finalize purchase - verify all 5 atomic operations:
+         - Purchase status = finalized, locked = True
+         - Stock IN movement created with 916 purity (not entered purity)
+         - Inventory header current stock increased correctly
+         - Vendor payable transaction created as credit with correct amount
+         - Audit log created with all details
+      5. ✅ Attempt to re-finalize - must fail with 400
+      6. ✅ Filter purchases - by vendor, date range, status
+      7. ✅ Verify entered_purity stored but 916 used for calculations
+      8. ✅ Verify precision - weights at 3 decimals, amounts at 2 decimals
+      
+      Similar to Invoice finalization which is 100% working. This follows the exact same proven pattern.
