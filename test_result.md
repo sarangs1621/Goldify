@@ -102,6 +102,193 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
+user_problem_statement: |
+  Gold Inventory Management System - Module 2/10 Implementation
+  Upgrade Parties report to show both Gold + Money balances combined.
+  
+  Backend: Add GET /api/parties/{id}/summary endpoint that returns:
+  - Party info
+  - Money due from party (invoice outstanding)
+  - Money due to party (vendor payable/credits)
+  - Gold due from party
+  - Gold due to party
+  
+  Frontend: In Party detail page:
+  - Show 4 cards: Gold they owe us, Gold we owe them, Money they owe us, Money we owe them
+  - Show 2 tables: Gold ledger entries, Money ledger (invoices + transactions)
+  - Add date filters + search inside party view
+
+backend:
+  - task: "Create GET /api/parties/{party_id}/summary endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Created new endpoint that combines party info, gold summary, and money summary.
+          Returns comprehensive data structure with:
+          - party: Full party details (id, name, phone, address, party_type, notes, created_at)
+          - gold: gold_due_from_party, gold_due_to_party, net_gold_balance, total_entries
+          - money: money_due_from_party (outstanding invoices), money_due_to_party (credits/payables), 
+                   net_money_balance, total_invoices, total_transactions
+          
+          The endpoint calculates:
+          - Gold balances from gold_ledger collection (IN/OUT entries)
+          - Money balances from invoices (balance_due) and transactions (credit type)
+          - Proper rounding: 3 decimals for gold, 2 decimals for money
+
+frontend:
+  - task: "Upgrade Party detail dialog with 4 summary cards"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/PartiesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Updated PartiesPage.js to show comprehensive party report:
+          - Added 4 summary cards in a responsive grid (2x2 on desktop, stacked on mobile)
+          - Cards show: Gold they owe us (amber), Gold we owe them (orange), 
+                        Money they owe us (green), Money we owe them (red)
+          - Each card has distinct colors and icons for visual clarity
+          - Values formatted correctly: 3 decimals for gold, 2 decimals for money with OMR currency
+
+  - task: "Add Gold Ledger table with all entries"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/PartiesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Created comprehensive gold ledger table showing:
+          - Columns: Date, Type (IN/OUT with badges), Weight (3 decimals), Purity (K), Purpose, Notes
+          - Color-coded badges: Green for IN, Blue for OUT
+          - All gold entries fetched from /api/gold-ledger endpoint
+          - Proper formatting and styling with hover effects
+
+  - task: "Add Money Ledger table combining invoices and transactions"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/PartiesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Created unified money ledger table that combines invoices and transactions:
+          - Columns: Date, Type (badge), Reference #, Amount, Balance, Status
+          - Type badges: Blue for Invoice, Green for Receipt, Purple for Payment
+          - Status badges: Green for paid, Red for unpaid, Yellow for partial
+          - Combines data from /api/parties/{id}/ledger (invoices + transactions)
+          - Sorted by date descending (most recent first)
+
+  - task: "Add date filters and search functionality"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/PartiesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Added comprehensive filtering section:
+          - Search input: Searches across purpose, notes, reference, type fields
+          - From Date filter: Filter entries from specific date
+          - To Date filter: Filter entries up to specific date
+          - Clear Filters button: Resets all filters
+          - Filters applied using useMemo for performance
+          - Both gold and money tables respect the same filters
+          - Icons added (Search, Calendar) for better UX
+
+  - task: "Responsive dialog layout and UI enhancements"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/PartiesPage.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Enhanced dialog presentation:
+          - Increased dialog size to max-w-7xl for better space utilization
+          - Added scrolling (max-h-[90vh]) for long content
+          - Party info shown in header with type and phone
+          - Section headers with colored indicators (amber for gold, green for money)
+          - Entry counts shown in each table header
+          - Responsive grid for summary cards (1 col on mobile, 2 on tablet, 4 on desktop)
+          - Added lucide-react icons: TrendingUp, TrendingDown, Search, Calendar
+          - Proper spacing and card styling with colored backgrounds
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Test GET /api/parties/{party_id}/summary endpoint"
+    - "Test party detail dialog with 4 summary cards"
+    - "Test gold ledger table display"
+    - "Test money ledger table display"
+    - "Test date filters functionality"
+    - "Test search functionality"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Module 2/10 - Party Report (Gold + Money Combined Summary) has been implemented.
+      
+      Backend Changes:
+      - Created new endpoint: GET /api/parties/{party_id}/summary
+      - Endpoint combines party details, gold balances, and money balances
+      - Proper calculations for gold (IN/OUT from gold_ledger) and money (invoices + transactions)
+      
+      Frontend Changes:
+      - Upgraded party detail dialog from simple view to comprehensive report
+      - Added 4 summary cards with distinct colors and proper formatting
+      - Created gold ledger table with all columns (date, type, weight, purity, purpose, notes)
+      - Created money ledger table combining invoices and transactions
+      - Added date filters (from/to) and search functionality
+      - Both tables respect the same filters
+      - Responsive design with proper spacing
+      
+      Ready for backend testing. Please test:
+      1. GET /api/parties/{party_id}/summary endpoint response structure
+      2. Gold balance calculations (IN vs OUT)
+      3. Money balance calculations (invoices + transactions)
+      4. Data accuracy across all endpoints
+      
+      Frontend testing (if approved by user):
+      1. Party detail dialog opens correctly
+      2. 4 summary cards show correct data
+      3. Gold ledger table displays all entries
+      4. Money ledger table combines invoices and transactions
+      5. Date filters work correctly
+      6. Search functionality works across both tables
+      7. Responsive layout on different screen sizes
+
 user_problem_statement: "Fix invoice print issues, complete daily closing, make all reports load correctly, add making-charge (flat/per-gram) and VAT options in create job card, and allow removing/editing items in new job cards. All changes must be backward-compatible. CRITICAL: Implement invoice state management (Draft/Finalized) to fix stock deduction logic - stock should ONLY be deducted when invoice is finalized, not on creation. ADDITIONAL: Implement job card locking with admin override and audit logging. NEW REQUIREMENT: Change stock deduction to directly reduce from inventory category quantities and weights instead of using separate dedication records. CURRENT REQUIREMENT: Implement walk-in vs saved customer handling with payment tracking - walk-in customers enter name/phone but are NOT saved in Parties, all payments create Transaction records. LATEST REQUIREMENT: Implement comprehensive Reports & Filters system with: (1) Global filters (Date presets, Party dropdown, Type filters, Sorting) on ALL reports. (2) Outstanding Report with overdue buckets (0-7, 8-30, 31+ days), customer due vs vendor payable breakdown. (3) Enhanced Finance Summary with Cash balance, Bank balance, Net flow, Daily closing difference. (4) PDF & Excel export for all reports with applied filters. MODULE 1/10: Implement Gold Ledger (Party Gold Balance System) for tracking gold received from and given to parties."
 
 backend:
