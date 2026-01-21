@@ -110,11 +110,59 @@ export default function PartiesPage() {
 
   const handleViewLedger = async (party) => {
     try {
-      const response = await axios.get(`${API}/parties/${party.id}/ledger`);
-      setLedgerData({ party, ...response.data });
+      // Fetch comprehensive summary
+      const summaryResponse = await axios.get(`${API}/parties/${party.id}/summary`);
+      setLedgerData(summaryResponse.data);
+      
+      // Fetch gold ledger entries
+      const goldResponse = await axios.get(`${API}/gold-ledger?party_id=${party.id}`);
+      setGoldEntries(goldResponse.data);
+      
+      // Fetch invoices and transactions for money ledger
+      const ledgerResponse = await axios.get(`${API}/parties/${party.id}/ledger`);
+      
+      // Combine invoices and transactions into a unified money ledger
+      const combinedLedger = [];
+      
+      // Add invoices
+      ledgerResponse.data.invoices.forEach(inv => {
+        combinedLedger.push({
+          id: inv.id,
+          date: inv.date,
+          type: 'Invoice',
+          reference: inv.invoice_number,
+          amount: inv.grand_total,
+          balance: inv.balance_due,
+          status: inv.payment_status
+        });
+      });
+      
+      // Add transactions
+      ledgerResponse.data.transactions.forEach(txn => {
+        combinedLedger.push({
+          id: txn.id,
+          date: txn.date,
+          type: txn.transaction_type === 'credit' ? 'Receipt' : 'Payment',
+          reference: txn.transaction_number,
+          amount: txn.amount,
+          balance: null,
+          notes: txn.notes
+        });
+      });
+      
+      // Sort by date descending
+      combinedLedger.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setMoneyLedger(combinedLedger);
+      
+      // Reset filters
+      setDateFrom('');
+      setDateTo('');
+      setLedgerSearchTerm('');
+      
       setShowLedgerDialog(true);
     } catch (error) {
-      toast.error('Failed to load ledger');
+      toast.error('Failed to load party details');
+      console.error(error);
     }
   };
 
