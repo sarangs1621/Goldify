@@ -695,6 +695,92 @@ async def get_party_gold_summary(party_id: str, current_user: User = Depends(get
         "total_entries": len(entries)
     }
 
+@api_router.get("/parties/{party_id}/summary")
+async def get_party_summary(party_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Get comprehensive party summary including both gold and money balances.
+    This endpoint combines gold ledger data and financial data (invoices + transactions).
+    """
+    # Verify party exists
+    party = await db.parties.find_one({"id": party_id, "is_deleted": False})
+    if not party:
+        raise HTTPException(status_code=404, detail="Party not found")
+    
+    # Get gold ledger entries
+    gold_entries = await db.gold_ledger.find({"party_id": party_id, "is_deleted": False}, {"_id": 0}).to_list(1000)
+    
+    # Calculate gold balances
+    gold_due_from_party = 0.0  # Party owes shop (IN entries)
+    gold_due_to_party = 0.0     # Shop owes party (OUT entries)
+    
+    for entry in gold_entries:
+        weight = round(entry.get('weight_grams', 0), 3)
+        if entry.get('type') == 'IN':
+            gold_due_from_party += weight
+        elif entry.get('type') == 'OUT':
+            gold_due_to_party += weight
+    
+    gold_due_from_party = round(gold_due_from_party, 3)
+    gold_due_to_party = round(gold_due_to_party, 3)
+    net_gold_balance = round(gold_due_from_party - gold_due_to_party, 3)
+    
+    # Get invoices for money calculations
+    invoices = await db.invoices.find({"customer_id": party_id, "is_deleted": False}, {"_id": 0}).to_list(1000)
+    
+    # Get transactions
+    transactions = await db.transactions.find({"party_id": party_id, "is_deleted": False}, {"_id": 0}).to_list(1000)
+    
+    # Calculate money balances
+    money_due_from_party = 0.0  # Outstanding invoices (party owes shop)
+    money_due_to_party = 0.0     # Credits or vendor payables (shop owes party)
+    
+    # Sum up outstanding invoices
+    for inv in invoices:
+        balance_due = inv.get('balance_due', 0)
+        if balance_due > 0:
+            money_due_from_party += balance_due
+        elif balance_due < 0:
+            # Negative balance means shop owes party (overpayment/credit)
+            money_due_to_party += abs(balance_due)
+    
+    # Check transactions for additional credits (vendor payments, etc.)
+    for txn in transactions:
+        # If transaction is credit type and to this party, shop owes them
+        if txn.get('transaction_type') == 'credit':
+            money_due_to_party += txn.get('amount', 0)
+    
+    money_due_from_party = round(money_due_from_party, 2)
+    money_due_to_party = round(money_due_to_party, 2)
+    net_money_balance = round(money_due_from_party - money_due_to_party, 2)
+    
+    # Clean party data for response
+    party_clean = {
+        "id": party.get('id'),
+        "name": party.get('name'),
+        "phone": party.get('phone'),
+        "address": party.get('address'),
+        "party_type": party.get('party_type'),
+        "notes": party.get('notes'),
+        "created_at": party.get('created_at')
+    }
+    
+    return {
+        "party": party_clean,
+        "gold": {
+            "gold_due_from_party": gold_due_from_party,
+            "gold_due_to_party": gold_due_to_party,
+            "net_gold_balance": net_gold_balance,
+            "total_entries": len(gold_entries)
+        },
+        "money": {
+            "money_due_from_party": money_due_from_party,
+            "money_due_to_party": money_due_to_party,
+            "net_money_balance": net_money_balance,
+            "total_invoices": len(invoices),
+            "total_transactions": len(transactions)
+        }
+    }
+
 @api_router.get("/jobcards", response_model=List[JobCard])
 async def get_jobcards(current_user: User = Depends(get_current_user)):
     jobcards = await db.jobcards.find({"is_deleted": False}, {"_id": 0}).sort("date_created", -1).to_list(1000)
