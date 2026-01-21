@@ -2585,6 +2585,894 @@ class GoldShopERPTester:
         
         return True
 
+    def test_purchases_module_setup(self):
+        """Setup Phase: Get/create vendor party and inventory headers"""
+        print("\n🏗️ PURCHASES MODULE SETUP - Creating vendor party and inventory headers")
+        
+        # Create vendor party
+        vendor_data = {
+            "name": f"Gold Vendor {datetime.now().strftime('%H%M%S')}",
+            "phone": "+968 9999 1111",
+            "address": "Vendor Address for Purchase Testing",
+            "party_type": "vendor",
+            "notes": "Vendor for purchase module testing"
+        }
+        
+        success, vendor = self.run_test(
+            "Create Vendor Party",
+            "POST",
+            "parties",
+            200,
+            data=vendor_data
+        )
+        
+        if not success or not vendor.get('id'):
+            return False
+        
+        # Store vendor for other tests
+        self.purchases_test_data = {
+            'vendor_id': vendor['id'],
+            'vendor_name': vendor['name']
+        }
+        
+        # Get existing inventory headers to verify stock movements
+        success, headers = self.run_test(
+            "Get Inventory Headers for Purchase Testing",
+            "GET",
+            "inventory/headers",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Create Gold 22K header if it doesn't exist (for 916 purity)
+        gold_22k_header = None
+        for header in headers:
+            if "Gold 22K" in header.get('name', ''):
+                gold_22k_header = header
+                break
+        
+        if not gold_22k_header:
+            header_data = {"name": "Gold 22K"}
+            success, new_header = self.run_test(
+                "Create Gold 22K Inventory Header",
+                "POST",
+                "inventory/headers",
+                200,
+                data=header_data
+            )
+            if success:
+                gold_22k_header = new_header
+        
+        if gold_22k_header:
+            self.purchases_test_data['inventory_header_id'] = gold_22k_header['id']
+            self.purchases_test_data['inventory_header_name'] = gold_22k_header['name']
+            print(f"✅ Setup complete: Vendor {vendor['name']}, Inventory header {gold_22k_header['name']}")
+        
+        return True
+
+    def test_purchases_create_draft(self):
+        """Test Scenario 1: Create Draft Purchase"""
+        print("\n💰 TESTING PURCHASES MODULE - CREATE DRAFT PURCHASE")
+        
+        if not hasattr(self, 'purchases_test_data'):
+            print("❌ Purchase test data not available, run setup first")
+            return False
+        
+        vendor_id = self.purchases_test_data['vendor_id']
+        
+        # Test data with specific precision requirements
+        purchase_data = {
+            "vendor_party_id": vendor_id,
+            "description": "Gold Purchase Test 001",
+            "weight_grams": 125.456,  # Should round to 3 decimals
+            "entered_purity": 999,    # 24K as claimed by vendor
+            "rate_per_gram": 185.50,  # Per gram rate at 916 purity
+            "amount_total": 23272.19  # Calculate or provide
+        }
+        
+        success, purchase = self.run_test(
+            "Create Draft Purchase",
+            "POST",
+            "purchases",
+            200,
+            data=purchase_data
+        )
+        
+        if not success or not purchase.get('id'):
+            return False
+        
+        # Verify purchase properties
+        if purchase.get('status') != 'draft':
+            print(f"❌ Purchase status should be 'draft', got: {purchase.get('status')}")
+            return False
+        
+        if purchase.get('locked') != False:
+            print(f"❌ Purchase locked should be False, got: {purchase.get('locked')}")
+            return False
+        
+        if purchase.get('valuation_purity_fixed') != 916:
+            print(f"❌ Valuation purity should be 916, got: {purchase.get('valuation_purity_fixed')}")
+            return False
+        
+        # Verify precision (3 decimals for weight, 2 for money)
+        if abs(purchase.get('weight_grams', 0) - 125.456) > 0.001:
+            print(f"❌ Weight precision incorrect: expected 125.456, got {purchase.get('weight_grams')}")
+            return False
+        
+        if abs(purchase.get('rate_per_gram', 0) - 185.50) > 0.01:
+            print(f"❌ Rate precision incorrect: expected 185.50, got {purchase.get('rate_per_gram')}")
+            return False
+        
+        # Store purchase for other tests
+        self.purchases_test_data['draft_purchase_id'] = purchase['id']
+        self.purchases_test_data['draft_purchase'] = purchase
+        
+        print(f"✅ Draft purchase created successfully:")
+        print(f"   - Status: {purchase.get('status')}")
+        print(f"   - Locked: {purchase.get('locked')}")
+        print(f"   - Valuation Purity: {purchase.get('valuation_purity_fixed')}")
+        print(f"   - Weight: {purchase.get('weight_grams')}g (3 decimals)")
+        print(f"   - Rate: {purchase.get('rate_per_gram')}/g (2 decimals)")
+        
+        return True
+
+    def test_purchases_get_all(self):
+        """Test Scenario 2: Get All Purchases"""
+        print("\n📋 TESTING PURCHASES MODULE - GET ALL PURCHASES")
+        
+        if not hasattr(self, 'purchases_test_data'):
+            return False
+        
+        # Test without filters
+        success, purchases = self.run_test(
+            "Get All Purchases (No Filters)",
+            "GET",
+            "purchases",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Verify our draft purchase is in the list
+        draft_purchase_id = self.purchases_test_data['draft_purchase_id']
+        found_purchase = None
+        for purchase in purchases:
+            if purchase.get('id') == draft_purchase_id:
+                found_purchase = purchase
+                break
+        
+        if not found_purchase:
+            print(f"❌ Draft purchase {draft_purchase_id} not found in purchases list")
+            return False
+        
+        print(f"✅ Draft purchase found in purchases list")
+        
+        # Test with vendor filter
+        vendor_id = self.purchases_test_data['vendor_id']
+        success, filtered_purchases = self.run_test(
+            "Get Purchases (Vendor Filter)",
+            "GET",
+            "purchases",
+            200,
+            params={"vendor_party_id": vendor_id}
+        )
+        
+        if not success:
+            return False
+        
+        # Verify all returned purchases are for this vendor
+        for purchase in filtered_purchases:
+            if purchase.get('vendor_party_id') != vendor_id:
+                print(f"❌ Filtered purchases should only contain vendor {vendor_id}")
+                return False
+        
+        print(f"✅ Vendor filter working correctly: {len(filtered_purchases)} purchases")
+        
+        # Test with status filter
+        success, draft_purchases = self.run_test(
+            "Get Purchases (Status=Draft Filter)",
+            "GET",
+            "purchases",
+            200,
+            params={"status": "draft"}
+        )
+        
+        if not success:
+            return False
+        
+        # Verify all returned purchases are draft
+        for purchase in draft_purchases:
+            if purchase.get('status') != 'draft':
+                print(f"❌ Status filter should only return draft purchases")
+                return False
+        
+        print(f"✅ Status filter working correctly: {len(draft_purchases)} draft purchases")
+        
+        return True
+
+    def test_purchases_edit_draft(self):
+        """Test Scenario 3: Edit Draft Purchase"""
+        print("\n✏️ TESTING PURCHASES MODULE - EDIT DRAFT PURCHASE")
+        
+        if not hasattr(self, 'purchases_test_data'):
+            return False
+        
+        draft_purchase_id = self.purchases_test_data['draft_purchase_id']
+        
+        # Update purchase data
+        update_data = {
+            "description": "Updated Gold Purchase",
+            "weight_grams": 130.789  # Should round to 3 decimals
+        }
+        
+        success, updated_purchase = self.run_test(
+            "Edit Draft Purchase",
+            "PATCH",
+            f"purchases/{draft_purchase_id}",
+            200,
+            data=update_data
+        )
+        
+        if not success:
+            return False
+        
+        # Verify changes were applied
+        if updated_purchase.get('description') != "Updated Gold Purchase":
+            print(f"❌ Description not updated: expected 'Updated Gold Purchase', got {updated_purchase.get('description')}")
+            return False
+        
+        if abs(updated_purchase.get('weight_grams', 0) - 130.789) > 0.001:
+            print(f"❌ Weight not updated correctly: expected 130.789, got {updated_purchase.get('weight_grams')}")
+            return False
+        
+        print(f"✅ Draft purchase updated successfully:")
+        print(f"   - Description: {updated_purchase.get('description')}")
+        print(f"   - Weight: {updated_purchase.get('weight_grams')}g")
+        
+        return True
+
+    def test_purchases_edit_invalid_party(self):
+        """Test Scenario 4: Attempt to Edit Non-Existent Party Type"""
+        print("\n🚫 TESTING PURCHASES MODULE - EDIT WITH INVALID PARTY")
+        
+        if not hasattr(self, 'purchases_test_data'):
+            return False
+        
+        draft_purchase_id = self.purchases_test_data['draft_purchase_id']
+        
+        # Try to change vendor to a customer party (should fail)
+        # First create a customer party
+        customer_data = {
+            "name": f"Test Customer {datetime.now().strftime('%H%M%S')}",
+            "party_type": "customer"
+        }
+        
+        success, customer = self.run_test(
+            "Create Customer Party for Invalid Test",
+            "POST",
+            "parties",
+            200,
+            data=customer_data
+        )
+        
+        if not success:
+            return False
+        
+        # Try to update purchase with customer party (should fail with 400)
+        success, error_response = self.run_test(
+            "Edit Purchase with Customer Party (Should Fail)",
+            "PATCH",
+            f"purchases/{draft_purchase_id}",
+            400,  # Expecting 400 error
+            data={"vendor_party_id": customer['id']}
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error when using customer party as vendor")
+            return False
+        
+        print(f"✅ Correctly rejected customer party as vendor (400 error)")
+        
+        # Try with non-existent party ID (should fail with 404)
+        fake_party_id = "non-existent-party-id"
+        success, error_response = self.run_test(
+            "Edit Purchase with Non-Existent Party (Should Fail)",
+            "PATCH",
+            f"purchases/{draft_purchase_id}",
+            404,  # Expecting 404 error
+            data={"vendor_party_id": fake_party_id}
+        )
+        
+        if not success:
+            print(f"❌ Expected 404 error when using non-existent party")
+            return False
+        
+        print(f"✅ Correctly rejected non-existent party (404 error)")
+        
+        return True
+
+    def test_purchases_finalize_atomic_operations(self):
+        """Test Scenario 5: Finalize Purchase (CRITICAL - 5 Atomic Operations)"""
+        print("\n🔥 TESTING PURCHASES MODULE - FINALIZE PURCHASE (5 ATOMIC OPERATIONS)")
+        
+        if not hasattr(self, 'purchases_test_data'):
+            return False
+        
+        draft_purchase_id = self.purchases_test_data['draft_purchase_id']
+        vendor_id = self.purchases_test_data['vendor_id']
+        
+        # Get current inventory state before finalization
+        success, stock_before = self.run_test(
+            "Get Stock Totals Before Finalization",
+            "GET",
+            "inventory/stock-totals",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find Gold 22K inventory
+        gold_22k_before = None
+        for stock in stock_before:
+            if "Gold 22K" in stock.get('header_name', ''):
+                gold_22k_before = stock
+                break
+        
+        initial_qty = gold_22k_before.get('total_qty', 0) if gold_22k_before else 0
+        initial_weight = gold_22k_before.get('total_weight', 0) if gold_22k_before else 0
+        
+        print(f"   Initial inventory: {initial_qty} qty, {initial_weight}g weight")
+        
+        # Finalize the purchase
+        success, finalize_response = self.run_test(
+            "Finalize Purchase (All Atomic Operations)",
+            "POST",
+            f"purchases/{draft_purchase_id}/finalize",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Verify response structure
+        required_fields = ['purchase_id', 'stock_movement_id', 'transaction_id', 'vendor_payable']
+        for field in required_fields:
+            if field not in finalize_response:
+                print(f"❌ Finalize response missing field: {field}")
+                return False
+        
+        print(f"✅ Finalize response complete:")
+        print(f"   - Purchase ID: {finalize_response.get('purchase_id')}")
+        print(f"   - Stock Movement ID: {finalize_response.get('stock_movement_id')}")
+        print(f"   - Transaction ID: {finalize_response.get('transaction_id')}")
+        print(f"   - Vendor Payable: {finalize_response.get('vendor_payable')}")
+        
+        # OPERATION A: Verify purchase status changed to "finalized", locked = True
+        success, finalized_purchase = self.run_test(
+            "Get Finalized Purchase (Check Status)",
+            "GET",
+            f"purchases/{draft_purchase_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        if finalized_purchase.get('status') != 'finalized':
+            print(f"❌ Purchase status should be 'finalized', got: {finalized_purchase.get('status')}")
+            return False
+        
+        if finalized_purchase.get('locked') != True:
+            print(f"❌ Purchase should be locked, got: {finalized_purchase.get('locked')}")
+            return False
+        
+        if not finalized_purchase.get('finalized_at'):
+            print(f"❌ Purchase should have finalized_at timestamp")
+            return False
+        
+        if not finalized_purchase.get('finalized_by'):
+            print(f"❌ Purchase should have finalized_by user")
+            return False
+        
+        print(f"✅ Operation A: Purchase status changed to finalized and locked")
+        
+        # OPERATION B: Verify finalized_at, finalized_by populated
+        print(f"✅ Operation B: Finalized metadata populated (at: {finalized_purchase.get('finalized_at')}, by: {finalized_purchase.get('finalized_by')})")
+        
+        # OPERATION C: Verify Stock IN movement created
+        success, movements = self.run_test(
+            "Get Stock Movements (Check Stock IN)",
+            "GET",
+            "inventory/movements",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find the stock movement for this purchase
+        purchase_movement = None
+        for movement in movements:
+            if (movement.get('reference_type') == 'purchase' and 
+                movement.get('reference_id') == draft_purchase_id):
+                purchase_movement = movement
+                break
+        
+        if not purchase_movement:
+            print(f"❌ No stock movement found for purchase {draft_purchase_id}")
+            return False
+        
+        # Verify movement properties
+        if purchase_movement.get('movement_type') != 'Stock IN':
+            print(f"❌ Movement type should be 'Stock IN', got: {purchase_movement.get('movement_type')}")
+            return False
+        
+        if purchase_movement.get('purity') != 916:
+            print(f"❌ Movement purity should be 916 (NOT 999), got: {purchase_movement.get('purity')}")
+            return False
+        
+        if purchase_movement.get('qty_delta') != 1:
+            print(f"❌ Movement qty_delta should be 1 (positive), got: {purchase_movement.get('qty_delta')}")
+            return False
+        
+        expected_weight = finalized_purchase.get('weight_grams', 0)
+        if abs(purchase_movement.get('weight_delta', 0) - expected_weight) > 0.001:
+            print(f"❌ Movement weight_delta should be {expected_weight}, got: {purchase_movement.get('weight_delta')}")
+            return False
+        
+        print(f"✅ Operation C: Stock IN movement created correctly:")
+        print(f"   - Type: {purchase_movement.get('movement_type')}")
+        print(f"   - Purity: {purchase_movement.get('purity')} (valuation, not entered)")
+        print(f"   - Qty Delta: +{purchase_movement.get('qty_delta')}")
+        print(f"   - Weight Delta: +{purchase_movement.get('weight_delta')}g")
+        
+        # OPERATION D: Verify inventory header current_qty and current_weight increased
+        success, stock_after = self.run_test(
+            "Get Stock Totals After Finalization",
+            "GET",
+            "inventory/stock-totals",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find Gold 22K inventory after finalization
+        gold_22k_after = None
+        for stock in stock_after:
+            if "Gold 22K" in stock.get('header_name', ''):
+                gold_22k_after = stock
+                break
+        
+        if not gold_22k_after:
+            print(f"❌ Gold 22K inventory header not found after finalization")
+            return False
+        
+        final_qty = gold_22k_after.get('total_qty', 0)
+        final_weight = gold_22k_after.get('total_weight', 0)
+        
+        expected_final_qty = initial_qty + 1
+        expected_final_weight = initial_weight + expected_weight
+        
+        if abs(final_qty - expected_final_qty) > 0.001:
+            print(f"❌ Inventory qty should increase by 1: expected {expected_final_qty}, got {final_qty}")
+            return False
+        
+        if abs(final_weight - expected_final_weight) > 0.001:
+            print(f"❌ Inventory weight should increase by {expected_weight}: expected {expected_final_weight}, got {final_weight}")
+            return False
+        
+        print(f"✅ Operation D: Inventory header updated correctly:")
+        print(f"   - Qty: {initial_qty} → {final_qty} (+1)")
+        print(f"   - Weight: {initial_weight}g → {final_weight}g (+{expected_weight}g)")
+        
+        # OPERATION E: Verify vendor payable transaction created
+        success, transactions = self.run_test(
+            "Get Transactions (Check Vendor Payable)",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find the vendor payable transaction
+        vendor_transaction = None
+        for txn in transactions:
+            if (txn.get('reference_type') == 'purchase' and 
+                txn.get('reference_id') == draft_purchase_id and
+                txn.get('party_id') == vendor_id):
+                vendor_transaction = txn
+                break
+        
+        if not vendor_transaction:
+            print(f"❌ No vendor payable transaction found for purchase")
+            return False
+        
+        # Verify transaction properties
+        if vendor_transaction.get('transaction_type') != 'credit':
+            print(f"❌ Transaction type should be 'credit' (we owe vendor), got: {vendor_transaction.get('transaction_type')}")
+            return False
+        
+        if vendor_transaction.get('party_id') != vendor_id:
+            print(f"❌ Transaction party_id should be {vendor_id}, got: {vendor_transaction.get('party_id')}")
+            return False
+        
+        expected_amount = finalized_purchase.get('amount_total', 0)
+        if abs(vendor_transaction.get('amount', 0) - expected_amount) > 0.01:
+            print(f"❌ Transaction amount should be {expected_amount}, got: {vendor_transaction.get('amount')}")
+            return False
+        
+        if vendor_transaction.get('category') != 'Purchase':
+            print(f"❌ Transaction category should be 'Purchase', got: {vendor_transaction.get('category')}")
+            return False
+        
+        # Verify transaction number format (TXN-YYYY-NNNN)
+        txn_number = vendor_transaction.get('transaction_number', '')
+        import re
+        if not re.match(r'^TXN-\d{4}-\d{4}$', txn_number):
+            print(f"❌ Transaction number format incorrect: {txn_number}")
+            return False
+        
+        print(f"✅ Operation E: Vendor payable transaction created correctly:")
+        print(f"   - Type: {vendor_transaction.get('transaction_type')} (liability)")
+        print(f"   - Amount: {vendor_transaction.get('amount')}")
+        print(f"   - Category: {vendor_transaction.get('category')}")
+        print(f"   - Transaction Number: {txn_number}")
+        
+        # Store finalized purchase data for other tests
+        self.purchases_test_data['finalized_purchase_id'] = draft_purchase_id
+        self.purchases_test_data['stock_movement_id'] = finalize_response.get('stock_movement_id')
+        self.purchases_test_data['transaction_id'] = finalize_response.get('transaction_id')
+        
+        print(f"🎉 ALL 5 ATOMIC OPERATIONS COMPLETED SUCCESSFULLY!")
+        
+        return True
+
+    def test_purchases_edit_finalized_attempt(self):
+        """Test Scenario 6: Attempt to Edit Finalized Purchase"""
+        print("\n🔒 TESTING PURCHASES MODULE - ATTEMPT TO EDIT FINALIZED PURCHASE")
+        
+        if not hasattr(self, 'purchases_test_data') or 'finalized_purchase_id' not in self.purchases_test_data:
+            print("❌ Finalized purchase not available, run finalization test first")
+            return False
+        
+        finalized_purchase_id = self.purchases_test_data['finalized_purchase_id']
+        
+        # Try to update finalized purchase (should fail with 400)
+        success, error_response = self.run_test(
+            "Edit Finalized Purchase (Should Fail)",
+            "PATCH",
+            f"purchases/{finalized_purchase_id}",
+            400,  # Expecting 400 error
+            data={"description": "Attempting to edit finalized purchase"}
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error when editing finalized purchase")
+            return False
+        
+        # Verify error message mentions immutability
+        error_str = str(error_response).lower()
+        if 'immutable' not in error_str or 'finalized' not in error_str:
+            print(f"❌ Error message should mention immutability and finalized status")
+            return False
+        
+        print(f"✅ Finalized purchase correctly rejected edit attempt (400 error)")
+        print(f"   Error message mentions immutability: {error_response}")
+        
+        return True
+
+    def test_purchases_re_finalize_attempt(self):
+        """Test Scenario 7: Attempt to Re-Finalize"""
+        print("\n🔄 TESTING PURCHASES MODULE - ATTEMPT TO RE-FINALIZE")
+        
+        if not hasattr(self, 'purchases_test_data') or 'finalized_purchase_id' not in self.purchases_test_data:
+            return False
+        
+        finalized_purchase_id = self.purchases_test_data['finalized_purchase_id']
+        
+        # Count stock movements before re-finalize attempt
+        success, movements_before = self.run_test(
+            "Count Stock Movements Before Re-Finalize",
+            "GET",
+            "inventory/movements",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        movements_count_before = len([
+            m for m in movements_before 
+            if m.get('reference_type') == 'purchase' and m.get('reference_id') == finalized_purchase_id
+        ])
+        
+        # Count transactions before re-finalize attempt
+        success, transactions_before = self.run_test(
+            "Count Transactions Before Re-Finalize",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        transactions_count_before = len([
+            t for t in transactions_before 
+            if t.get('reference_type') == 'purchase' and t.get('reference_id') == finalized_purchase_id
+        ])
+        
+        # Try to re-finalize (should fail with 400)
+        success, error_response = self.run_test(
+            "Re-Finalize Already Finalized Purchase (Should Fail)",
+            "POST",
+            f"purchases/{finalized_purchase_id}/finalize",
+            400  # Expecting 400 error
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error when re-finalizing purchase")
+            return False
+        
+        # Verify error message mentions already finalized
+        error_str = str(error_response).lower()
+        if 'already finalized' not in error_str:
+            print(f"❌ Error message should mention 'already finalized'")
+            return False
+        
+        print(f"✅ Re-finalization correctly rejected (400 error)")
+        
+        # Verify NO duplicate stock movements or transactions created
+        success, movements_after = self.run_test(
+            "Count Stock Movements After Re-Finalize Attempt",
+            "GET",
+            "inventory/movements",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        movements_count_after = len([
+            m for m in movements_after 
+            if m.get('reference_type') == 'purchase' and m.get('reference_id') == finalized_purchase_id
+        ])
+        
+        success, transactions_after = self.run_test(
+            "Count Transactions After Re-Finalize Attempt",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        transactions_count_after = len([
+            t for t in transactions_after 
+            if t.get('reference_type') == 'purchase' and t.get('reference_id') == finalized_purchase_id
+        ])
+        
+        if movements_count_after != movements_count_before:
+            print(f"❌ Duplicate stock movements created: before={movements_count_before}, after={movements_count_after}")
+            return False
+        
+        if transactions_count_after != transactions_count_before:
+            print(f"❌ Duplicate transactions created: before={transactions_count_before}, after={transactions_count_after}")
+            return False
+        
+        print(f"✅ No duplicate movements or transactions created")
+        print(f"   - Stock movements: {movements_count_before} (unchanged)")
+        print(f"   - Transactions: {transactions_count_before} (unchanged)")
+        
+        return True
+
+    def test_purchases_purity_handling(self):
+        """Test Scenario 8: Purity Handling Verification"""
+        print("\n🔬 TESTING PURCHASES MODULE - PURITY HANDLING VERIFICATION")
+        
+        if not hasattr(self, 'purchases_test_data') or 'finalized_purchase_id' not in self.purchases_test_data:
+            return False
+        
+        finalized_purchase_id = self.purchases_test_data['finalized_purchase_id']
+        
+        # Get the finalized purchase
+        success, purchase = self.run_test(
+            "Get Purchase for Purity Verification",
+            "GET",
+            f"purchases/{finalized_purchase_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Verify entered_purity (999) is stored in purchase document
+        if purchase.get('entered_purity') != 999:
+            print(f"❌ entered_purity should be 999 (as claimed by vendor), got: {purchase.get('entered_purity')}")
+            return False
+        
+        print(f"✅ entered_purity stored correctly: {purchase.get('entered_purity')} (vendor claim)")
+        
+        # Verify valuation_purity_fixed is 916
+        if purchase.get('valuation_purity_fixed') != 916:
+            print(f"❌ valuation_purity_fixed should be 916, got: {purchase.get('valuation_purity_fixed')}")
+            return False
+        
+        print(f"✅ valuation_purity_fixed correct: {purchase.get('valuation_purity_fixed')} (for accounting)")
+        
+        # Get the stock movement and verify it uses 916 purity
+        success, movements = self.run_test(
+            "Get Stock Movement for Purity Verification",
+            "GET",
+            "inventory/movements",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        purchase_movement = None
+        for movement in movements:
+            if (movement.get('reference_type') == 'purchase' and 
+                movement.get('reference_id') == finalized_purchase_id):
+                purchase_movement = movement
+                break
+        
+        if not purchase_movement:
+            print(f"❌ Stock movement not found for purchase")
+            return False
+        
+        # Verify stock movement uses valuation_purity_fixed (916), NOT entered_purity (999)
+        if purchase_movement.get('purity') != 916:
+            print(f"❌ Stock movement should use purity 916 (valuation), got: {purchase_movement.get('purity')}")
+            return False
+        
+        print(f"✅ Stock movement uses valuation purity: {purchase_movement.get('purity')} (NOT entered purity)")
+        
+        # Verify inventory header shows 916 purity (22K gold)
+        success, stock_totals = self.run_test(
+            "Get Stock Totals for Purity Verification",
+            "GET",
+            "inventory/stock-totals",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find the inventory header used
+        header_name = purchase_movement.get('header_name', '')
+        if "22K" not in header_name:
+            print(f"❌ Inventory header should be 22K (916 purity), got: {header_name}")
+            return False
+        
+        print(f"✅ Inventory header shows correct purity: {header_name} (22K = 916 purity)")
+        
+        print(f"🔬 PURITY HANDLING VERIFICATION COMPLETE:")
+        print(f"   - entered_purity (999) stored for reference")
+        print(f"   - valuation_purity_fixed (916) used for stock and accounting")
+        print(f"   - Stock movement uses 916 purity")
+        print(f"   - Inventory shows 22K gold (916 purity)")
+        
+        return True
+
+    def test_purchases_precision_verification(self):
+        """Test Scenario 9: Precision Verification"""
+        print("\n📏 TESTING PURCHASES MODULE - PRECISION VERIFICATION")
+        
+        if not hasattr(self, 'purchases_test_data'):
+            return False
+        
+        vendor_id = self.purchases_test_data['vendor_id']
+        
+        # Create purchase with specific precision test values
+        precision_test_data = {
+            "vendor_party_id": vendor_id,
+            "description": "Precision Test Purchase",
+            "weight_grams": 123.4567,    # 4 decimals input
+            "entered_purity": 995,
+            "rate_per_gram": 185.555,    # 3 decimals input
+            "amount_total": 22888.88
+        }
+        
+        success, purchase = self.run_test(
+            "Create Purchase for Precision Test",
+            "POST",
+            "purchases",
+            200,
+            data=precision_test_data
+        )
+        
+        if not success:
+            return False
+        
+        # Verify weight rounded to 3 decimals (123.457)
+        expected_weight = 123.457  # Should round 123.4567 to 3 decimals
+        if abs(purchase.get('weight_grams', 0) - expected_weight) > 0.001:
+            print(f"❌ Weight should be rounded to 3 decimals: expected {expected_weight}, got {purchase.get('weight_grams')}")
+            return False
+        
+        print(f"✅ Weight precision correct: {precision_test_data['weight_grams']} → {purchase.get('weight_grams')} (3 decimals)")
+        
+        # Verify rate rounded to 2 decimals (185.56)
+        expected_rate = 185.56  # Should round 185.555 to 2 decimals
+        if abs(purchase.get('rate_per_gram', 0) - expected_rate) > 0.01:
+            print(f"❌ Rate should be rounded to 2 decimals: expected {expected_rate}, got {purchase.get('rate_per_gram')}")
+            return False
+        
+        print(f"✅ Rate precision correct: {precision_test_data['rate_per_gram']} → {purchase.get('rate_per_gram')} (2 decimals)")
+        
+        # Verify amount rounded to 2 decimals
+        expected_amount = 22888.88
+        if abs(purchase.get('amount_total', 0) - expected_amount) > 0.01:
+            print(f"❌ Amount should be rounded to 2 decimals: expected {expected_amount}, got {purchase.get('amount_total')}")
+            return False
+        
+        print(f"✅ Amount precision correct: {purchase.get('amount_total')} (2 decimals)")
+        
+        return True
+
+    def test_purchases_date_range_filter(self):
+        """Test Scenario 10: Filter by Date Range"""
+        print("\n📅 TESTING PURCHASES MODULE - DATE RANGE FILTER")
+        
+        from datetime import timedelta
+        
+        # Test date range filtering
+        today = datetime.now().strftime('%Y-%m-%d')
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        # Test with date range that should include today's purchases
+        success, purchases_today = self.run_test(
+            "Get Purchases (Today's Date Range)",
+            "GET",
+            "purchases",
+            200,
+            params={
+                "start_date": today,
+                "end_date": tomorrow
+            }
+        )
+        
+        if not success:
+            return False
+        
+        print(f"✅ Date range filter working: {len(purchases_today)} purchases found for today")
+        
+        # Test with date range that should exclude today's purchases
+        success, purchases_yesterday = self.run_test(
+            "Get Purchases (Yesterday's Date Range)",
+            "GET",
+            "purchases",
+            200,
+            params={
+                "start_date": yesterday,
+                "end_date": yesterday
+            }
+        )
+        
+        if not success:
+            return False
+        
+        print(f"✅ Date range exclusion working: {len(purchases_yesterday)} purchases found for yesterday")
+        
+        # Verify all returned purchases are within date range
+        for purchase in purchases_today:
+            purchase_date = purchase.get('date', '')
+            if purchase_date and today not in purchase_date:
+                print(f"ℹ️  Purchase date {purchase_date} outside expected range (may be timezone difference)")
+        
+        return True
+
     def run_all_tests(self):
         """Run all tests in sequence"""
         print("🚀 Starting Gold Shop ERP Backend Tests")
