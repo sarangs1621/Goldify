@@ -166,6 +166,56 @@ export default function PartiesPage() {
     }
   };
 
+  // Filtered gold entries based on date and search
+  const filteredGoldEntries = useMemo(() => {
+    return goldEntries.filter(entry => {
+      const entryDate = new Date(entry.date);
+      const fromDate = dateFrom ? new Date(dateFrom) : null;
+      const toDate = dateTo ? new Date(dateTo) : null;
+      
+      // Date filter
+      if (fromDate && entryDate < fromDate) return false;
+      if (toDate && entryDate > toDate) return false;
+      
+      // Search filter
+      if (ledgerSearchTerm) {
+        const searchLower = ledgerSearchTerm.toLowerCase();
+        return (
+          entry.purpose?.toLowerCase().includes(searchLower) ||
+          entry.notes?.toLowerCase().includes(searchLower) ||
+          entry.type?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      return true;
+    });
+  }, [goldEntries, dateFrom, dateTo, ledgerSearchTerm]);
+
+  // Filtered money ledger based on date and search
+  const filteredMoneyLedger = useMemo(() => {
+    return moneyLedger.filter(entry => {
+      const entryDate = new Date(entry.date);
+      const fromDate = dateFrom ? new Date(dateFrom) : null;
+      const toDate = dateTo ? new Date(dateTo) : null;
+      
+      // Date filter
+      if (fromDate && entryDate < fromDate) return false;
+      if (toDate && entryDate > toDate) return false;
+      
+      // Search filter
+      if (ledgerSearchTerm) {
+        const searchLower = ledgerSearchTerm.toLowerCase();
+        return (
+          entry.reference?.toLowerCase().includes(searchLower) ||
+          entry.type?.toLowerCase().includes(searchLower) ||
+          entry.notes?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      return true;
+    });
+  }, [moneyLedger, dateFrom, dateTo, ledgerSearchTerm]);
+
   const filteredParties = parties.filter(party => {
     const matchesSearch = party.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (party.phone && party.phone.includes(searchTerm));
