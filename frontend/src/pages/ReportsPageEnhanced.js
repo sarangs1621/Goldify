@@ -81,6 +81,8 @@ export default function ReportsPageEnhanced() {
       loadTransactionsReport();
     } else if (activeTab === 'sales-history') {
       loadSalesHistoryReport();
+    } else if (activeTab === 'purchase-history') {
+      loadPurchaseHistoryReport();
     }
   }, [datePreset, startDate, endDate, selectedPartyId, sortBy]);
 
