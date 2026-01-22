@@ -821,6 +821,20 @@ export default function JobCardsPage() {
               </div>
             )}
 
+            {/* MODULE 7: Discount Amount Field */}
+            <div className="space-y-2">
+              <Label>Discount Amount (OMR)</Label>
+              <Input
+                type="number"
+                step="0.001"
+                min="0"
+                value={convertData.discount_amount || ''}
+                onChange={(e) => setConvertData({...convertData, discount_amount: e.target.value})}
+                placeholder="0.000"
+              />
+              <p className="text-xs text-gray-500">Optional: Enter discount amount to be applied before VAT calculation</p>
+            </div>
+
             {/* Action Buttons */}
             <div className="flex gap-3">
               <Button
