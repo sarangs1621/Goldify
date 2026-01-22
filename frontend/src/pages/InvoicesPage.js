@@ -492,37 +492,149 @@ export default function InvoicesPage() {
                       <SelectItem value="Card">Card</SelectItem>
                       <SelectItem value="UPI/Online">UPI/Online</SelectItem>
                       <SelectItem value="Cheque">Cheque</SelectItem>
+                      <SelectItem value="GOLD_EXCHANGE">Gold Exchange</SelectItem>
                     </SelectContent>
                   </Select>
+                  {paymentData.payment_mode === 'GOLD_EXCHANGE' && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      💰 Use customer's gold balance to pay invoice (saved customers only)
+                    </p>
+                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Account (Where money goes) *</Label>
-                  <Select 
-                    value={paymentData.account_id} 
-                    onValueChange={(value) => setPaymentData({...paymentData, account_id: value})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map(account => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name} ({account.account_type})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Conditional Fields for GOLD_EXCHANGE */}
+                {paymentData.payment_mode === 'GOLD_EXCHANGE' ? (
+                  <>
+                    {/* Gold Exchange Fields */}
+                    <div className="space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <h4 className="font-semibold text-sm text-amber-900">Gold Exchange Details</h4>
+                      
+                      <div className="space-y-2">
+                        <Label>Gold Weight (grams) *</Label>
+                        <Input
+                          type="number"
+                          step="0.001"
+                          min="0"
+                          value={paymentData.gold_weight_grams}
+                          onChange={(e) => {
+                            const weight = e.target.value;
+                            const rate = paymentData.rate_per_gram;
+                            setPaymentData({
+                              ...paymentData, 
+                              gold_weight_grams: weight,
+                              // Auto-calculate amount if rate is available
+                              amount: (weight && rate) ? (parseFloat(weight) * parseFloat(rate)).toFixed(3) : ''
+                            });
+                          }}
+                          placeholder="e.g., 25.500"
+                        />
+                        <p className="text-xs text-gray-600">Amount of gold customer will use for payment</p>
+                      </div>
 
-                <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
-                  <Input
-                    value={paymentData.notes}
-                    onChange={(e) => setPaymentData({...paymentData, notes: e.target.value})}
-                    placeholder="Payment notes or reference"
-                  />
-                </div>
+                      <div className="space-y-2">
+                        <Label>Rate per Gram (OMR) *</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentData.rate_per_gram}
+                          onChange={(e) => {
+                            const rate = e.target.value;
+                            const weight = paymentData.gold_weight_grams;
+                            setPaymentData({
+                              ...paymentData, 
+                              rate_per_gram: rate,
+                              // Auto-calculate amount if weight is available
+                              amount: (weight && rate) ? (parseFloat(weight) * parseFloat(rate)).toFixed(3) : ''
+                            });
+                          }}
+                          placeholder="e.g., 20.00"
+                        />
+                        <p className="text-xs text-gray-600">Gold conversion rate to money</p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Purity</Label>
+                        <Input
+                          type="number"
+                          value={paymentData.purity_entered}
+                          onChange={(e) => setPaymentData({...paymentData, purity_entered: e.target.value})}
+                          placeholder="916"
+                        />
+                        <p className="text-xs text-gray-600">Default: 916 (22K gold standard)</p>
+                      </div>
+
+                      {paymentData.gold_weight_grams && paymentData.rate_per_gram && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded">
+                          <p className="text-sm font-semibold text-green-900">
+                            Calculated Payment Value: {(parseFloat(paymentData.gold_weight_grams) * parseFloat(paymentData.rate_per_gram)).toFixed(3)} OMR
+                          </p>
+                          <p className="text-xs text-green-700 mt-1">
+                            {paymentData.gold_weight_grams}g × {paymentData.rate_per_gram} OMR/g
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Notes (Optional)</Label>
+                      <Input
+                        value={paymentData.notes}
+                        onChange={(e) => setPaymentData({...paymentData, notes: e.target.value})}
+                        placeholder="Payment notes or reference"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Standard Payment Fields */}
+                    <div className="space-y-2">
+                      <Label>Payment Amount (OMR) *</Label>
+                      <Input
+                        type="number"
+                        step="0.001"
+                        value={paymentData.amount}
+                        onChange={(e) => setPaymentData({...paymentData, amount: e.target.value})}
+                        placeholder="Enter payment amount"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPaymentData({...paymentData, amount: selectedInvoice.balance_due.toFixed(3)})}
+                        className="text-xs text-blue-600 hover:text-blue-700"
+                      >
+                        Set to full balance ({selectedInvoice.balance_due.toFixed(3)} OMR)
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Account (Where money goes) *</Label>
+                      <Select 
+                        value={paymentData.account_id} 
+                        onValueChange={(value) => setPaymentData({...paymentData, account_id: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accounts.map(account => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.name} ({account.account_type})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Notes (Optional)</Label>
+                      <Input
+                        value={paymentData.notes}
+                        onChange={(e) => setPaymentData({...paymentData, notes: e.target.value})}
+                        placeholder="Payment notes or reference"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Action Buttons */}
