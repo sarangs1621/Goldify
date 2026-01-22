@@ -4282,6 +4282,229 @@ class GoldShopERPTester:
         print(f"✅ Backward compatibility verified: Standard payment modes work correctly")
         return True
 
+    def test_walk_in_invoice_transaction_creation(self):
+        """🔥 CRITICAL FIX VERIFICATION - Walk-in Invoice Transaction Creation"""
+        print("\n🔥 TESTING WALK-IN INVOICE TRANSACTION CREATION FIX")
+        
+        # Step 1: Create a walk-in job card with at least 1 item
+        jobcard_data = {
+            "card_type": "individual",
+            "customer_type": "walk_in",
+            "walk_in_name": "John Walk-in Customer",
+            "walk_in_phone": "+968 9999 1234",
+            "delivery_date": "2025-01-20",
+            "notes": "Walk-in job card for transaction creation test",
+            "items": [{
+                "category": "Ring",
+                "description": "Gold ring for walk-in customer",
+                "qty": 1,
+                "weight_in": 10.500,
+                "weight_out": 10.200,
+                "purity": 916,
+                "work_type": "polish",
+                "remarks": "Polish and clean",
+                "making_charge_type": "flat",
+                "making_charge_value": 15.0,
+                "vat_percent": 5.0
+            }]
+        }
+        
+        success, jobcard = self.run_test(
+            "Create Walk-in Job Card",
+            "POST",
+            "jobcards",
+            200,
+            data=jobcard_data
+        )
+        
+        if not success or not jobcard.get('id'):
+            print("❌ Failed to create walk-in job card")
+            return False
+        
+        jobcard_id = jobcard['id']
+        print(f"✅ Walk-in job card created: {jobcard_id}")
+        
+        # Step 2: Convert to walk-in invoice
+        invoice_conversion_data = {
+            "customer_type": "walk_in",
+            "walk_in_name": "John Walk-in Customer",
+            "walk_in_phone": "+968 9999 1234"
+        }
+        
+        success, invoice = self.run_test(
+            "Convert Walk-in Job Card to Invoice",
+            "POST",
+            f"jobcards/{jobcard_id}/convert-to-invoice",
+            200,
+            data=invoice_conversion_data
+        )
+        
+        if not success or not invoice.get('id'):
+            print("❌ Failed to convert walk-in job card to invoice")
+            return False
+        
+        invoice_id = invoice['id']
+        grand_total = invoice.get('grand_total', 0)
+        print(f"✅ Walk-in invoice created: {invoice_id}, grand_total: {grand_total}")
+        
+        # Verify invoice has walk-in customer details
+        if invoice.get('customer_type') != 'walk_in':
+            print(f"❌ Invoice customer_type should be 'walk_in', got: {invoice.get('customer_type')}")
+            return False
+        
+        if invoice.get('walk_in_name') != 'John Walk-in Customer':
+            print(f"❌ Invoice walk_in_name mismatch")
+            return False
+        
+        if invoice.get('walk_in_phone') != '+968 9999 1234':
+            print(f"❌ Invoice walk_in_phone mismatch")
+            return False
+        
+        print(f"✅ Walk-in invoice has correct customer details")
+        
+        # Step 3: Finalize the walk-in invoice
+        success, finalized_invoice = self.run_test(
+            "Finalize Walk-in Invoice",
+            "POST",
+            f"invoices/{invoice_id}/finalize",
+            200
+        )
+        
+        if not success:
+            print("❌ Failed to finalize walk-in invoice")
+            return False
+        
+        print(f"✅ Walk-in invoice finalized successfully")
+        
+        # Step 4: 🔥 CRITICAL CHECK - Query transactions collection for transaction record
+        success, transactions = self.run_test(
+            "Get All Transactions (Find Walk-in Transaction)",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            print("❌ Failed to get transactions")
+            return False
+        
+        # Find the transaction record for this walk-in invoice
+        walk_in_transaction = None
+        for txn in transactions:
+            if (txn.get('reference_type') == 'invoice' and 
+                txn.get('reference_id') == invoice_id and
+                txn.get('category') == 'Sales Invoice'):
+                walk_in_transaction = txn
+                break
+        
+        if not walk_in_transaction:
+            print(f"❌ CRITICAL FAILURE: No transaction record found for walk-in invoice {invoice_id}")
+            print(f"   Expected: reference_type='invoice', reference_id='{invoice_id}', category='Sales Invoice'")
+            return False
+        
+        print(f"✅ CRITICAL SUCCESS: Transaction record found for walk-in invoice!")
+        
+        # Verify transaction record has correct fields for walk-in
+        verification_results = []
+        
+        # Check reference_type = "invoice"
+        if walk_in_transaction.get('reference_type') != 'invoice':
+            print(f"❌ reference_type should be 'invoice', got: {walk_in_transaction.get('reference_type')}")
+            verification_results.append(False)
+        else:
+            print(f"✅ reference_type correct: {walk_in_transaction.get('reference_type')}")
+            verification_results.append(True)
+        
+        # Check reference_id = invoice_id
+        if walk_in_transaction.get('reference_id') != invoice_id:
+            print(f"❌ reference_id should be '{invoice_id}', got: {walk_in_transaction.get('reference_id')}")
+            verification_results.append(False)
+        else:
+            print(f"✅ reference_id correct: {walk_in_transaction.get('reference_id')}")
+            verification_results.append(True)
+        
+        # Check category = "Sales Invoice"
+        if walk_in_transaction.get('category') != 'Sales Invoice':
+            print(f"❌ category should be 'Sales Invoice', got: {walk_in_transaction.get('category')}")
+            verification_results.append(False)
+        else:
+            print(f"✅ category correct: {walk_in_transaction.get('category')}")
+            verification_results.append(True)
+        
+        # Check mode = "invoice"
+        if walk_in_transaction.get('mode') != 'invoice':
+            print(f"❌ mode should be 'invoice', got: {walk_in_transaction.get('mode')}")
+            verification_results.append(False)
+        else:
+            print(f"✅ mode correct: {walk_in_transaction.get('mode')}")
+            verification_results.append(True)
+        
+        # Check party_id = None (for walk-in)
+        if walk_in_transaction.get('party_id') is not None:
+            print(f"❌ party_id should be None for walk-in, got: {walk_in_transaction.get('party_id')}")
+            verification_results.append(False)
+        else:
+            print(f"✅ party_id correct (None for walk-in): {walk_in_transaction.get('party_id')}")
+            verification_results.append(True)
+        
+        # Check party_name = None (for walk-in)
+        if walk_in_transaction.get('party_name') is not None:
+            print(f"❌ party_name should be None for walk-in, got: {walk_in_transaction.get('party_name')}")
+            verification_results.append(False)
+        else:
+            print(f"✅ party_name correct (None for walk-in): {walk_in_transaction.get('party_name')}")
+            verification_results.append(True)
+        
+        # Check notes containing walk_in_name and walk_in_phone
+        notes = walk_in_transaction.get('notes', '')
+        if 'John Walk-in Customer' not in notes:
+            print(f"❌ notes should contain walk_in_name 'John Walk-in Customer', got: {notes}")
+            verification_results.append(False)
+        else:
+            print(f"✅ notes contain walk_in_name")
+            verification_results.append(True)
+        
+        if '+968 9999 1234' not in notes:
+            print(f"❌ notes should contain walk_in_phone '+968 9999 1234', got: {notes}")
+            verification_results.append(False)
+        else:
+            print(f"✅ notes contain walk_in_phone")
+            verification_results.append(True)
+        
+        # Check amount = invoice grand_total
+        if abs(walk_in_transaction.get('amount', 0) - grand_total) > 0.01:
+            print(f"❌ amount should be {grand_total}, got: {walk_in_transaction.get('amount')}")
+            verification_results.append(False)
+        else:
+            print(f"✅ amount correct: {walk_in_transaction.get('amount')}")
+            verification_results.append(True)
+        
+        # Check transaction_number format: TXN-YYYY-NNNN
+        txn_number = walk_in_transaction.get('transaction_number', '')
+        import re
+        if not re.match(r'^TXN-\d{4}-\d{4}$', txn_number):
+            print(f"❌ transaction_number format incorrect: {txn_number}")
+            verification_results.append(False)
+        else:
+            print(f"✅ transaction_number format correct: {txn_number}")
+            verification_results.append(True)
+        
+        # Final verification
+        all_checks_passed = all(verification_results)
+        
+        if all_checks_passed:
+            print(f"\n🎉 CRITICAL FIX VERIFICATION SUCCESSFUL!")
+            print(f"   ✅ Transaction record CREATED for walk-in invoice finalization")
+            print(f"   ✅ Transaction has correct fields for walk-in (party_id=None, notes with customer info)")
+            print(f"   ✅ Transaction number auto-generated correctly: {txn_number}")
+            print(f"   ✅ Amount matches invoice grand_total: {grand_total}")
+            print(f"   ✅ All walk-in transaction creation requirements met")
+        else:
+            print(f"\n❌ CRITICAL FIX VERIFICATION FAILED!")
+            print(f"   Some transaction record fields are incorrect")
+        
+        return all_checks_passed
+
     def run_all_tests(self):
         """Run all tests in sequence"""
         print("🚀 Starting Gold Shop ERP Backend Tests")
