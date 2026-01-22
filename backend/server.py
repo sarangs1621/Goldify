@@ -2924,9 +2924,24 @@ async def delete_account(account_id: str, current_user: User = Depends(get_curre
     return {"message": "Account deleted successfully"}
 
 @api_router.get("/transactions", response_model=List[Transaction])
-async def get_transactions(current_user: User = Depends(get_current_user)):
-    transactions = await db.transactions.find({"is_deleted": False}, {"_id": 0}).sort("date", -1).to_list(1000)
-    return transactions
+async def get_transactions(
+    page: int = 1,
+    per_page: int = 50,
+    current_user: User = Depends(get_current_user)
+):
+    """Get transactions with pagination support"""
+    query = {"is_deleted": False}
+    
+    # Calculate skip value
+    skip = (page - 1) * per_page
+    
+    # Get total count for pagination
+    total_count = await db.transactions.count_documents(query)
+    
+    # Get paginated results
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).skip(skip).limit(per_page).to_list(per_page)
+    
+    return create_pagination_response(transactions, total_count, page, per_page)
 
 @api_router.post("/transactions", response_model=Transaction)
 async def create_transaction(transaction_data: dict, current_user: User = Depends(get_current_user)):
