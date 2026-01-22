@@ -156,7 +156,12 @@ class GoldShopTester:
             response = self.session.post(f"{self.base_url}/api/jobcards/{jobcard_id}/convert-to-invoice", json=convert_data)
             
             if response.status_code == 200:
-                return response.json()
+                invoice_data = response.json()
+                # The endpoint returns the full invoice object, extract the ID
+                if isinstance(invoice_data, dict) and 'id' in invoice_data:
+                    return {"invoice_id": invoice_data['id'], "invoice": invoice_data}
+                else:
+                    return {"error": "no_id", "message": "No invoice ID in response", "response": invoice_data}
             else:
                 return {"error": response.status_code, "message": response.text}
         except Exception as e:
