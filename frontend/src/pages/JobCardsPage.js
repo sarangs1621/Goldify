@@ -90,6 +90,7 @@ export default function JobCardsPage() {
 
       const data = {
         ...formData,
+        gold_rate_at_jobcard: formData.gold_rate_at_jobcard ? parseFloat(formData.gold_rate_at_jobcard) : null,
         items: formData.items.map(item => ({
           ...item,
           qty: parseInt(item.qty),
