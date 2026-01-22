@@ -1084,11 +1084,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "MODULE 3/10 - Purchases Module - Test create draft purchase"
-    - "MODULE 3/10 - Purchases Module - Test edit draft purchase"
-    - "MODULE 3/10 - Purchases Module - Test finalize purchase (Stock IN + Vendor Payable)"
-    - "MODULE 3/10 - Purchases Module - Test vendor validation and purity handling"
-    - "MODULE 3/10 - Purchases Module - Test finalized purchase immutability"
+    - "MODULE 7/10 - Invoice Discount (Amount Based) - Test backend calculation"
+    - "MODULE 7/10 - Test discount validation (negative, exceeds subtotal)"
+    - "MODULE 7/10 - Test VAT calculation on taxable amount (subtotal - discount)"
+    - "MODULE 7/10 - Test frontend discount input in convert dialog"
+    - "MODULE 7/10 - Test print PDF shows discount line"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
