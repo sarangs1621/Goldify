@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
 Comprehensive Backend Testing for Gold Shop ERP System
-Tasks 3 & 4: Gold Rate Field (Module 8) + Discount Field (Module 7)
+AUDIT LOGS FILTERING FEATURE - Comprehensive Backend Testing
 
-This script tests all 17 scenarios (8 for Task 3, 9 for Task 4) to achieve 10/10 production readiness.
+This script tests the enhanced GET /api/audit-logs endpoint with new filtering capabilities:
+- date_from: Filter from this date (ISO format)
+- date_to: Filter up to this date (ISO format)  
+- user_id: Filter by user ID
+- module: Filter by module name
+- action: Filter by action type
 """
 
 import requests
