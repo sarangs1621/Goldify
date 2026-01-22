@@ -1746,6 +1746,76 @@ frontend:
       - working: true
         agent: "main"
         comment: "Complete daily closing page implemented with form to create closings, display existing records, calculate expected vs actual closing, show difference with color coding, and lock/unlock status badges."
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ENHANCED - Added Edit & Lock/Unlock Functionality for Daily Closings
+          
+          Frontend Implementation (DailyClosingPage.js):
+          
+          1. ✅ Edit Functionality (Available to All Authenticated Users):
+             - Added Edit button (pencil icon) in Actions column for unlocked closings
+             - Edit button only visible for unlocked closings (locked closings cannot be edited)
+             - Created Edit Dialog with:
+               * Read-only display of date and expected closing
+               * Editable actual_closing field (number input with 3 decimal precision)
+               * Editable notes field (optional)
+               * Real-time difference calculation display with color coding
+               * Warning display if closing is locked (safety check)
+             - handleEdit function to open edit dialog with closing data
+             - handleUpdateClosing function calls PATCH /api/daily-closings/{id}
+             - Success/error toast notifications
+             - Auto-refresh closings list after successful update
+          
+          2. ✅ Lock/Unlock Functionality (Admin Only):
+             - Added Lock/Unlock button in Actions column (visible only to admins)
+             - Lock icon shown for unlocked closings (green color)
+             - Unlock icon shown for locked closings (red color)
+             - handleToggleLock function with admin role check
+             - Role validation: only users with role='admin' can lock/unlock
+             - Non-admin users receive error toast if attempting to lock/unlock
+             - Toggles is_locked status via PATCH /api/daily-closings/{id}
+             - Success/error toast notifications
+             - Auto-refresh closings list after successful toggle
+          
+          3. ✅ UI/UX Enhancements:
+             - Added Actions column to closings table
+             - Buttons use lucide-react icons: Edit, Lock, Unlock, AlertCircle
+             - Status badges show Locked (red) or Unlocked (green) with icons
+             - Edit dialog shows calculated difference with color coding:
+               * Green: Perfect match (0 difference)
+               * Yellow: Minor difference (±10 OMR or less)
+               * Red: Significant difference (>10 OMR)
+             - Responsive button layout in Actions column
+             - Data-testid attributes for testing
+          
+          4. ✅ Backend Integration:
+             - Uses existing PATCH /api/daily-closings/{id} endpoint
+             - Backend already prevents editing locked closings (403 error)
+             - Backend auto-recalculates difference when actual_closing updated
+             - Full audit trail maintained via backend audit logs
+          
+          Key Business Rules Implemented:
+          - ✅ Anyone can edit unlocked closings (all authenticated users)
+          - ✅ Only admins can lock/unlock closings (role-based access control)
+          - ✅ Locked closings cannot be edited (UI enforced + backend protected)
+          - ✅ Edit button hidden for locked closings (clear visual feedback)
+          - ✅ Lock/Unlock button only visible to admins (role check)
+          - ✅ Real-time difference calculation in edit dialog
+          - ✅ Proper error handling and user feedback via toasts
+          - ✅ Auto-refresh ensures data consistency after operations
+          
+          READY FOR TESTING - Need to verify:
+          1. Non-admin user can edit unlocked closings successfully
+          2. Non-admin user cannot see Lock/Unlock buttons
+          3. Admin user can see Lock/Unlock buttons
+          4. Admin user can lock an unlocked closing
+          5. Admin user can unlock a locked closing
+          6. Edit button disappears for locked closings
+          7. Attempting to edit locked closing shows error (backend protection)
+          8. Difference calculation updates correctly in edit dialog
+          9. Toast notifications work for all operations
+          10. Closings list refreshes after edit/lock operations
   
   - task: "Invoice Print Improvements"
     implemented: true
