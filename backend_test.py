@@ -3473,6 +3473,815 @@ class GoldShopERPTester:
         
         return True
 
+    def test_gold_exchange_payment_setup(self):
+        """MODULE 10/10 - SETUP PHASE: Create customer, gold entries, invoice"""
+        print("\n💰 TESTING MODULE 10/10 - GOLD EXCHANGE PAYMENT MODE - SETUP PHASE")
+        
+        # 1. Create a saved customer party
+        customer_data = {
+            "name": "Gold Payment Test Customer",
+            "phone": "+968 9999 1234",
+            "address": "Gold Exchange Test Address",
+            "party_type": "customer",
+            "notes": "Customer for gold exchange payment testing"
+        }
+        
+        success, customer = self.run_test(
+            "Create Saved Customer Party",
+            "POST",
+            "parties",
+            200,
+            data=customer_data
+        )
+        
+        if not success or not customer.get('id'):
+            return False
+        
+        customer_id = customer['id']
+        print(f"✅ Created customer: {customer['name']} (ID: {customer_id})")
+        
+        # 2. Create gold IN entries for this customer
+        # Entry 1: 100.500g, purity=916, purpose=advance_gold
+        gold_entry_1 = {
+            "party_id": customer_id,
+            "type": "IN",
+            "weight_grams": 100.500,
+            "purity_entered": 916,
+            "purpose": "advance_gold",
+            "notes": "Gold advance from customer - Entry 1"
+        }
+        
+        success, entry1 = self.run_test(
+            "Create Gold IN Entry 1 (100.500g advance_gold)",
+            "POST",
+            "gold-ledger",
+            200,
+            data=gold_entry_1
+        )
+        
+        if not success:
+            return False
+        
+        # Entry 2: 50.250g, purity=916, purpose=job_work
+        gold_entry_2 = {
+            "party_id": customer_id,
+            "type": "IN",
+            "weight_grams": 50.250,
+            "purity_entered": 916,
+            "purpose": "job_work",
+            "notes": "Gold for job work - Entry 2"
+        }
+        
+        success, entry2 = self.run_test(
+            "Create Gold IN Entry 2 (50.250g job_work)",
+            "POST",
+            "gold-ledger",
+            200,
+            data=gold_entry_2
+        )
+        
+        if not success:
+            return False
+        
+        print(f"✅ Created 2 gold IN entries: 100.500g + 50.250g = 150.750g total")
+        
+        # 3. Create an invoice for this customer
+        invoice_data = {
+            "customer_type": "saved",
+            "customer_id": customer_id,
+            "customer_name": customer['name'],
+            "invoice_type": "sale",
+            "items": [{
+                "description": "Gold jewelry for gold exchange payment test",
+                "qty": 1,
+                "weight": 20.0,
+                "purity": 916,
+                "metal_rate": 25.0,
+                "gold_value": 500.0,
+                "making_value": 400.0,
+                "vat_percent": 5.0,
+                "vat_amount": 45.0,
+                "line_total": 945.0
+            }],
+            "subtotal": 900.0,
+            "vat_total": 45.0,
+            "grand_total": 1000.0,
+            "balance_due": 1000.0,
+            "notes": "Invoice for gold exchange payment testing"
+        }
+        
+        success, invoice = self.run_test(
+            "Create Invoice (grand_total=1000.00 OMR)",
+            "POST",
+            "invoices",
+            200,
+            data=invoice_data
+        )
+        
+        if not success or not invoice.get('id'):
+            return False
+        
+        invoice_id = invoice['id']
+        print(f"✅ Created invoice: {invoice.get('invoice_number')} (balance_due=1000.00 OMR)")
+        
+        # 4. Verify customer gold balance (should be 150.750g available)
+        success, gold_summary = self.run_test(
+            "Verify Customer Gold Balance",
+            "GET",
+            f"parties/{customer_id}/gold-summary",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        expected_balance = 150.750
+        actual_balance = gold_summary.get('gold_due_from_party', 0)
+        
+        if abs(actual_balance - expected_balance) > 0.001:  # Allow for floating point precision
+            print(f"❌ Expected gold balance {expected_balance}g, got {actual_balance}g")
+            return False
+        
+        print(f"✅ Customer gold balance verified: {actual_balance}g available")
+        
+        # Store test data for subsequent tests
+        self.gold_exchange_test_data = {
+            'customer_id': customer_id,
+            'customer_name': customer['name'],
+            'invoice_id': invoice_id,
+            'invoice_number': invoice.get('invoice_number'),
+            'initial_balance_due': 1000.0,
+            'initial_gold_balance': actual_balance
+        }
+        
+        return True
+
+    def test_gold_exchange_partial_payment(self):
+        """MODULE 10/10 - POSITIVE TEST: Gold exchange partial payment"""
+        print("\n💰 TESTING GOLD EXCHANGE - PARTIAL PAYMENT")
+        
+        if not hasattr(self, 'gold_exchange_test_data'):
+            print("❌ Gold exchange test data not available, run setup first")
+            return False
+        
+        customer_id = self.gold_exchange_test_data['customer_id']
+        invoice_id = self.gold_exchange_test_data['invoice_id']
+        
+        # Test GOLD_EXCHANGE partial payment
+        payment_data = {
+            "payment_mode": "GOLD_EXCHANGE",
+            "gold_weight_grams": 25.000,
+            "rate_per_gram": 20.00,
+            "purity_entered": 916,
+            "notes": "Partial payment using customer's gold balance"
+        }
+        
+        success, payment_response = self.run_test(
+            "GOLD_EXCHANGE Partial Payment (25.000g × 20.00 = 500.00 OMR)",
+            "POST",
+            f"invoices/{invoice_id}/add-payment",
+            200,
+            data=payment_data
+        )
+        
+        if not success:
+            return False
+        
+        # Verify response structure
+        expected_gold_money_value = 25.000 * 20.00  # 500.00
+        
+        if payment_response.get('payment_mode') != 'GOLD_EXCHANGE':
+            print(f"❌ Expected payment_mode 'GOLD_EXCHANGE', got {payment_response.get('payment_mode')}")
+            return False
+        
+        if abs(payment_response.get('gold_money_value', 0) - expected_gold_money_value) > 0.01:
+            print(f"❌ Expected gold_money_value {expected_gold_money_value}, got {payment_response.get('gold_money_value')}")
+            return False
+        
+        if payment_response.get('gold_weight_grams') != 25.000:
+            print(f"❌ Expected gold_weight_grams 25.000, got {payment_response.get('gold_weight_grams')}")
+            return False
+        
+        if payment_response.get('rate_per_gram') != 20.00:
+            print(f"❌ Expected rate_per_gram 20.00, got {payment_response.get('rate_per_gram')}")
+            return False
+        
+        print(f"✅ Payment response structure correct: gold_money_value={payment_response.get('gold_money_value')}")
+        
+        # Verify GoldLedgerEntry created (type=OUT, weight=25.000g)
+        success, gold_entries = self.run_test(
+            "Verify Gold Ledger Entry Created",
+            "GET",
+            "gold-ledger",
+            200,
+            params={"party_id": customer_id}
+        )
+        
+        if not success:
+            return False
+        
+        # Find the OUT entry for this payment
+        payment_entry = None
+        for entry in gold_entries:
+            if (entry.get('type') == 'OUT' and 
+                entry.get('weight_grams') == 25.000 and
+                entry.get('purpose') == 'exchange'):
+                payment_entry = entry
+                break
+        
+        if not payment_entry:
+            print(f"❌ No gold ledger OUT entry found for payment")
+            return False
+        
+        print(f"✅ Gold ledger entry created: type=OUT, weight=25.000g, purpose=exchange")
+        
+        # Verify Transaction created (mode=GOLD_EXCHANGE, amount=500.00)
+        success, transactions = self.run_test(
+            "Verify Transaction Record Created",
+            "GET",
+            "transactions",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        # Find the GOLD_EXCHANGE transaction
+        payment_transaction = None
+        for txn in transactions:
+            if (txn.get('mode') == 'GOLD_EXCHANGE' and 
+                txn.get('party_id') == customer_id and
+                txn.get('amount') == 500.00):
+                payment_transaction = txn
+                break
+        
+        if not payment_transaction:
+            print(f"❌ No GOLD_EXCHANGE transaction found")
+            return False
+        
+        print(f"✅ Transaction created: mode=GOLD_EXCHANGE, amount=500.00")
+        
+        # Verify invoice updated (paid_amount=500.00, balance_due=500.00, payment_status=partial)
+        success, updated_invoice = self.run_test(
+            "Verify Invoice Payment Update",
+            "GET",
+            f"invoices/{invoice_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        if updated_invoice.get('paid_amount') != 500.00:
+            print(f"❌ Expected paid_amount 500.00, got {updated_invoice.get('paid_amount')}")
+            return False
+        
+        if updated_invoice.get('balance_due') != 500.00:
+            print(f"❌ Expected balance_due 500.00, got {updated_invoice.get('balance_due')}")
+            return False
+        
+        if updated_invoice.get('payment_status') != 'partial':
+            print(f"❌ Expected payment_status 'partial', got {updated_invoice.get('payment_status')}")
+            return False
+        
+        print(f"✅ Invoice updated: paid_amount=500.00, balance_due=500.00, payment_status=partial")
+        
+        # Verify customer gold balance reduced to 125.750g
+        success, gold_summary = self.run_test(
+            "Verify Customer Gold Balance Reduced",
+            "GET",
+            f"parties/{customer_id}/gold-summary",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        expected_remaining = 150.750 - 25.000  # 125.750g
+        actual_remaining = gold_summary.get('gold_due_from_party', 0)
+        
+        if abs(actual_remaining - expected_remaining) > 0.001:
+            print(f"❌ Expected remaining gold balance {expected_remaining}g, got {actual_remaining}g")
+            return False
+        
+        print(f"✅ Customer gold balance reduced correctly: {actual_remaining}g remaining")
+        
+        # Update test data for next test
+        self.gold_exchange_test_data['remaining_balance_due'] = 500.00
+        self.gold_exchange_test_data['remaining_gold_balance'] = actual_remaining
+        
+        return True
+
+    def test_gold_exchange_full_payment(self):
+        """MODULE 10/10 - POSITIVE TEST: Gold exchange full payment (pay remaining balance)"""
+        print("\n💰 TESTING GOLD EXCHANGE - FULL PAYMENT (REMAINING BALANCE)")
+        
+        if not hasattr(self, 'gold_exchange_test_data'):
+            print("❌ Gold exchange test data not available")
+            return False
+        
+        customer_id = self.gold_exchange_test_data['customer_id']
+        invoice_id = self.gold_exchange_test_data['invoice_id']
+        
+        # Test GOLD_EXCHANGE full payment (pay remaining 500.00 OMR)
+        payment_data = {
+            "payment_mode": "GOLD_EXCHANGE",
+            "gold_weight_grams": 25.000,
+            "rate_per_gram": 20.00,
+            "purity_entered": 916,
+            "notes": "Full payment of remaining balance using gold"
+        }
+        
+        success, payment_response = self.run_test(
+            "GOLD_EXCHANGE Full Payment (25.000g × 20.00 = 500.00 OMR)",
+            "POST",
+            f"invoices/{invoice_id}/add-payment",
+            200,
+            data=payment_data
+        )
+        
+        if not success:
+            return False
+        
+        # Verify invoice is now fully paid
+        success, final_invoice = self.run_test(
+            "Verify Invoice Fully Paid",
+            "GET",
+            f"invoices/{invoice_id}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        if final_invoice.get('paid_amount') != 1000.00:
+            print(f"❌ Expected total paid_amount 1000.00, got {final_invoice.get('paid_amount')}")
+            return False
+        
+        if final_invoice.get('balance_due') != 0.00:
+            print(f"❌ Expected balance_due 0.00, got {final_invoice.get('balance_due')}")
+            return False
+        
+        if final_invoice.get('payment_status') != 'paid':
+            print(f"❌ Expected payment_status 'paid', got {final_invoice.get('payment_status')}")
+            return False
+        
+        print(f"✅ Invoice fully paid: paid_amount=1000.00, balance_due=0.00, payment_status=paid")
+        
+        # Verify customer gold balance reduced to 100.750g
+        success, final_gold_summary = self.run_test(
+            "Verify Final Customer Gold Balance",
+            "GET",
+            f"parties/{customer_id}/gold-summary",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        expected_final = 125.750 - 25.000  # 100.750g
+        actual_final = final_gold_summary.get('gold_due_from_party', 0)
+        
+        if abs(actual_final - expected_final) > 0.001:
+            print(f"❌ Expected final gold balance {expected_final}g, got {actual_final}g")
+            return False
+        
+        print(f"✅ Customer final gold balance: {actual_final}g remaining")
+        
+        # Update test data
+        self.gold_exchange_test_data['final_gold_balance'] = actual_final
+        
+        return True
+
+    def test_gold_exchange_walk_in_validation(self):
+        """MODULE 10/10 - VALIDATION TEST: Walk-in customer should fail"""
+        print("\n💰 TESTING GOLD EXCHANGE - WALK-IN CUSTOMER VALIDATION")
+        
+        # Create walk-in invoice
+        walk_in_invoice_data = {
+            "customer_type": "walk_in",
+            "walk_in_name": "Walk-in Customer",
+            "walk_in_phone": "+968 5555 5555",
+            "invoice_type": "sale",
+            "items": [{
+                "description": "Walk-in sale item",
+                "qty": 1,
+                "weight": 5.0,
+                "purity": 916,
+                "metal_rate": 20.0,
+                "gold_value": 100.0,
+                "making_value": 50.0,
+                "vat_percent": 5.0,
+                "vat_amount": 7.5,
+                "line_total": 157.5
+            }],
+            "subtotal": 150.0,
+            "vat_total": 7.5,
+            "grand_total": 157.5,
+            "balance_due": 157.5,
+            "notes": "Walk-in invoice for validation testing"
+        }
+        
+        success, walk_in_invoice = self.run_test(
+            "Create Walk-in Invoice",
+            "POST",
+            "invoices",
+            200,
+            data=walk_in_invoice_data
+        )
+        
+        if not success:
+            return False
+        
+        # Attempt GOLD_EXCHANGE payment (should fail with 400)
+        payment_data = {
+            "payment_mode": "GOLD_EXCHANGE",
+            "gold_weight_grams": 5.000,
+            "rate_per_gram": 20.00,
+            "notes": "Attempting gold exchange for walk-in customer"
+        }
+        
+        success, error_response = self.run_test(
+            "GOLD_EXCHANGE for Walk-in Customer (Should Fail with 400)",
+            "POST",
+            f"invoices/{walk_in_invoice['id']}/add-payment",
+            400,  # Expecting 400 error
+            data=payment_data
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error for walk-in customer GOLD_EXCHANGE")
+            return False
+        
+        # Verify error message mentions saved customers only
+        error_str = str(error_response).lower()
+        if 'saved customer' not in error_str or 'only available' not in error_str:
+            print(f"❌ Error message should mention 'only available for saved customers'")
+            return False
+        
+        print(f"✅ Walk-in customer correctly rejected for GOLD_EXCHANGE payment")
+        return True
+
+    def test_gold_exchange_insufficient_balance(self):
+        """MODULE 10/10 - VALIDATION TEST: Insufficient gold balance"""
+        print("\n💰 TESTING GOLD EXCHANGE - INSUFFICIENT GOLD BALANCE")
+        
+        if not hasattr(self, 'gold_exchange_test_data'):
+            print("❌ Gold exchange test data not available")
+            return False
+        
+        customer_id = self.gold_exchange_test_data['customer_id']
+        
+        # Create new invoice with high balance
+        high_value_invoice_data = {
+            "customer_type": "saved",
+            "customer_id": customer_id,
+            "customer_name": self.gold_exchange_test_data['customer_name'],
+            "invoice_type": "sale",
+            "items": [{
+                "description": "High value item for insufficient balance test",
+                "qty": 1,
+                "weight": 50.0,
+                "purity": 916,
+                "metal_rate": 25.0,
+                "gold_value": 1250.0,
+                "making_value": 3500.0,
+                "vat_percent": 5.0,
+                "vat_amount": 237.5,
+                "line_total": 4987.5
+            }],
+            "subtotal": 4750.0,
+            "vat_total": 237.5,
+            "grand_total": 5000.0,
+            "balance_due": 5000.0,
+            "notes": "High value invoice for insufficient balance test"
+        }
+        
+        success, high_invoice = self.run_test(
+            "Create High Value Invoice (5000.00 OMR)",
+            "POST",
+            "invoices",
+            200,
+            data=high_value_invoice_data
+        )
+        
+        if not success:
+            return False
+        
+        # Attempt GOLD_EXCHANGE with more gold than customer has (200.000g, customer only has ~100.750g)
+        payment_data = {
+            "payment_mode": "GOLD_EXCHANGE",
+            "gold_weight_grams": 200.000,
+            "rate_per_gram": 25.00,
+            "notes": "Attempting payment with insufficient gold balance"
+        }
+        
+        success, error_response = self.run_test(
+            "GOLD_EXCHANGE with Insufficient Balance (Should Fail with 400)",
+            "POST",
+            f"invoices/{high_invoice['id']}/add-payment",
+            400,  # Expecting 400 error
+            data=payment_data
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error for insufficient gold balance")
+            return False
+        
+        # Verify error message shows available vs requested
+        error_str = str(error_response).lower()
+        if 'insufficient gold balance' not in error_str:
+            print(f"❌ Error message should mention 'Insufficient gold balance'")
+            return False
+        
+        print(f"✅ Insufficient gold balance correctly rejected with proper error message")
+        return True
+
+    def test_gold_exchange_invalid_inputs(self):
+        """MODULE 10/10 - VALIDATION TEST: Invalid gold_weight_grams and rate_per_gram"""
+        print("\n💰 TESTING GOLD EXCHANGE - INVALID INPUT VALIDATION")
+        
+        if not hasattr(self, 'gold_exchange_test_data'):
+            print("❌ Gold exchange test data not available")
+            return False
+        
+        customer_id = self.gold_exchange_test_data['customer_id']
+        
+        # Create test invoice
+        test_invoice_data = {
+            "customer_type": "saved",
+            "customer_id": customer_id,
+            "customer_name": self.gold_exchange_test_data['customer_name'],
+            "invoice_type": "sale",
+            "items": [{
+                "description": "Test item for validation",
+                "qty": 1,
+                "weight": 10.0,
+                "purity": 916,
+                "metal_rate": 20.0,
+                "gold_value": 200.0,
+                "making_value": 100.0,
+                "vat_percent": 5.0,
+                "vat_amount": 15.0,
+                "line_total": 315.0
+            }],
+            "subtotal": 300.0,
+            "vat_total": 15.0,
+            "grand_total": 315.0,
+            "balance_due": 315.0
+        }
+        
+        success, test_invoice = self.run_test(
+            "Create Test Invoice for Validation",
+            "POST",
+            "invoices",
+            200,
+            data=test_invoice_data
+        )
+        
+        if not success:
+            return False
+        
+        invoice_id = test_invoice['id']
+        
+        # Test invalid gold_weight_grams = 0
+        payment_data_1 = {
+            "payment_mode": "GOLD_EXCHANGE",
+            "gold_weight_grams": 0,
+            "rate_per_gram": 20.00
+        }
+        
+        success, _ = self.run_test(
+            "Invalid gold_weight_grams=0 (Should Fail with 400)",
+            "POST",
+            f"invoices/{invoice_id}/add-payment",
+            400,
+            data=payment_data_1
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error for gold_weight_grams=0")
+            return False
+        
+        print(f"✅ gold_weight_grams=0 correctly rejected")
+        
+        # Test invalid rate_per_gram = 0
+        payment_data_2 = {
+            "payment_mode": "GOLD_EXCHANGE",
+            "gold_weight_grams": 10.000,
+            "rate_per_gram": 0
+        }
+        
+        success, _ = self.run_test(
+            "Invalid rate_per_gram=0 (Should Fail with 400)",
+            "POST",
+            f"invoices/{invoice_id}/add-payment",
+            400,
+            data=payment_data_2
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error for rate_per_gram=0")
+            return False
+        
+        print(f"✅ rate_per_gram=0 correctly rejected")
+        
+        return True
+
+    def test_gold_exchange_overpayment(self):
+        """MODULE 10/10 - VALIDATION TEST: Overpayment attempt"""
+        print("\n💰 TESTING GOLD EXCHANGE - OVERPAYMENT VALIDATION")
+        
+        if not hasattr(self, 'gold_exchange_test_data'):
+            print("❌ Gold exchange test data not available")
+            return False
+        
+        customer_id = self.gold_exchange_test_data['customer_id']
+        
+        # Create small invoice
+        small_invoice_data = {
+            "customer_type": "saved",
+            "customer_id": customer_id,
+            "customer_name": self.gold_exchange_test_data['customer_name'],
+            "invoice_type": "sale",
+            "items": [{
+                "description": "Small item for overpayment test",
+                "qty": 1,
+                "weight": 2.0,
+                "purity": 916,
+                "metal_rate": 20.0,
+                "gold_value": 40.0,
+                "making_value": 50.0,
+                "vat_percent": 5.0,
+                "vat_amount": 4.5,
+                "line_total": 94.5
+            }],
+            "subtotal": 90.0,
+            "vat_total": 4.5,
+            "grand_total": 100.0,
+            "balance_due": 100.0
+        }
+        
+        success, small_invoice = self.run_test(
+            "Create Small Invoice (100.00 OMR)",
+            "POST",
+            "invoices",
+            200,
+            data=small_invoice_data
+        )
+        
+        if not success:
+            return False
+        
+        # Attempt overpayment (10.000g × 20.00 = 200.00 OMR > 100.00 OMR balance)
+        payment_data = {
+            "payment_mode": "GOLD_EXCHANGE",
+            "gold_weight_grams": 10.000,
+            "rate_per_gram": 20.00,
+            "notes": "Attempting overpayment"
+        }
+        
+        success, error_response = self.run_test(
+            "GOLD_EXCHANGE Overpayment (Should Fail with 400)",
+            "POST",
+            f"invoices/{small_invoice['id']}/add-payment",
+            400,  # Expecting 400 error
+            data=payment_data
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error for overpayment attempt")
+            return False
+        
+        # Verify error message mentions exceeding balance
+        error_str = str(error_response).lower()
+        if 'exceeds' not in error_str or 'balance' not in error_str:
+            print(f"❌ Error message should mention exceeding remaining balance")
+            return False
+        
+        print(f"✅ Overpayment correctly rejected with proper error message")
+        return True
+
+    def test_gold_exchange_backward_compatibility(self):
+        """MODULE 10/10 - BACKWARD COMPATIBILITY: Standard payment modes still work"""
+        print("\n💰 TESTING GOLD EXCHANGE - BACKWARD COMPATIBILITY")
+        
+        if not hasattr(self, 'gold_exchange_test_data'):
+            print("❌ Gold exchange test data not available")
+            return False
+        
+        customer_id = self.gold_exchange_test_data['customer_id']
+        
+        # Create test account for cash payment
+        account_data = {
+            "name": f"Cash Account {datetime.now().strftime('%H%M%S')}",
+            "account_type": "cash",
+            "opening_balance": 1000.0
+        }
+        
+        success, account = self.run_test(
+            "Create Cash Account for Compatibility Test",
+            "POST",
+            "accounts",
+            200,
+            data=account_data
+        )
+        
+        if not success:
+            return False
+        
+        account_id = account['id']
+        
+        # Create test invoice
+        compat_invoice_data = {
+            "customer_type": "saved",
+            "customer_id": customer_id,
+            "customer_name": self.gold_exchange_test_data['customer_name'],
+            "invoice_type": "sale",
+            "items": [{
+                "description": "Compatibility test item",
+                "qty": 1,
+                "weight": 10.0,
+                "purity": 916,
+                "metal_rate": 20.0,
+                "gold_value": 200.0,
+                "making_value": 250.0,
+                "vat_percent": 5.0,
+                "vat_amount": 22.5,
+                "line_total": 472.5
+            }],
+            "subtotal": 450.0,
+            "vat_total": 22.5,
+            "grand_total": 500.0,
+            "balance_due": 500.0
+        }
+        
+        success, compat_invoice = self.run_test(
+            "Create Invoice for Compatibility Test",
+            "POST",
+            "invoices",
+            200,
+            data=compat_invoice_data
+        )
+        
+        if not success:
+            return False
+        
+        # Test standard Cash payment (should still work)
+        cash_payment_data = {
+            "payment_mode": "Cash",
+            "amount": 500.00,
+            "account_id": account_id,
+            "notes": "Standard cash payment for compatibility test"
+        }
+        
+        success, cash_response = self.run_test(
+            "Standard Cash Payment (Should Still Work)",
+            "POST",
+            f"invoices/{compat_invoice['id']}/add-payment",
+            200,
+            data=cash_payment_data
+        )
+        
+        if not success:
+            return False
+        
+        # Verify cash payment worked correctly
+        if cash_response.get('payment_mode') != 'Cash':
+            print(f"❌ Expected payment_mode 'Cash', got {cash_response.get('payment_mode')}")
+            return False
+        
+        if cash_response.get('amount') != 500.00:
+            print(f"❌ Expected amount 500.00, got {cash_response.get('amount')}")
+            return False
+        
+        # Verify no gold-related fields in cash payment response
+        gold_fields = ['gold_weight_grams', 'rate_per_gram', 'gold_money_value', 'customer_gold_balance_remaining']
+        for field in gold_fields:
+            if field in cash_response:
+                print(f"❌ Cash payment response should not contain gold field: {field}")
+                return False
+        
+        print(f"✅ Standard Cash payment works correctly (no gold fields in response)")
+        
+        # Verify invoice is paid
+        success, final_invoice = self.run_test(
+            "Verify Invoice Paid by Cash",
+            "GET",
+            f"invoices/{compat_invoice['id']}",
+            200
+        )
+        
+        if not success:
+            return False
+        
+        if final_invoice.get('payment_status') != 'paid':
+            print(f"❌ Invoice should be paid, got {final_invoice.get('payment_status')}")
+            return False
+        
+        print(f"✅ Backward compatibility verified: Standard payment modes work correctly")
+        return True
+
     def run_all_tests(self):
         """Run all tests in sequence"""
         print("🚀 Starting Gold Shop ERP Backend Tests")
