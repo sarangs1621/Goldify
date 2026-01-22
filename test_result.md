@@ -5394,6 +5394,15 @@ backend:
           - Maintains module, action, user_id, date_from, date_to filter compatibility
           - Sorted by timestamp descending
           READY FOR TESTING
+      - working: "NA"
+        agent: "main"
+        comment: |
+          CRITICAL FIX APPLIED - Response Model Mismatch Resolved
+          - REMOVED response_model=List[AuditLog] from decorator (line 3170)
+          - This was causing 520 Internal Server Error due to FastAPI validation
+          - Endpoint now returns raw dict matching pagination response structure
+          - Backend restarted successfully
+          READY FOR RETESTING
 
 frontend:
   - task: "Pagination Component - Reusable UI Component"
