@@ -170,6 +170,8 @@ class GoldShopTester:
     def get_invoice(self, invoice_id: str) -> Optional[Dict]:
         """Get invoice details"""
         try:
+            if invoice_id is None or invoice_id == "None":
+                return None
             response = self.session.get(f"{self.base_url}/api/invoices/{invoice_id}")
             
             if response.status_code == 200:
