@@ -36,6 +36,7 @@ export default function JobCardsPage() {
     worker_id: '',
     delivery_date: '',
     notes: '',
+    gold_rate_at_jobcard: '',  // MODULE 8: Gold rate at time of job card creation
     status: 'created',
     items: [{
       category: 'Chain',
