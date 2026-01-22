@@ -1489,6 +1489,7 @@ async def convert_jobcard_to_invoice(jobcard_id: str, invoice_data: dict, curren
         "invoice_type": "service",
         "items": [item.model_dump() for item in invoice_items],
         "subtotal": subtotal,
+        "discount_amount": discount_amount,  # MODULE 7: Include discount
         "vat_total": vat_total,
         "grand_total": grand_total,
         "balance_due": grand_total,
