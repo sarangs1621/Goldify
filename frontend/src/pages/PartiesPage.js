@@ -14,6 +14,9 @@ import Pagination from '../components/Pagination';
 
 export default function PartiesPage() {
   const [parties, setParties] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(50);
   const [showDialog, setShowDialog] = useState(false);
   const [showLedgerDialog, setShowLedgerDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -50,18 +53,33 @@ export default function PartiesPage() {
 
   useEffect(() => {
     loadParties();
-  }, []);
+  }, [currentPage, perPage]);
 
   const loadParties = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API}/parties`);
-      setParties(response.data);
+      const response = await axios.get(`${API}/parties`, {
+        params: {
+          page: currentPage,
+          per_page: perPage
+        }
+      });
+      setParties(response.data.items || response.data);
+      setPagination(response.data.pagination);
     } catch (error) {
       toast.error('Failed to load parties');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const handlePerPageChange = (newPerPage) => {
+    setPerPage(newPerPage);
+    setCurrentPage(1); // Reset to first page when changing page size
   };
 
   const handleCreate = async () => {
