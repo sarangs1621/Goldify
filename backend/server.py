@@ -591,6 +591,75 @@ async def create_stock_movement(movement_data: dict, current_user: User = Depend
     await create_audit_log(current_user.id, current_user.full_name, "stock_movement", movement.id, "create")
     return movement
 
+@api_router.delete("/inventory/movements/{movement_id}")
+async def delete_stock_movement(movement_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Delete a stock movement and reverse its effect on inventory
+    WARNING: This should only be used for corrections of errors
+    """
+    # Find the movement
+    movement = await db.stock_movements.find_one({"id": movement_id, "is_deleted": False}, {"_id": 0})
+    if not movement:
+        raise HTTPException(status_code=404, detail="Stock movement not found")
+    
+    # Check if this movement is linked to an invoice or purchase (reference_type)
+    if movement.get('reference_type') in ['invoice', 'purchase']:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete stock movement linked to {movement.get('reference_type')}. This movement is part of an official transaction and must be preserved for audit trail."
+        )
+    
+    # Get the header to reverse the stock changes
+    header = await db.inventory_headers.find_one({"id": movement['header_id']}, {"_id": 0})
+    if not header:
+        raise HTTPException(status_code=404, detail="Inventory header not found")
+    
+    # Calculate reversed values
+    new_qty = header.get('current_qty', 0) - movement['qty_delta']
+    new_weight = header.get('current_weight', 0) - movement['weight_delta']
+    
+    # Validate reversal won't make stock negative
+    if new_qty < 0 or new_weight < 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete movement: would result in negative stock. Current: {header.get('current_qty', 0)} qty, {header.get('current_weight', 0)}g. Movement: {movement['qty_delta']} qty, {movement['weight_delta']}g"
+        )
+    
+    # Soft delete the movement
+    await db.stock_movements.update_one(
+        {"id": movement_id},
+        {"$set": {"is_deleted": True}}
+    )
+    
+    # Reverse the stock change in header
+    await db.inventory_headers.update_one(
+        {"id": movement['header_id']},
+        {"$set": {"current_qty": new_qty, "current_weight": new_weight}}
+    )
+    
+    # Create audit log
+    await create_audit_log(
+        current_user.id,
+        current_user.full_name,
+        "stock_movement",
+        movement_id,
+        "delete",
+        details={
+            "movement_type": movement.get('movement_type'),
+            "qty_delta": movement.get('qty_delta'),
+            "weight_delta": movement.get('weight_delta'),
+            "header_id": movement.get('header_id'),
+            "header_name": movement.get('header_name')
+        }
+    )
+    
+    return {
+        "message": "Stock movement deleted successfully and inventory adjusted",
+        "id": movement_id,
+        "reversed_qty": movement['qty_delta'],
+        "reversed_weight": movement['weight_delta']
+    }
+
 @api_router.get("/inventory/stock-totals")
 async def get_stock_totals(current_user: User = Depends(get_current_user)):
     # Return current stock directly from inventory headers
