@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { API } from '../contexts/AuthContext';
+import { API, useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -8,11 +8,14 @@ import { Label } from '../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { CalendarCheck, Plus, Lock, Unlock, Calculator, RefreshCw } from 'lucide-react';
+import { CalendarCheck, Plus, Lock, Unlock, Calculator, RefreshCw, Edit, AlertCircle } from 'lucide-react';
 
 export default function DailyClosingPage() {
+  const { user } = useAuth();
   const [closings, setClosings] = useState([]);
   const [showDialog, setShowDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingClosing, setEditingClosing] = useState(null);
   const [calculationData, setCalculationData] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,6 +23,10 @@ export default function DailyClosingPage() {
     opening_cash: 0,
     total_credit: 0,
     total_debit: 0,
+    actual_closing: 0,
+    notes: ''
+  });
+  const [editFormData, setEditFormData] = useState({
     actual_closing: 0,
     notes: ''
   });
