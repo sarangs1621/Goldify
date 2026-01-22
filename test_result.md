@@ -888,6 +888,74 @@ frontend:
         comment: "USER REPORTED ISSUES FIX - Two critical issues fixed: (1) EDIT/DELETE FUNCTIONALITY: Added missing Edit and Delete buttons in the Actions column of job cards table. Previously, the handleEditJobCard and handleDeleteJobCard functions existed but had no UI buttons to trigger them. Now shows Edit and Delete buttons for all unlocked job cards. Locked job cards display 'Locked' badge instead. Updated dialog title to show 'Edit Job Card' vs 'Create New Job Card' and button text changes to 'Update Job Card' vs 'Create Job Card'. (2) CATEGORY DROPDOWN: Replaced plain text Input field with Select dropdown for item categories. Now loads inventory headers from GET /api/inventory/headers and populates dropdown with available categories. Users can select from existing inventory categories (e.g., Gold 24K, Gold 22K, Silver, etc.) instead of manually typing. Default category uses first inventory header if available, fallback to 'Chain'. Both issues are now fully functional and ready for testing."
       - working: true
         agent: "main"
+
+  - task: "MODULE 7/10 - Invoice Discount UI (Amount Based)"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/JobCardsPage.js, frontend/src/pages/InvoicesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          MODULE 7 FRONTEND IMPLEMENTED - Invoice Discount UI with Print View Integration.
+          
+          Frontend Implementation:
+          
+          1. ✅ JobCardsPage.js - Convert to Invoice Dialog Enhanced (lines 126-175, 823-844):
+             ADDED DISCOUNT INPUT FIELD:
+             - New discount_amount input field in convert dialog (after customer details)
+             - Input type: number with step="0.001" for 3 decimal precision
+             - Minimum value: 0 (enforced by HTML5 validation)
+             - Placeholder: "0.000"
+             - Helper text: "Optional: Enter discount amount to be applied before VAT calculation"
+             - Field appears for BOTH saved and walk-in customers
+          
+          2. ✅ Convert Dialog State Management:
+             - Added discount_amount to convertData state initialization (default: 0)
+             - Initialize discount_amount when opening convert dialog for both customer types
+             - handleConfirmConvert sends discount_amount to backend API:
+               * Parses value with parseFloat(convertData.discount_amount) || 0
+               * Ensures 0 is sent if field is empty or invalid
+          
+          3. ✅ InvoicesPage.js - Print PDF Enhanced (lines 111-135):
+             ADDED DISCOUNT LINE IN PDF:
+             - Conditional display: Only shows discount line if discount_amount > 0
+             - Position: Between Subtotal and VAT Total (as per standard invoice format)
+             - Format: "Discount: -{discount_amount:.3f} OMR" (negative sign prefix)
+             - Uses dynamic positioning (currentY variable) to handle conditional spacing
+             - Maintains proper alignment with other totals
+          
+          4. ✅ Print Layout Flow:
+             Standard invoice totals section now follows this order:
+             1. Subtotal (always shown)
+             2. Discount (conditionally shown if > 0)
+             3. VAT Total (always shown)
+             4. Grand Total (always shown, bold)
+             5. Balance Due (always shown, color-coded)
+             6. Payment Status (always shown)
+          
+          UI/UX Features:
+          - ✅ Clear labeling: "Discount Amount (OMR)"
+          - ✅ 3 decimal precision matches backend and OMR currency standard
+          - ✅ Optional field (not required) - defaults to 0 if empty
+          - ✅ Positioned logically in convert dialog (after customer selection)
+          - ✅ Helper text explains when discount is applied (before VAT)
+          - ✅ Print view clearly shows discount as deduction (negative sign)
+          - ✅ Print view spacing adjusts dynamically based on discount presence
+          
+          READY FOR UI TESTING - Need to verify:
+          1. Convert dialog shows discount input field
+          2. Discount field accepts decimal values (0.000 format)
+          3. Discount field prevents negative values (HTML5 validation)
+          4. Converting without entering discount defaults to 0
+          5. Converting with discount value passes it to backend
+          6. Print PDF shows discount line when discount > 0
+          7. Print PDF hides discount line when discount = 0
+          8. Print PDF alignment and spacing is correct
+          9. Discount appears as negative value in print view
         comment: "CONFIRMED WORKING - User tested and confirmed all fixes are working correctly: (1) Login issue resolved with admin user creation. (2) Edit/Delete buttons visible and functional for unlocked job cards. (3) Category dropdown populated from inventory headers. (4) Convert to Invoice button restored for all completed job cards (original behavior maintained). All features working as expected."
       - working: "NA"
         agent: "main"
