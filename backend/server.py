@@ -1786,9 +1786,24 @@ async def finalize_purchase(purchase_id: str, current_user: User = Depends(get_c
 
 
 @api_router.get("/jobcards", response_model=List[JobCard])
-async def get_jobcards(current_user: User = Depends(get_current_user)):
-    jobcards = await db.jobcards.find({"is_deleted": False}, {"_id": 0}).sort("date_created", -1).to_list(1000)
-    return jobcards
+async def get_jobcards(
+    page: int = 1,
+    per_page: int = 50,
+    current_user: User = Depends(get_current_user)
+):
+    """Get job cards with pagination support"""
+    query = {"is_deleted": False}
+    
+    # Calculate skip value
+    skip = (page - 1) * per_page
+    
+    # Get total count for pagination
+    total_count = await db.jobcards.count_documents(query)
+    
+    # Get paginated results
+    jobcards = await db.jobcards.find(query, {"_id": 0}).sort("date_created", -1).skip(skip).limit(per_page).to_list(per_page)
+    
+    return create_pagination_response(jobcards, total_count, page, per_page)
 
 @api_router.post("/jobcards", response_model=JobCard)
 async def create_jobcard(jobcard_data: dict, current_user: User = Depends(get_current_user)):
