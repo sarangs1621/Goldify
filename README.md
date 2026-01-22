@@ -2,5 +2,5 @@
 # Gold Inventory
 
 Project description...
-Testing everything Part 1
+Testing everything Part 2
 Backend and frontend structure...
