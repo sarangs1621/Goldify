@@ -169,7 +169,13 @@ class PurchaseHistoryTester:
             "weight_grams": 125.456,
             "entered_purity": 999,
             "rate_per_gram": 45.50,
-            "amount_total": 5708.25
+            "amount_total": 5708.25,
+            "paid_amount_money": 0.0,
+            "balance_due_money": 5708.25,
+            "status": "draft",
+            "locked": False,
+            "is_deleted": False,
+            "created_by": "test_user"
         }
         
         try:
