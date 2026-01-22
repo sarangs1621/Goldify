@@ -116,6 +116,58 @@ export default function DailyClosingPage() {
     }
   };
 
+  const handleEdit = (closing) => {
+    setEditingClosing(closing);
+    setEditFormData({
+      actual_closing: closing.actual_closing,
+      notes: closing.notes || ''
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateClosing = async () => {
+    try {
+      const updateData = {
+        actual_closing: parseFloat(editFormData.actual_closing),
+        notes: editFormData.notes
+      };
+      
+      await axios.patch(`${API}/daily-closings/${editingClosing.id}`, updateData);
+      toast.success('Daily closing updated successfully');
+      setShowEditDialog(false);
+      setEditingClosing(null);
+      loadClosings();
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || 'Failed to update daily closing';
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleToggleLock = async (closing) => {
+    // Check if user is admin
+    if (user?.role !== 'admin') {
+      toast.error('Only admins can lock/unlock daily closings');
+      return;
+    }
+
+    const newLockStatus = !closing.is_locked;
+    const action = newLockStatus ? 'lock' : 'unlock';
+    
+    try {
+      await axios.patch(`${API}/daily-closings/${closing.id}`, { is_locked: newLockStatus });
+      toast.success(`Daily closing ${action}ed successfully`);
+      loadClosings();
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || `Failed to ${action} daily closing`;
+      toast.error(errorMsg);
+    }
+  };
+
+  const isAdmin = () => {
+    return user?.role === 'admin';
+  };
+
+
   const getDifferenceColor = (difference) => {
     if (difference === 0) return 'text-green-600';
     if (Math.abs(difference) <= 10) return 'text-yellow-600';
