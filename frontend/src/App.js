@@ -75,6 +75,16 @@ function App() {
             }
           />
           <Route
+            path="/purchases"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <PurchasesPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/finance"
             element={
               <ProtectedRoute>
