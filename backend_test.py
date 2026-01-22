@@ -1762,15 +1762,15 @@ def main():
     USERNAME = "admin"
     PASSWORD = "admin123"
     
-    print("🚀 Starting Comprehensive Backend Testing")
+    print("🚀 Starting Audit Logs Filtering Tests")
     print(f"Backend URL: {BASE_URL}")
     print(f"Username: {USERNAME}")
     print("-" * 80)
     
     # Initialize tester
-    tester = GoldShopTester(BASE_URL, USERNAME, PASSWORD)
+    tester = AuditLogsFilterTester(BASE_URL, USERNAME, PASSWORD)
     
-    # Run all tests
+    # Run all audit logs filtering tests
     tester.run_all_tests()
 
 if __name__ == "__main__":
