@@ -37,6 +37,28 @@ export default function DailyClosingPage() {
     }
   };
 
+  const autoCalculateFromTransactions = async () => {
+    setIsCalculating(true);
+    try {
+      const response = await axios.get(`${API}/daily-closings/calculate/${formData.date}`);
+      const data = response.data;
+      
+      setCalculationData(data);
+      setFormData({
+        ...formData,
+        opening_cash: data.opening_cash,
+        total_credit: data.total_credit,
+        total_debit: data.total_debit
+      });
+      
+      toast.success(`Auto-calculated from ${data.transaction_count} transactions`);
+    } catch (error) {
+      toast.error('Failed to auto-calculate. You can enter values manually.');
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
   const calculateExpectedClosing = () => {
     const opening = parseFloat(formData.opening_cash) || 0;
     const credit = parseFloat(formData.total_credit) || 0;
