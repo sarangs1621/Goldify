@@ -5374,3 +5374,82 @@ frontend:
           
           Will be completed after backend testing confirms pagination works correctly.
 
+
+  - agent: "main"
+    message: |
+      PAGINATION TESTING REQUEST - BACKEND ENDPOINTS
+      
+      Context: Pagination has been implemented for all major listing endpoints in the Gold Inventory Management System.
+      A standardized create_pagination_response() helper function returns consistent metadata across all endpoints.
+      
+      BACKEND ENDPOINTS TO TEST (7 Total):
+      
+      1. GET /api/parties?page=X&per_page=Y
+         - Default: page=1, per_page=50
+         - Filter compatibility: party_type
+         - Sort: Default sort order
+      
+      2. GET /api/gold-ledger?page=X&per_page=Y
+         - Default: page=1, per_page=50
+         - Filter compatibility: party_id, date_from, date_to
+         - Sort: date descending
+      
+      3. GET /api/purchases?page=X&per_page=Y
+         - Default: page=1, per_page=50
+         - Filter compatibility: vendor_party_id, start_date, end_date, status
+         - Sort: date descending
+      
+      4. GET /api/jobcards?page=X&per_page=Y
+         - Default: page=1, per_page=50
+         - Sort: date_created descending
+      
+      5. GET /api/invoices?page=X&per_page=Y
+         - Default: page=1, per_page=50
+         - Sort: date descending
+      
+      6. GET /api/transactions?page=X&per_page=Y
+         - Default: page=1, per_page=50
+         - Sort: date descending
+      
+      7. GET /api/audit-logs?page=X&per_page=Y
+         - Default: page=1, per_page=50
+         - Filter compatibility: module, action, user_id, date_from, date_to
+         - Sort: timestamp descending
+      
+      EXPECTED RESPONSE STRUCTURE:
+      {
+        "items": [...],
+        "pagination": {
+          "total_count": 123,
+          "page": 1,
+          "per_page": 50,
+          "total_pages": 3,
+          "has_next": true,
+          "has_prev": false
+        }
+      }
+      
+      TESTING REQUIREMENTS:
+      For each endpoint, verify:
+      1. ✅ Default pagination (page=1, per_page=50) works
+      2. ✅ Custom page numbers work (page=2, page=3, etc.)
+      3. ✅ Custom per_page values work (25, 100, 200)
+      4. ✅ Response structure matches expected format
+      5. ✅ Pagination metadata is accurate:
+         - total_count matches actual database count
+         - total_pages calculated correctly
+         - has_next/has_prev flags correct
+      6. ✅ Items array contains correct number of records (≤ per_page)
+      7. ✅ Existing filters still work with pagination
+      8. ✅ Boundary conditions handled (page beyond total_pages, page=0, etc.)
+      
+      AUTHENTICATION:
+      - Use admin/admin123 credentials
+      - Include Authorization header in all requests
+      
+      Please test all 7 endpoints systematically and report:
+      - Which endpoints work correctly
+      - Any endpoints with issues
+      - Pagination metadata accuracy
+      - Filter compatibility status
+
