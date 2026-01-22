@@ -2111,7 +2111,7 @@ async def convert_jobcard_to_invoice(jobcard_id: str, invoice_data: dict, curren
     await create_audit_log(current_user.id, current_user.full_name, "invoice", invoice.id, "create_from_jobcard")
     return invoice
 
-@api_router.get("/invoices", response_model=List[Invoice])
+@api_router.get("/invoices")
 async def get_invoices(
     page: int = 1,
     per_page: int = 50,
