@@ -366,15 +366,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Test GET /api/parties/{party_id}/summary endpoint"
-    - "Test party detail dialog with 4 summary cards"
-    - "Test gold ledger table display"
-    - "Test money ledger table display"
-    - "Test date filters functionality"
-    - "Test search functionality"
+    - "PAGINATION ENDPOINTS - Fix 520 Internal Server Error"
   stuck_tasks: []
-  test_all: true
-  test_priority: "high_first"
+  test_all: false
+  test_priority: "critical_first"
 
 agent_communication:
   - agent: "main"
