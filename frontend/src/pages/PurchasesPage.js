@@ -66,7 +66,7 @@ export default function PurchasesPage() {
   const loadVendors = async () => {
     try {
       const response = await axios.get(`${API}/parties?party_type=vendor`);
-      setVendors(response.data);
+      setVendors(response.data.items || []);
     } catch (error) {
       console.error('Failed to load vendors:', error);
     }
