@@ -1095,7 +1095,7 @@ async def create_gold_ledger_entry(entry_data: dict, current_user: User = Depend
     await create_audit_log(current_user.id, current_user.full_name, "gold_ledger", entry.id, "create")
     return entry
 
-@api_router.get("/gold-ledger", response_model=List[GoldLedgerEntry])
+@api_router.get("/gold-ledger")
 async def get_gold_ledger_entries(
     party_id: Optional[str] = None,
     date_from: Optional[str] = None,
