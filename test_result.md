@@ -1429,3 +1429,88 @@ agent_communication:
       8. ✅ Verify precision - weights at 3 decimals, amounts at 2 decimals
       
       Similar to Invoice finalization which is 100% working. This follows the exact same proven pattern.
+
+  - agent: "main"
+    message: |
+      🎯 MODULE 4/10 - PURCHASE PAYMENTS + GOLD SETTLEMENT IMPLEMENTED
+      
+      Enhanced the Purchases Module with comprehensive payment tracking and gold settlement options for flexible vendor payment workflows.
+      
+      BACKEND IMPLEMENTATION COMPLETE:
+      
+      1. ✅ Purchase Model Enhanced with 6 NEW fields:
+         - paid_amount_money (float, 2 decimals, default 0.0)
+         - balance_due_money (float, 2 decimals, auto-calculated)
+         - payment_mode (Optional: Cash/Bank Transfer/Card/UPI/Online/Cheque)
+         - account_id (Optional: payment account reference)
+         - advance_in_gold_grams (Optional, 3 decimals: gold we gave vendor previously)
+         - exchange_in_gold_grams (Optional, 3 decimals: gold from vendor during purchase)
+      
+      2. ✅ POST /api/purchases Enhanced:
+         - Accepts payment and gold settlement fields
+         - Auto-calculates balance_due_money = amount_total - paid_amount_money
+         - Validates account exists if payment made
+         - Maintains precision: 3 decimals gold, 2 decimals money
+      
+      3. ✅ PATCH /api/purchases/{id} Enhanced:
+         - Allows updating payment/gold fields (draft only)
+         - Recalculates balance_due_money on changes
+         - Validates account when payment amount changes
+      
+      4. ✅ POST /api/purchases/{id}/finalize CRITICAL ENHANCEMENT:
+         Now intelligently creates UP TO 8 atomic operations based on settlement method:
+         
+         a. Update purchase status → always
+         b. Create Stock IN movement → always
+         c. Create DEBIT transaction → IF paid_amount_money > 0
+         d. Create GoldLedger OUT → IF advance_in_gold_grams > 0
+         e. Create GoldLedger IN → IF exchange_in_gold_grams > 0
+         f. Create CREDIT vendor payable → IF balance_due_money > 0
+         g. Create audit log → always
+         h. Return comprehensive response → always
+      
+      KEY FEATURES:
+      - ✅ Flexible settlement: cash, gold, or mixed
+      - ✅ Payment creates DEBIT transaction (reduces our account)
+      - ✅ Advance gold creates OUT entry (settles vendor's advance)
+      - ✅ Exchange gold creates IN entry (vendor gives us gold)
+      - ✅ Vendor payable ONLY for remaining balance_due_money
+      - ✅ All operations remain atomic (succeed/fail together)
+      - ✅ Complete audit trail for all settlement methods
+      - ✅ Proper precision: 3 decimals gold, 2 decimals money
+      
+      SETTLEMENT EXAMPLES:
+      
+      Example 1: Full Cash Payment
+      - Total: 1000 OMR, Paid: 1000 OMR, Balance: 0 OMR
+      - Creates: Stock IN + DEBIT(1000) + NO vendor payable
+      
+      Example 2: Partial Payment
+      - Total: 1000 OMR, Paid: 600 OMR, Balance: 400 OMR
+      - Creates: Stock IN + DEBIT(600) + CREDIT(400)
+      
+      Example 3: Gold Advance Settlement
+      - Total: 1000 OMR, Advance Gold: 25.5g, Balance: 1000 OMR
+      - Creates: Stock IN + GoldLedger OUT(25.5g) + CREDIT(1000)
+      - Note: Gold tracked separately, doesn't reduce money balance
+      
+      Example 4: Mixed Settlement
+      - Total: 1000 OMR, Paid: 400 OMR, Advance: 10.25g, Exchange: 5.125g, Balance: 600 OMR
+      - Creates: Stock IN + DEBIT(400) + GoldLedger OUT(10.25g) + GoldLedger IN(5.125g) + CREDIT(600)
+      
+      READY FOR COMPREHENSIVE BACKEND TESTING:
+      
+      Critical Test Scenarios:
+      1. Create purchase with payment fields → verify balance auto-calculation
+      2. Create purchase with gold settlement → verify precision (3 decimals)
+      3. Finalize with ONLY payment → verify DEBIT created, NO vendor payable if balance=0
+      4. Finalize with ONLY advance gold → verify GoldLedger OUT created
+      5. Finalize with ONLY exchange gold → verify GoldLedger IN created
+      6. Finalize with mixed settlement → verify all transactions/entries created
+      7. Verify vendor payable uses balance_due_money (not amount_total)
+      8. Verify all IDs returned in finalize response
+      9. Edit draft purchase → verify balance recalculated
+      10. Verify account validation when paid_amount_money > 0
+      
+      This module provides complete flexibility in how vendors are paid - cash, gold settlements, or any combination thereof.
+
