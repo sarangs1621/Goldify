@@ -481,6 +481,100 @@ export default function DailyClosingPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Daily Closing</DialogTitle>
+          </DialogHeader>
+          {editingClosing && (
+            <div className="space-y-4 mt-4">
+              {/* Display date and calculated values (read-only) */}
+              <div className="p-4 bg-muted/30 rounded-md space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Date:</span>
+                  <span className="font-mono font-semibold">
+                    {new Date(editingClosing.date).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Expected Closing:</span>
+                  <span className="font-mono font-semibold">
+                    {editingClosing.expected_closing.toFixed(3)} OMR
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <Label>Actual Closing Cash (OMR) *</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  value={editFormData.actual_closing}
+                  onChange={(e) => setEditFormData({...editFormData, actual_closing: e.target.value})}
+                  data-testid="edit-actual-closing-input"
+                />
+              </div>
+
+              {/* Show new difference */}
+              {editFormData.actual_closing && (
+                <div className={`p-4 rounded-md border-2 ${
+                  (parseFloat(editFormData.actual_closing) - editingClosing.expected_closing) === 0 ? 'bg-green-50 border-green-200' :
+                  Math.abs(parseFloat(editFormData.actual_closing) - editingClosing.expected_closing) <= 10 ? 'bg-yellow-50 border-yellow-200' :
+                  'bg-red-50 border-red-200'
+                }`}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-sm">New Difference:</span>
+                    <span className={`text-lg font-bold ${getDifferenceColor(parseFloat(editFormData.actual_closing) - editingClosing.expected_closing)}`}>
+                      {(parseFloat(editFormData.actual_closing) - editingClosing.expected_closing) >= 0 ? '+' : ''}
+                      {(parseFloat(editFormData.actual_closing) - editingClosing.expected_closing).toFixed(3)} OMR
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label>Notes (Optional)</Label>
+                <Input
+                  value={editFormData.notes}
+                  onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
+                  placeholder="Any remarks or explanations"
+                  data-testid="edit-notes-input"
+                />
+              </div>
+
+              {/* Warning for locked closings (shouldn't happen, but safety check) */}
+              {editingClosing.is_locked && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-semibold">Warning: This closing is locked</p>
+                    <p>You should not be able to edit a locked closing.</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowEditDialog(false)} 
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleUpdateClosing} 
+                  className="flex-1"
+                  data-testid="update-closing-button"
+                >
+                  Update Closing
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
