@@ -524,6 +524,256 @@ async def get_stock_totals(current_user: User = Depends(get_current_user)):
         for h in headers
     ]
 
+# ============================================================================
+# NEW ENDPOINTS FOR API COMPLETENESS
+# ============================================================================
+
+@api_router.get("/dashboard")
+async def get_dashboard(current_user: User = Depends(get_current_user)):
+    """
+    Dashboard endpoint - Returns pre-aggregated statistics
+    Combines data from multiple endpoints for convenience
+    """
+    try:
+        # Get inventory headers count and totals
+        headers = await db.inventory_headers.find({"is_deleted": False}, {"_id": 0}).to_list(1000)
+        total_headers = len(headers)
+        total_stock_weight = sum(h.get('current_weight', 0) for h in headers)
+        total_stock_qty = sum(h.get('current_qty', 0) for h in headers)
+        
+        # Get outstanding summary
+        invoices = await db.invoices.find(
+            {"is_deleted": False, "payment_status": {"$ne": "paid"}}, 
+            {"_id": 0}
+        ).to_list(10000)
+        total_outstanding = sum(inv.get('balance_due', 0) for inv in invoices)
+        
+        # Get low stock items (qty < 5)
+        low_stock_items = len([h for h in headers if h.get('current_qty', 0) < 5])
+        
+        # Get parties count
+        customers_count = await db.parties.count_documents({"is_deleted": False, "party_type": "customer"})
+        vendors_count = await db.parties.count_documents({"is_deleted": False, "party_type": "vendor"})
+        
+        # Get recent invoices (last 5)
+        recent_invoices = await db.invoices.find(
+            {"is_deleted": False}, 
+            {"_id": 0}
+        ).sort("created_at", -1).limit(5).to_list(5)
+        
+        # Get job cards count by status
+        total_jobcards = await db.jobcards.count_documents({"is_deleted": False})
+        pending_jobcards = await db.jobcards.count_documents({"is_deleted": False, "status": "pending"})
+        completed_jobcards = await db.jobcards.count_documents({"is_deleted": False, "status": "completed"})
+        
+        return {
+            "inventory": {
+                "total_categories": total_headers,
+                "total_stock_weight_grams": round(total_stock_weight, 3),
+                "total_stock_qty": round(total_stock_qty, 2),
+                "low_stock_items": low_stock_items
+            },
+            "financial": {
+                "total_outstanding_omr": round(total_outstanding, 2),
+                "outstanding_invoices_count": len(invoices)
+            },
+            "parties": {
+                "total_customers": customers_count,
+                "total_vendors": vendors_count,
+                "total": customers_count + vendors_count
+            },
+            "job_cards": {
+                "total": total_jobcards,
+                "pending": pending_jobcards,
+                "completed": completed_jobcards
+            },
+            "recent_activity": {
+                "recent_invoices": recent_invoices[:5]
+            },
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logging.error(f"Dashboard error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to load dashboard: {str(e)}")
+
+@api_router.get("/reports")
+async def get_reports_list(current_user: User = Depends(get_current_user)):
+    """
+    Reports listing endpoint - Returns available report types with metadata
+    """
+    reports = [
+        {
+            "id": "financial-summary",
+            "name": "Financial Summary",
+            "description": "Overview of sales, purchases, profit, and outstanding balances",
+            "category": "financial",
+            "endpoints": {
+                "view": "/api/reports/financial-summary"
+            },
+            "supports_filters": False,
+            "supports_export": False
+        },
+        {
+            "id": "inventory",
+            "name": "Inventory Report",
+            "description": "Complete inventory stock levels and movements",
+            "category": "inventory",
+            "endpoints": {
+                "view": "/api/reports/inventory-view",
+                "export_excel": "/api/reports/inventory-export",
+                "export_pdf": "/api/reports/inventory-pdf"
+            },
+            "supports_filters": True,
+            "supports_export": True,
+            "export_formats": ["excel", "pdf"]
+        },
+        {
+            "id": "parties",
+            "name": "Parties Report",
+            "description": "List of all customers and vendors with contact details",
+            "category": "parties",
+            "endpoints": {
+                "view": "/api/reports/parties-view",
+                "export_excel": "/api/reports/parties-export",
+                "export_pdf": "/api/reports/parties-pdf"
+            },
+            "supports_filters": True,
+            "supports_export": True,
+            "export_formats": ["excel", "pdf"]
+        },
+        {
+            "id": "invoices",
+            "name": "Invoices Report",
+            "description": "All invoices with payment status and details",
+            "category": "sales",
+            "endpoints": {
+                "view": "/api/reports/invoices-view",
+                "export_excel": "/api/reports/invoices-export",
+                "export_pdf": "/api/reports/invoices-pdf"
+            },
+            "supports_filters": True,
+            "supports_export": True,
+            "export_formats": ["excel", "pdf"]
+        },
+        {
+            "id": "transactions",
+            "name": "Transactions Report",
+            "description": "All financial transactions and payments",
+            "category": "financial",
+            "endpoints": {
+                "view": "/api/reports/transactions-view",
+                "export_pdf": "/api/reports/transactions-pdf"
+            },
+            "supports_filters": True,
+            "supports_export": True,
+            "export_formats": ["pdf"]
+        },
+        {
+            "id": "outstanding",
+            "name": "Outstanding Report",
+            "description": "Customers with outstanding balances and aging analysis",
+            "category": "financial",
+            "endpoints": {
+                "view": "/api/reports/outstanding",
+                "export_pdf": "/api/reports/outstanding-pdf"
+            },
+            "supports_filters": True,
+            "supports_export": True,
+            "export_formats": ["pdf"]
+        },
+        {
+            "id": "sales-history",
+            "name": "Sales History",
+            "description": "Historical sales data and trends",
+            "category": "sales",
+            "endpoints": {
+                "view": "/api/reports/sales-history",
+                "export_excel": "/api/reports/sales-history-export"
+            },
+            "supports_filters": True,
+            "supports_export": True,
+            "export_formats": ["excel"]
+        },
+        {
+            "id": "purchase-history",
+            "name": "Purchase History",
+            "description": "Historical purchase data from vendors",
+            "category": "purchases",
+            "endpoints": {
+                "view": "/api/reports/purchase-history",
+                "export_excel": "/api/reports/purchase-history-export"
+            },
+            "supports_filters": True,
+            "supports_export": True,
+            "export_formats": ["excel"]
+        }
+    ]
+    
+    return {
+        "reports": reports,
+        "total_count": len(reports),
+        "categories": ["financial", "inventory", "parties", "sales", "purchases"],
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+@api_router.get("/inventory")
+async def get_inventory(
+    category: Optional[str] = None,
+    min_qty: Optional[float] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Basic inventory listing endpoint - Wrapper around inventory headers
+    Provides a simple interface for inventory data retrieval
+    """
+    try:
+        # Build query
+        query = {"is_deleted": False}
+        if category:
+            query['name'] = {"$regex": category, "$options": "i"}
+        
+        # Get inventory headers
+        headers = await db.inventory_headers.find(query, {"_id": 0}).to_list(1000)
+        
+        # Apply quantity filter if specified
+        if min_qty is not None:
+            headers = [h for h in headers if h.get('current_qty', 0) >= min_qty]
+        
+        # Format response with additional computed fields
+        inventory_items = []
+        for header in headers:
+            item = {
+                "id": header.get('id'),
+                "category": header.get('name'),
+                "quantity": round(header.get('current_qty', 0), 2),
+                "weight_grams": round(header.get('current_weight', 0), 3),
+                "is_active": header.get('is_active', True),
+                "created_at": header.get('created_at'),
+                "created_by": header.get('created_by'),
+                "status": "low_stock" if header.get('current_qty', 0) < 5 else "in_stock"
+            }
+            inventory_items.append(item)
+        
+        # Sort by weight descending
+        inventory_items.sort(key=lambda x: x['weight_grams'], reverse=True)
+        
+        return {
+            "items": inventory_items,
+            "total_count": len(inventory_items),
+            "total_weight_grams": round(sum(item['weight_grams'] for item in inventory_items), 3),
+            "total_quantity": round(sum(item['quantity'] for item in inventory_items), 2),
+            "low_stock_count": len([item for item in inventory_items if item['status'] == 'low_stock']),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "note": "For detailed operations use /api/inventory/headers and /api/inventory/movements"
+        }
+    except Exception as e:
+        logging.error(f"Inventory listing error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to load inventory: {str(e)}")
+
+# ============================================================================
+# END OF NEW ENDPOINTS
+# ============================================================================
+
 @api_router.get("/parties", response_model=List[Party])
 async def get_parties(party_type: Optional[str] = None, current_user: User = Depends(get_current_user)):
     query = {"is_deleted": False}
