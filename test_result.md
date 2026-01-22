@@ -2437,3 +2437,352 @@ agent_communication:
       9. Verify "22K" always displayed in valuation purity column
       10. Verify entered purity shows actual vendor claimed values
 
+
+#====================================================================================================
+# MODULE 9/10 - CUSTOMER GOLD DEPOSIT FEATURE
+#====================================================================================================
+
+user_problem_statement: |
+  MODULE 9/10 — Customer Gold Deposit Feature (UI + Backend)
+  
+  Add "Customer Gold Deposit" entry (Gold received from customer).
+  
+  Backend:
+  - POST /api/gold-deposits creates GoldLedgerEntry (type = IN)
+  - GET /api/gold-deposits filters
+  - Soft delete
+  
+  Frontend:
+  - Add "Add Gold Deposit" button in Party page.
+  - Form with: weight grams, purity, purpose, notes
+
+backend:
+  - task: "MODULE 9/10 - Gold Deposits API Endpoints"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          MODULE 9 IMPLEMENTED - Customer Gold Deposit Feature (Backend).
+          
+          Backend Implementation:
+          
+          1. ✅ POST /api/gold-deposits Endpoint (lines 695-754):
+             - Creates gold deposit entries for customers
+             - ALWAYS sets type="IN" (shop receives gold from customer)
+             - Sets reference_type="manual" for manual deposits
+             
+             Required Fields:
+             - party_id: Customer who is depositing gold (must exist)
+             - weight_grams: Weight of gold received (3 decimal precision)
+             - purity_entered: Purity in karats (e.g., 22, 24, 18)
+             - purpose: One of [job_work, exchange, advance_gold, adjustment]
+             
+             Optional Fields:
+             - notes: Additional notes about the deposit
+             - date: Defaults to current UTC time
+             
+             Validations:
+             - Party must exist and not be deleted
+             - Weight must be > 0
+             - Purpose must be valid enum value
+             - All data properly rounded (weight to 3 decimals)
+             
+             Creates GoldLedgerEntry in database and audit log
+          
+          2. ✅ GET /api/gold-deposits Endpoint (lines 756-797):
+             - Retrieves gold deposit entries
+             - FILTERS for type="IN" entries only (deposits received from customers)
+             
+             Query Parameters:
+             - party_id: Filter by specific customer (optional)
+             - date_from: Filter entries from this date - ISO format (optional)
+             - date_to: Filter entries up to this date - ISO format (optional)
+             
+             Returns:
+             - List of GoldLedgerEntry objects
+             - Sorted by date descending (newest first)
+             - Only non-deleted entries
+          
+          3. ✅ Soft Delete Support:
+             - Uses existing DELETE /api/gold-ledger/{entry_id} endpoint
+             - No separate delete endpoint needed
+             - Maintains audit trail with deleted_by and deleted_at
+          
+          Key Business Rules Implemented:
+          - ✅ Gold deposits are ALWAYS type="IN" (customer gives gold to shop)
+          - ✅ Weight precision maintained at 3 decimals
+          - ✅ Reference type set to "manual" for tracking deposit source
+          - ✅ Complete validation for all required fields
+          - ✅ Party existence check prevents orphaned entries
+          - ✅ Date range filtering supports ISO format dates
+          - ✅ Complete audit trail maintained (created_by, created_at)
+          - ✅ Soft delete preserves data integrity
+          
+          READY FOR COMPREHENSIVE TESTING - Need to verify:
+          1. Create gold deposit with all required fields
+          2. Create gold deposit with optional notes
+          3. Validation: Missing party_id (should fail with 400)
+          4. Validation: Non-existent party_id (should fail with 404)
+          5. Validation: Missing weight_grams (should fail with 400)
+          6. Validation: Zero or negative weight (should fail with 400)
+          7. Validation: Missing purity_entered (should fail with 400)
+          8. Validation: Invalid purpose (should fail with 400)
+          9. Get all deposits (should return only IN entries)
+          10. Filter deposits by party_id
+          11. Filter deposits by date range (date_from, date_to)
+          12. Verify weight rounded to 3 decimals
+          13. Verify purity stored as integer
+          14. Verify created_by set to current user
+          15. Verify audit log created
+          16. Soft delete deposit using /api/gold-ledger/{id}
+          17. Verify deleted deposits excluded from GET results
+
+frontend:
+  - task: "MODULE 9/10 - Gold Deposit UI in Party Page"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/PartiesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          MODULE 9 IMPLEMENTED - Customer Gold Deposit Feature (Frontend UI).
+          
+          Frontend Implementation:
+          
+          1. ✅ State Management (lines 18, 42-47):
+             - Added showGoldDepositDialog state for dialog visibility
+             - Added depositFormData state with fields:
+               * weight_grams: String (for input)
+               * purity_entered: String (for input)
+               * purpose: String (default 'job_work')
+               * notes: String (optional)
+          
+          2. ✅ Handler Functions (lines 179-281):
+             
+             a. handleOpenGoldDeposit:
+                - Resets deposit form to initial state
+                - Opens gold deposit dialog
+             
+             b. handleCreateGoldDeposit:
+                - Validates weight_grams (must be > 0)
+                - Validates purity_entered (must be > 0)
+                - Converts strings to proper types (float/int)
+                - POSTs to /api/gold-deposits with payload:
+                  * party_id: From current ledgerData.party.id
+                  * weight_grams: Parsed as float
+                  * purity_entered: Parsed as int
+                  * purpose: Selected value
+                  * notes: Optional string
+                - Shows loading state during submission
+                - On success:
+                  * Shows success toast
+                  * Reloads gold entries (GET /api/gold-ledger)
+                  * Reloads party summary (GET /api/parties/{id}/summary)
+                  * Closes dialog and resets form
+                - On error:
+                  * Shows error toast with API error message
+                  * Keeps dialog open for correction
+          
+          3. ✅ "Add Gold Deposit" Button (lines 613-625):
+             - Positioned in Gold Ledger section header
+             - Located next to "Gold Ledger (X entries)" title
+             - Styled with amber colors (bg-amber-600 hover:bg-amber-700)
+             - Icon: Plus icon from lucide-react
+             - Only visible when viewing party ledger dialog
+             - Calls handleOpenGoldDeposit on click
+          
+          4. ✅ Gold Deposit Dialog (lines 751-835):
+             - Modal dialog with clean, focused UI
+             - Title: "Add Gold Deposit"
+             - Subtitle: Shows party name being deposited to
+             
+             Form Fields:
+             
+             a. Weight (grams) * - Required:
+                - Type: number input
+                - Step: 0.001 (3 decimal precision)
+                - Min: 0 (prevents negative)
+                - Placeholder: "e.g., 25.500"
+                - Helper text: "Precision: 3 decimal places"
+                - Data-testid: "deposit-weight-input"
+             
+             b. Purity (Karats) * - Required:
+                - Type: number input
+                - Min: 0
+                - Placeholder: "e.g., 22, 24, 18"
+                - Helper text: "Common values: 22K, 24K, 18K"
+                - Data-testid: "deposit-purity-input"
+             
+             c. Purpose * - Required:
+                - Type: Select dropdown
+                - Options:
+                  * Job Work
+                  * Exchange
+                  * Advance Gold
+                  * Adjustment
+                - Default: "job_work"
+                - Data-testid: "deposit-purpose-select"
+             
+             d. Notes - Optional:
+                - Type: text input
+                - Placeholder: "Additional notes..."
+                - Data-testid: "deposit-notes-input"
+             
+             Actions:
+             - Cancel button: Closes dialog without saving
+             - Save Deposit button:
+               * Amber colored (matches theme)
+               * Shows "Saving..." during submission
+               * Disabled during loading
+               * Data-testid: "save-deposit-button"
+          
+          5. ✅ Integration with Existing Flow:
+             - Dialog appears within party ledger view
+             - Automatically updates gold entries after deposit
+             - Updates summary cards (gold balance increases)
+             - Maintains filter state (doesn't reset user's filters)
+             - Toast notifications for success/error feedback
+          
+          UI/UX Features:
+          - ✅ Clean, focused dialog (max-w-md for optimal form width)
+          - ✅ Clear field labels with asterisks for required fields
+          - ✅ Helper text for guidance (precision, common values)
+          - ✅ Proper input types (number with step/min validation)
+          - ✅ Disabled state during submission (prevents double-submit)
+          - ✅ Loading indicator ("Saving..." button text)
+          - ✅ Toast notifications for user feedback
+          - ✅ Form validation before API call
+          - ✅ Error messages from API displayed to user
+          - ✅ Form resets after successful submission
+          - ✅ Amber theme colors for gold-related actions
+          
+          READY FOR COMPREHENSIVE TESTING - Need to verify:
+          1. Party ledger dialog opens correctly
+          2. "Add Gold Deposit" button visible in gold ledger section
+          3. Click button opens gold deposit dialog
+          4. Dialog shows correct party name in subtitle
+          5. All form fields render correctly
+          6. Weight input accepts 3 decimal places
+          7. Purity input accepts integer values
+          8. Purpose dropdown shows all 4 options
+          9. Purpose defaults to "job_work"
+          10. Notes field is optional
+          11. Validation: Empty weight shows error toast
+          12. Validation: Zero/negative weight shows error toast
+          13. Validation: Empty purity shows error toast
+          14. Validation: Zero/negative purity shows error toast
+          15. Save button shows loading state during submission
+          16. Success toast appears after successful deposit
+          17. Gold entries table refreshes with new deposit
+          18. Summary cards update (gold they owe us increases)
+          19. Dialog closes after successful submission
+          20. Form resets for next deposit
+          21. Cancel button closes dialog without saving
+          22. Error toast shows API error messages
+          23. Dialog keeps form data on error (allows correction)
+          24. Filters remain applied after deposit (no reset)
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Test POST /api/gold-deposits endpoint"
+    - "Test GET /api/gold-deposits endpoint with filters"
+    - "Test gold deposit UI in party page"
+    - "Test form validation (frontend)"
+    - "Test API validation (backend)"
+    - "Test gold entry refresh after deposit"
+    - "Test summary update after deposit"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      MODULE 9/10 - Customer Gold Deposit Feature has been implemented.
+      
+      Backend Changes:
+      - Created POST /api/gold-deposits endpoint (lines 695-754 in server.py)
+        * Creates GoldLedgerEntry with type="IN" for deposits
+        * Validates all required fields (party_id, weight_grams, purity_entered, purpose)
+        * Validates weight > 0 and party exists
+        * Rounds weight to 3 decimal precision
+        * Creates audit log
+      
+      - Created GET /api/gold-deposits endpoint (lines 756-797 in server.py)
+        * Returns only type="IN" entries (deposits received)
+        * Supports filtering by party_id, date_from, date_to
+        * Sorted by date descending
+        * Only returns non-deleted entries
+      
+      - Soft delete uses existing DELETE /api/gold-ledger/{entry_id} endpoint
+      
+      Frontend Changes:
+      - Added "Add Gold Deposit" button in party ledger dialog (lines 613-625)
+        * Styled with amber theme colors
+        * Shows Plus icon
+        * Positioned next to gold ledger section title
+      
+      - Created gold deposit dialog (lines 751-835)
+        * Form fields: weight_grams (number, 3 decimals), purity_entered (number), purpose (dropdown), notes (text, optional)
+        * Validation before submission
+        * Loading state during API call
+        * Success/error toast notifications
+        * Auto-refresh gold entries and summary after successful deposit
+      
+      - Added state management and handlers (lines 18, 42-47, 179-281)
+        * depositFormData state for form inputs
+        * showGoldDepositDialog for dialog visibility
+        * handleOpenGoldDeposit to open dialog
+        * handleCreateGoldDeposit to submit form
+      
+      Key Features:
+      - ✅ Clean UI with clear labels and helper text
+      - ✅ Form validation (weight > 0, purity > 0)
+      - ✅ API validation (party exists, valid purpose)
+      - ✅ 3 decimal precision for weight
+      - ✅ Dropdown for purpose selection
+      - ✅ Optional notes field
+      - ✅ Loading indicators
+      - ✅ Toast notifications
+      - ✅ Auto-refresh after deposit
+      - ✅ Amber theme colors for gold-related actions
+      
+      Ready for backend testing first. Please test:
+      1. POST /api/gold-deposits with valid data
+      2. POST /api/gold-deposits validation errors (missing fields, invalid party, zero weight, invalid purpose)
+      3. GET /api/gold-deposits without filters
+      4. GET /api/gold-deposits with party_id filter
+      5. GET /api/gold-deposits with date range filters
+      6. Verify only type="IN" entries returned
+      7. Verify weight precision (3 decimals)
+      8. Verify audit log creation
+      9. DELETE /api/gold-ledger/{id} for soft delete
+      10. Verify deleted deposits excluded from GET results
+      
+      After backend validation, frontend testing (if approved by user):
+      1. Open party ledger dialog
+      2. Verify "Add Gold Deposit" button visible
+      3. Click button and verify dialog opens
+      4. Test all form fields
+      5. Test validation (empty/invalid inputs)
+      6. Test successful deposit submission
+      7. Verify gold entries refresh
+      8. Verify summary cards update
+      9. Test error handling
+      10. Test cancel functionality
