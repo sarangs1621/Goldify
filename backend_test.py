@@ -351,36 +351,88 @@ class PaginationTester:
             return False
 
     # ============================================================================
-    # SETUP PHASE - Create Test Data
+    # PAGINATION TESTS FOR ALL 7 ENDPOINTS
     # ============================================================================
 
-    def setup_test_data(self):
-        """Setup Phase - Create test entities to generate audit logs"""
-        print("🔧 SETUP PHASE - Creating Test Data to Generate Audit Logs")
-        print("-" * 60)
+    def test_parties_pagination(self):
+        """Test GET /api/parties pagination"""
+        # Test with no filters
+        success = self.test_pagination_endpoint("parties", "Parties")
         
-        # Create 3 parties to generate audit logs
-        party1_id = self.create_test_party("Audit Test Party 001", "customer")
-        party2_id = self.create_test_party("Audit Test Party 002", "vendor") 
-        party3_id = self.create_test_party("Audit Test Party 003", "customer")
+        # Test with party_type filter
+        if success:
+            success = self.test_pagination_endpoint("parties", "Parties (customer filter)", 
+                                                  {"party_type": "customer"})
         
-        if not all([party1_id, party2_id, party3_id]):
-            self.log_result("Setup Test Data", False, "Failed to create all test parties")
-            return False
+        return success
+
+    def test_gold_ledger_pagination(self):
+        """Test GET /api/gold-ledger pagination"""
+        # Test with no filters
+        success = self.test_pagination_endpoint("gold-ledger", "Gold Ledger")
         
-        # Update one party to generate update audit log
-        update_success = self.update_test_party(party1_id, "Audit Test Party 001")
+        # Test with party_id filter (if we have parties)
+        if success and self.created_entities['parties']:
+            party_id = self.created_entities['parties'][0]
+            success = self.test_pagination_endpoint("gold-ledger", "Gold Ledger (party filter)", 
+                                                  {"party_id": party_id})
         
-        # Delete one party to generate delete audit log  
-        delete_success = self.delete_test_party(party3_id)
+        # Test with date filters
+        if success:
+            today = datetime.now().strftime('%Y-%m-%d')
+            success = self.test_pagination_endpoint("gold-ledger", "Gold Ledger (date filter)", 
+                                                  {"date_from": today})
         
-        if update_success and delete_success:
-            self.log_result("Setup Test Data", True, 
-                          f"Created 3 parties, updated 1, deleted 1. Generated audit logs with module='party', actions=['create', 'update', 'delete']")
-            return True
-        else:
-            self.log_result("Setup Test Data", False, "Failed to complete all test operations")
-            return False
+        return success
+
+    def test_purchases_pagination(self):
+        """Test GET /api/purchases pagination"""
+        # Note: We may not have purchase data, but we should test the endpoint structure
+        success = self.test_pagination_endpoint("purchases", "Purchases")
+        
+        # Test with status filter
+        if success:
+            success = self.test_pagination_endpoint("purchases", "Purchases (status filter)", 
+                                                  {"status": "draft"})
+        
+        return success
+
+    def test_jobcards_pagination(self):
+        """Test GET /api/jobcards pagination"""
+        # Note: We may not have jobcard data, but we should test the endpoint structure
+        success = self.test_pagination_endpoint("jobcards", "Job Cards")
+        
+        return success
+
+    def test_invoices_pagination(self):
+        """Test GET /api/invoices pagination"""
+        # Note: We may not have invoice data, but we should test the endpoint structure
+        success = self.test_pagination_endpoint("invoices", "Invoices")
+        
+        return success
+
+    def test_transactions_pagination(self):
+        """Test GET /api/transactions pagination"""
+        success = self.test_pagination_endpoint("transactions", "Transactions")
+        
+        return success
+
+    def test_audit_logs_pagination(self):
+        """Test GET /api/audit-logs pagination"""
+        success = self.test_pagination_endpoint("audit-logs", "Audit Logs")
+        
+        # Test with module filter
+        if success:
+            success = self.test_pagination_endpoint("audit-logs", "Audit Logs (module filter)", 
+                                                  {"module": "party"})
+        
+        # Test with date filters
+        if success:
+            today = datetime.now().strftime('%Y-%m-%d')
+            success = self.test_pagination_endpoint("audit-logs", "Audit Logs (date filter)", 
+                                                  {"date_from": today})
+        
+        return success
 
     # ============================================================================
     # TEST INDIVIDUAL FILTERS
