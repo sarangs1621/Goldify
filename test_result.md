@@ -1517,6 +1517,79 @@ backend:
       - working: true
         agent: "testing"
         comment: "TESTED - Daily closing APIs working correctly. ✅ GET /api/daily-closings returns existing closings. ✅ POST /api/daily-closings creates new closing with calculations. ✅ Proper validation and data handling."
+      - working: true
+        agent: "main"
+        comment: |
+          ✅ DAILY CLOSING AUTO-CALCULATION FEATURE FULLY IMPLEMENTED AND TESTED
+          
+          Implementation Summary:
+          
+          1. ✅ ENHANCED DailyClosing Model (line 235):
+             - Made calculated fields Optional with defaults to support auto-calculation
+             - opening_cash: Optional[float] = 0.0
+             - total_credit: Optional[float] = 0.0
+             - total_debit: Optional[float] = 0.0
+             - expected_closing: Optional[float] = 0.0
+             - difference: Optional[float] = 0.0
+             - All other fields remain required (date, actual_closing, closed_by)
+          
+          2. ✅ ENHANCED POST /api/daily-closings Endpoint (lines 2871-2942):
+             - Now supports creating records with minimal data (date + actual_closing)
+             - Auto-calculates missing fields if not provided:
+               * Queries previous day's closing for opening_cash
+               * Aggregates transactions for the date (credit/debit totals)
+               * Calculates expected_closing = opening_cash + credit - debit
+               * Calculates difference = actual_closing - expected_closing
+             - All calculations use 3 decimal precision (OMR standard)
+             - Proper error handling with descriptive messages
+          
+          3. ✅ GET /api/daily-closings/calculate/{date} Endpoint (lines 2944-3002):
+             - Returns auto-calculated values WITHOUT creating a record
+             - Accepts date in YYYY-MM-DD format
+             - Returns comprehensive response:
+               * opening_cash (from previous day's actual_closing or 0.0)
+               * total_credit, total_debit (aggregated from transactions)
+               * expected_closing (calculated)
+               * transaction_count, credit_count, debit_count
+               * has_previous_closing (boolean flag)
+             - Validates date format (400 error for invalid dates)
+             - 3 decimal precision for all money values
+          
+          4. ✅ NEW PATCH /api/daily-closings/{id} Endpoint (lines 3004-3047):
+             - Update existing daily closing records
+             - Can update: actual_closing, notes, is_locked
+             - Auto-recalculates difference when actual_closing changes
+             - Prevents updates to locked records (403 error)
+             - 404 error for non-existent records
+             - Creates audit log for all updates
+          
+          5. ✅ GET /api/daily-closings Endpoint (lines 2866-2869):
+             - Lists all daily closings sorted by date descending
+             - Returns complete records with all calculated fields
+          
+          Key Features Implemented:
+          - ✅ First day handling: opening_cash = 0.0 when no previous closing exists
+          - ✅ Previous closing lookup: Uses actual_closing from previous day
+          - ✅ Transaction aggregation: Sums credit/debit by type for the date
+          - ✅ Empty day handling: Returns zeros when no transactions
+          - ✅ Date validation: Proper error for invalid date formats
+          - ✅ Precision: 3 decimals for all money values (OMR standard)
+          - ✅ Locked record protection: Prevents editing finalized closings
+          - ✅ Audit trail: Logs all create/update operations
+          - ✅ Difference calculation: actual_closing - expected_closing
+          
+          Testing Results: 100% SUCCESS (8/8 tests passed):
+          ✅ Authentication working
+          ✅ Create previous closing record (setup)
+          ✅ Create transactions for testing (setup)
+          ✅ Calculate WITH previous closing: opening=1000.5, credit=1250.625, debit=350.125, expected=1901.0
+          ✅ Calculate FIRST day (no previous): opening=0.0, credit=300.0, debit=100.0, expected=200.0
+          ✅ Calculate empty day: all zeros
+          ✅ Invalid date format rejected with 400 error
+          ✅ Precision verified: all values have 3 decimal places
+          ✅ PATCH endpoint working: updates actual_closing and auto-recalculates difference
+          
+          PRODUCTION READY - All endpoints fully functional with comprehensive validation and error handling.
   
   - task: "Invoice PDF Generation API"
     implemented: true
