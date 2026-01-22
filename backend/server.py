@@ -1874,7 +1874,8 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(get_cur
             "status": "finalized", 
             "finalized_at": finalized_at.isoformat(),
             "jobcard_locked": bool(invoice.jobcard_id),
-            "ledger_entry_created": bool(invoice.customer_id and invoice.grand_total > 0)
+            "ledger_entry_created": bool(invoice.grand_total > 0),
+            "customer_type": invoice.customer_type
         }
     )
     
