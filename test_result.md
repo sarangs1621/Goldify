@@ -1221,6 +1221,71 @@ backend:
           
           ENDPOINT IS PRODUCTION READY - All filters work correctly, aggregations accurate, precision maintained.
 
+  - task: "API Completeness - Inventory CRUD Operations (UPDATE & DELETE)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          IMPLEMENTED - Complete inventory CRUD operations with UPDATE and DELETE endpoints.
+          
+          NEW ENDPOINTS ADDED:
+          
+          1. ✅ PATCH /api/inventory/headers/{header_id}:
+             - Updates existing inventory header (category name)
+             - Allows updating: name, is_active fields
+             - Note: current_qty and current_weight are managed through stock movements only
+             - Validates header exists before update
+             - Creates audit log with changes
+             - Returns 404 if header not found or already deleted
+             - Returns 400 if no valid fields to update
+          
+          2. ✅ DELETE /api/inventory/headers/{header_id}:
+             - Soft deletes an inventory header
+             - Validates header exists before deletion
+             - CRITICAL VALIDATION: Prevents deletion if header has current stock
+             - Error message shows current qty and weight if stock exists
+             - Creates audit log with header name
+             - Preserves audit trail (does not affect existing stock movements)
+             - Returns 404 if header not found or already deleted
+          
+          3. ✅ DELETE /api/inventory/movements/{movement_id}:
+             - Deletes a stock movement and reverses its effect on inventory
+             - CRITICAL PROTECTION: Cannot delete movements linked to invoices or purchases
+             - Soft deletes the movement (is_deleted = true)
+             - Automatically reverses stock changes in header (qty and weight)
+             - Validates reversal won't make stock negative
+             - Creates detailed audit log with movement details
+             - Returns reversed qty and weight in response
+             - Maintains financial integrity by blocking deletion of transactional movements
+          
+          Key Business Rules Implemented:
+          - ✅ Inventory headers can only be updated (name/status), not qty/weight directly
+          - ✅ Headers with stock cannot be deleted (data integrity)
+          - ✅ Stock movements linked to invoices/purchases cannot be deleted (audit trail)
+          - ✅ Manual stock movements can be deleted if no downstream impact
+          - ✅ All deletions are soft deletes (preserves data)
+          - ✅ Stock reversal validated to prevent negative stock
+          - ✅ Complete audit trail maintained for all operations
+          
+          READY FOR COMPREHENSIVE TESTING - Need to verify:
+          1. Update inventory header name successfully
+          2. Update inventory header is_active status
+          3. Attempt to update non-existent header (should return 404)
+          4. Delete inventory header with zero stock (should succeed)
+          5. Attempt to delete header with stock (should fail with 400 and show current stock)
+          6. Delete manual stock movement (should succeed and reverse stock)
+          7. Attempt to delete invoice-linked movement (should fail with 400)
+          8. Attempt to delete purchase-linked movement (should fail with 400)
+          9. Verify stock reversal calculations are accurate
+          10. Verify all audit logs created correctly
+          11. Attempt to delete movement that would cause negative stock (should fail)
+
   - task: "Reports & Filters - Enhanced Financial Summary"
     implemented: true
     working: "NA"
