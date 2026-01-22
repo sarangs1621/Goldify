@@ -16,6 +16,7 @@ export default function PartiesPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [showLedgerDialog, setShowLedgerDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showGoldDepositDialog, setShowGoldDepositDialog] = useState(false);
   const [editingParty, setEditingParty] = useState(null);
   const [deletingParty, setDeleteingParty] = useState(null);
   const [ledgerData, setLedgerData] = useState(null);
@@ -35,6 +36,14 @@ export default function PartiesPage() {
     phone: '',
     address: '',
     party_type: 'customer',
+    notes: ''
+  });
+  
+  // MODULE 9: Gold deposit form data
+  const [depositFormData, setDepositFormData] = useState({
+    weight_grams: '',
+    purity_entered: '',
+    purpose: 'job_work',
     notes: ''
   });
 
