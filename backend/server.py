@@ -48,6 +48,18 @@ def float_to_decimal128(value):
         return None
     return Decimal128(Decimal(str(value)))
 
+class PaginationMetadata(BaseModel):
+    total_count: int
+    page: int
+    per_page: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+class PaginationResponse(BaseModel):
+    items: List[Any]
+    pagination: PaginationMetadata
+
 def create_pagination_response(items: list, total_count: int, page: int, per_page: int):
     """
     Helper function to create standardized pagination response
