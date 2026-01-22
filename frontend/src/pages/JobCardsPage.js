@@ -134,7 +134,8 @@ export default function JobCardsPage() {
         customer_id: '',
         customer_name: '',
         walk_in_name: jobcard.walk_in_name || '',
-        walk_in_phone: jobcard.walk_in_phone || ''
+        walk_in_phone: jobcard.walk_in_phone || '',
+        discount_amount: 0  // MODULE 7: Initialize discount
       });
     } else {
       // Job card is for saved customer
@@ -143,7 +144,8 @@ export default function JobCardsPage() {
         customer_id: jobcard.customer_id || '',
         customer_name: jobcard.customer_name || '',
         walk_in_name: '',
-        walk_in_phone: ''
+        walk_in_phone: '',
+        discount_amount: 0  // MODULE 7: Initialize discount
       });
     }
     
