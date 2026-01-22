@@ -1818,7 +1818,7 @@ async def finalize_purchase(purchase_id: str, current_user: User = Depends(get_c
     }
 
 
-@api_router.get("/jobcards", response_model=List[JobCard])
+@api_router.get("/jobcards")
 async def get_jobcards(
     page: int = 1,
     per_page: int = 50,
