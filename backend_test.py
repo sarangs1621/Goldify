@@ -32,7 +32,15 @@ class PaginationTester:
         self.session = requests.Session()
         self.test_results = []
         self.user_id = None  # Will be set after login
-        self.created_party_ids = []  # Track created parties for cleanup
+        self.created_entities = {
+            'parties': [],
+            'gold_ledger': [],
+            'purchases': [],
+            'jobcards': [],
+            'invoices': [],
+            'transactions': [],
+            'accounts': []
+        }  # Track created entities for cleanup
         
     def log_result(self, test_name: str, success: bool, details: str = "", response_data: Any = None):
         """Log test result with details"""
