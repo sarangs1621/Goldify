@@ -1318,10 +1318,15 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Test enhanced reports API with filtering"
-    - "Test reports UI with date range, status, and type filters"
-    - "Test individual report views (invoice details, party ledger, stock report)"
-    - "Test export functionality with filters"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Test create draft with payment"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Test create draft with gold settlement"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Test balance_due_money auto-calculation"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Test finalize with payment (DEBIT transaction)"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Test finalize with advance gold (GoldLedger OUT)"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Test finalize with exchange gold (GoldLedger IN)"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Test finalize with mixed settlement"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Verify vendor payable uses balance_due_money"
+    - "MODULE 4/10 - Purchase Payments + Gold Settlement - Verify precision (3 decimals gold, 2 decimals money)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
