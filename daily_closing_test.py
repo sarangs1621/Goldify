@@ -481,7 +481,7 @@ class DailyClosingTester:
 def main():
     """Main execution function"""
     # Configuration
-    BASE_URL = "https://page-by-page-1.preview.emergentagent.com"
+    BASE_URL = "https://pagination-blocker.preview.emergentagent.com"
     USERNAME = "admin"
     PASSWORD = "admin123"
     
