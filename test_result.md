@@ -3878,4 +3878,97 @@ agent_communication:
       - API completeness module successfully implemented
       - No further backend testing required for these endpoints
       - Main agent can proceed with summary and completion
+  - agent: "main"
+    message: |
+      FRONTEND INTEGRATION TESTING - HIGH PRIORITY
+      
+      Current Status:
+      - ✅ Backend services running successfully (0.0.0.0:8001)
+      - ✅ Frontend services running successfully (localhost:3000)
+      - ✅ MongoDB running and accessible
+      - ✅ Frontend dependencies installed successfully (yarn install completed)
+      - ✅ Backend URL configured: https://ui-form-verify.preview.emergentagent.com
+      
+      Testing Plan - Comprehensive Frontend UI Testing:
+      
+      Phase 1: Critical Workflows (Module 2 - Party Reports):
+      1. Party Detail Dialog:
+         - Open party detail dialog
+         - Verify 4 summary cards display correctly (Gold they owe us, Gold we owe them, Money they owe us, Money we owe them)
+         - Verify card colors and icons (amber, orange, green, red)
+         - Verify values formatted correctly (3 decimals for gold, 2 decimals for money with OMR)
+      
+      2. Gold Ledger Table:
+         - Verify table displays all gold ledger entries
+         - Check columns: Date, Type (IN/OUT badges), Weight (3 decimals), Purity (K), Purpose, Notes
+         - Verify color-coded badges (Green for IN, Blue for OUT)
+      
+      3. Money Ledger Table:
+         - Verify table combines invoices and transactions
+         - Check columns: Date, Type (badge), Reference #, Amount, Balance, Status
+         - Verify type badges (Blue for Invoice, Green for Receipt, Purple for Payment)
+         - Verify status badges (Green for paid, Red for unpaid, Yellow for partial)
+      
+      4. Date Filters and Search:
+         - Test search functionality across purpose, notes, reference, type fields
+         - Test From Date filter
+         - Test To Date filter
+         - Test Clear Filters button
+         - Verify filters apply to both gold and money tables
+      
+      Phase 2: Job Cards Workflow:
+      1. Job Card Creation:
+         - Test job card creation form with all required fields
+         - Verify gold_rate_at_jobcard field exists and accepts values
+         - Test form validation
+      
+      2. Job Card Edit/Delete:
+         - Test editing existing job card
+         - Test deleting unlocked job card
+         - Verify locked job cards cannot be edited/deleted by non-admins
+      
+      3. Job Card to Invoice Conversion:
+         - Test convert to invoice dialog
+         - Verify gold rate from job card displays in convert dialog
+         - Verify invoice created with correct metal_rate auto-filled
+      
+      Phase 3: Invoices Workflow:
+      1. Invoice Creation/Finalization:
+         - Test invoice creation (should create as draft)
+         - Verify discount_amount field exists
+         - Test invoice finalization
+         - Verify stock deduction only happens on finalization
+      
+      2. Invoice Payments:
+         - Test standard payment modes (Cash, Bank Transfer, etc.)
+         - Test GOLD_EXCHANGE payment mode for saved customers
+         - Verify walk-in customers cannot use GOLD_EXCHANGE
+      
+      Phase 4: Purchases Workflow:
+      1. Purchase Creation:
+         - Test purchase creation with vendor validation
+         - Verify payment fields (paid_amount_money, payment_mode, account_id)
+         - Verify gold settlement fields (advance_in_gold_grams, exchange_in_gold_grams)
+      
+      2. Purchase Finalization:
+         - Test purchase finalization
+         - Verify all atomic operations completed (stock IN, payment transaction, gold ledger entries, vendor payable)
+      
+      Phase 5: General UI/UX:
+      1. Navigation and Layout:
+         - Test navigation between pages
+         - Verify responsive design on different viewport sizes
+         - Test dialog open/close functionality
+      
+      2. Form Field Structures:
+         - Verify all forms have required fields matching backend API
+         - Test field validations and error messages
+         - Test success notifications
+      
+      Updated metadata for frontend testing:
+      - run_ui: true
+      - test_priority: "high_first"
+      - current_focus: Module 2 Party Reports, Job Cards, Invoices, Purchases
+      
+      Ready for comprehensive frontend testing through auto_frontend_testing_agent.
 
