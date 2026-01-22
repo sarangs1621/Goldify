@@ -470,6 +470,152 @@ backend:
           6. Filter purchases by vendor, date range, status
           7. Verify entered_purity stored but valuation uses 916
 
+  - task: "MODULE 4/10 - Purchase Payments + Gold Settlement Options"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          MODULE 4 IMPLEMENTED - Enhanced Purchases Module with Payment Tracking and Gold Settlement Options.
+          
+          Backend Implementation:
+          
+          1. ✅ Purchase Model Enhanced (lines 277-305):
+             ADDED NEW FIELDS for payment and gold settlement:
+             - paid_amount_money: Amount paid during purchase (float, 2 decimal precision, default 0.0)
+             - balance_due_money: Auto-calculated as amount_total - paid_amount_money (2 decimals, default 0.0)
+             - payment_mode: How payment was made (Optional[str]: Cash | Bank Transfer | Card | UPI | Online | Cheque)
+             - account_id: Account from which payment was made (Optional[str])
+             - advance_in_gold_grams: Gold we previously gave vendor, now used as credit (Optional[float], 3 decimals)
+             - exchange_in_gold_grams: Gold exchanged from vendor during purchase (Optional[float], 3 decimals)
+             
+             All existing fields preserved for backward compatibility.
+          
+          2. ✅ POST /api/purchases Enhanced:
+             - Accepts all new payment and gold settlement fields
+             - Validates account_id exists if paid_amount_money > 0
+             - Auto-calculates balance_due_money = amount_total - paid_amount_money
+             - Rounds paid_amount_money to 2 decimals
+             - Rounds advance_in_gold_grams and exchange_in_gold_grams to 3 decimals
+             - Enhanced audit log includes payment and gold settlement details
+          
+          3. ✅ PATCH /api/purchases/{id} Enhanced:
+             - Allows updating payment and gold settlement fields (draft only)
+             - Recalculates balance_due_money when amount_total or paid_amount_money changes
+             - Validates account exists when payment amount provided
+             - Maintains precision: 2 decimals for money, 3 decimals for gold
+          
+          4. ✅ POST /api/purchases/{id}/finalize CRITICAL ENHANCEMENT:
+             Now performs UP TO 8 ATOMIC operations (based on what's provided):
+             
+             a. UPDATE PURCHASE STATUS (always):
+                - Sets status = "finalized", locked = True
+                - Records finalized_at, finalized_by, locked_at, locked_by
+             
+             b. CREATE STOCK IN MOVEMENT (always):
+                - Adds weight_grams to inventory at 916 purity
+                - Updates inventory header current_qty and current_weight
+             
+             c. MODULE 4 NEW: CREATE DEBIT TRANSACTION (if paid_amount_money > 0):
+                - Creates Transaction with transaction_type = "debit" (we paid vendor)
+                - Links to payment account (account_id)
+                - Uses payment_mode from purchase
+                - Amount = paid_amount_money (2 decimal precision)
+                - Category = "Purchase Payment"
+                - Reference links to purchase
+                - This REDUCES our cash/bank balance
+             
+             d. MODULE 4 NEW: CREATE GOLD LEDGER OUT (if advance_in_gold_grams > 0):
+                - Creates GoldLedgerEntry with type = "OUT"
+                - OUT means shop gives gold to vendor (settling advance)
+                - weight_grams = advance_in_gold_grams (3 decimal precision)
+                - purpose = "advance_gold"
+                - Links to vendor party and purchase
+                - This REDUCES vendor's gold balance with us
+             
+             e. MODULE 4 NEW: CREATE GOLD LEDGER IN (if exchange_in_gold_grams > 0):
+                - Creates GoldLedgerEntry with type = "IN"
+                - IN means shop receives gold from vendor
+                - weight_grams = exchange_in_gold_grams (3 decimal precision)
+                - purpose = "exchange"
+                - Links to vendor party and purchase
+                - This INCREASES vendor's gold balance with us
+             
+             f. CREATE VENDOR PAYABLE (if balance_due_money > 0):
+                - Creates Transaction with transaction_type = "credit" (we owe vendor)
+                - Amount = balance_due_money (NOT amount_total anymore!)
+                - Only creates if there's remaining balance after payment and gold settlements
+                - Category = "Purchase", mode = "Vendor Payable"
+             
+             g. CREATE AUDIT LOG (always):
+                - Records all created IDs (stock movement, payment transaction, gold ledger entries, payable)
+                - Includes payment details and gold settlement amounts
+             
+             h. RETURN COMPREHENSIVE RESPONSE:
+                - All created entity IDs for verification
+                - Paid amount and balance due breakdown
+          
+          Key Business Rules Implemented:
+          - ✅ balance_due_money auto-calculated = amount_total - paid_amount_money
+          - ✅ Payment transaction (DEBIT) only created if paid_amount_money > 0
+          - ✅ Advance gold ledger OUT only created if advance_in_gold_grams > 0
+          - ✅ Exchange gold ledger IN only created if exchange_in_gold_grams > 0
+          - ✅ Vendor Payable (CREDIT) only created for remaining balance_due_money
+          - ✅ All gold calculations maintain 3 decimal precision
+          - ✅ All money calculations maintain 2 decimal precision
+          - ✅ Account validation ensures payment account exists
+          - ✅ All operations remain atomic - succeed or fail together
+          - ✅ Complete audit trail for payment and gold settlements
+          
+          Financial Logic Examples:
+          
+          Example 1: Full Cash Payment
+          - amount_total = 1000.00
+          - paid_amount_money = 1000.00
+          - balance_due_money = 0.00
+          Result: Creates DEBIT transaction (1000.00), NO vendor payable
+          
+          Example 2: Partial Payment
+          - amount_total = 1000.00
+          - paid_amount_money = 600.00
+          - balance_due_money = 400.00
+          Result: Creates DEBIT transaction (600.00) + CREDIT transaction (400.00)
+          
+          Example 3: Gold Advance Settlement
+          - amount_total = 1000.00
+          - paid_amount_money = 0.00
+          - advance_in_gold_grams = 25.500g
+          - balance_due_money = 1000.00
+          Result: Creates GoldLedgerEntry OUT (25.500g) + CREDIT transaction (1000.00)
+          Note: Gold settlement tracked separately, doesn't reduce money balance
+          
+          Example 4: Mixed Settlement
+          - amount_total = 1000.00
+          - paid_amount_money = 400.00
+          - advance_in_gold_grams = 10.250g
+          - exchange_in_gold_grams = 5.125g
+          - balance_due_money = 600.00
+          Result: Creates DEBIT (400.00) + GoldLedger OUT (10.250g) + GoldLedger IN (5.125g) + CREDIT (600.00)
+          
+          READY FOR COMPREHENSIVE TESTING - Need to verify:
+          1. Create draft purchase with payment fields (paid_amount, account_id, payment_mode)
+          2. Create draft purchase with gold settlement fields (advance_in_gold_grams, exchange_in_gold_grams)
+          3. Verify balance_due_money auto-calculated correctly
+          4. Edit draft purchase and verify balance recalculation
+          5. Finalize purchase with ONLY payment → verify DEBIT transaction created
+          6. Finalize purchase with ONLY advance gold → verify GoldLedger OUT created
+          7. Finalize purchase with ONLY exchange gold → verify GoldLedger IN created
+          8. Finalize purchase with mixed settlement → verify all relevant transactions/entries created
+          9. Verify vendor payable (CREDIT) uses balance_due_money, not amount_total
+          10. Verify precision: gold at 3 decimals, money at 2 decimals
+          11. Verify account validation when paid_amount_money > 0
+          12. Verify all created IDs returned in response
+          13. Verify audit log captures all payment and gold settlement details
 
 backend:
   - task: "Job Card Locking with Admin Override"
