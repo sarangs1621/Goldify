@@ -618,6 +618,72 @@ backend:
           13. Verify audit log captures all payment and gold settlement details
 
 backend:
+  - task: "MODULE 7/10 - Invoice Discount (Amount Based)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          MODULE 7 IMPLEMENTED - Invoice Discount (Amount-Based) with VAT Recalculation.
+          
+          Backend Implementation:
+          
+          1. ✅ Invoice Model Enhanced (line 176-202):
+             ADDED NEW FIELD:
+             - discount_amount: float (3 decimal precision, default 0.0)
+             - Stores the discount amount to be deducted from subtotal before VAT calculation
+          
+          2. ✅ Updated Invoice Calculation Logic in convert_jobcard_to_invoice (lines 1398-1495):
+             NEW CALCULATION FORMULA:
+             - Step 1: Calculate subtotal = sum(gold_value + making_value) for all items
+             - Step 2: Get discount_amount from invoice_data (default 0)
+             - Step 3: Validate discount >= 0 and discount <= subtotal
+             - Step 4: Calculate taxable = subtotal - discount_amount
+             - Step 5: Calculate vat_total = taxable × vat_percent / 100
+             - Step 6: Calculate grand_total = taxable + vat_total
+             - Step 7: Distribute VAT proportionally across items based on their contribution to subtotal
+          
+          3. ✅ Validation Rules:
+             - Discount amount must be >= 0 (cannot be negative)
+             - Discount amount cannot exceed subtotal (prevents negative taxable amount)
+             - Returns 400 error with clear message if validation fails
+          
+          4. ✅ Backend PDF Generation Enhanced (lines 1975-2003):
+             - Added discount line in PDF output between Subtotal and VAT
+             - Shows as "-{discount_amount:.2f} OMR" when discount > 0
+             - Discount line is conditional (only shows if discount exists)
+          
+          5. ✅ Precision Handling:
+             - All monetary values rounded to 3 decimals (OMR currency standard)
+             - Discount amount rounded to 3 decimals
+             - Taxable amount rounded to 3 decimals
+             - VAT total rounded to 3 decimals
+             - Grand total rounded to 3 decimals
+          
+          Key Business Rules Implemented:
+          - ✅ Discount applies to ENTIRE invoice (not per item)
+          - ✅ Discount is deducted BEFORE VAT calculation
+          - ✅ VAT is calculated on (subtotal - discount), not on subtotal
+          - ✅ Backward compatible - invoices without discount default to 0
+          - ✅ VAT distributed proportionally across items to maintain accurate line totals
+          - ✅ Complete validation prevents invalid discount amounts
+          
+          READY FOR COMPREHENSIVE TESTING - Need to verify:
+          1. Convert job card to invoice WITH discount amount
+          2. Convert job card to invoice WITHOUT discount (default 0)
+          3. Validation: Negative discount amount (should fail with 400)
+          4. Validation: Discount > subtotal (should fail with 400)
+          5. Calculation accuracy: subtotal - discount = taxable
+          6. Calculation accuracy: VAT = taxable × 5% (not subtotal × 5%)
+          7. Calculation accuracy: grand_total = taxable + VAT
+          8. Backend PDF shows discount line when discount > 0
+          9. Backend PDF hides discount line when discount = 0
+
   - task: "Job Card Locking with Admin Override"
     implemented: true
     working: true
