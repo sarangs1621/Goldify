@@ -756,6 +756,15 @@ export default function JobCardsPage() {
               </div>
             )}
             
+            {/* MODULE 8: Display Gold Rate from Job Card */}
+            {convertingJobCard && convertingJobCard.gold_rate_at_jobcard && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                <span className="font-semibold text-amber-900">💰 Gold Rate from Job Card: </span>
+                <span className="text-amber-800 font-mono">{convertingJobCard.gold_rate_at_jobcard} OMR/gram</span>
+                <p className="text-xs text-amber-700 mt-1">This rate will be auto-filled in the invoice</p>
+              </div>
+            )}
+            
             {/* Customer Type Selection */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Invoice Customer Type *</Label>
