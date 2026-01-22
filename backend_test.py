@@ -611,7 +611,7 @@ class PaginationTester:
     def print_summary(self):
         """Print comprehensive test summary"""
         print("\n" + "=" * 80)
-        print("🎯 AUDIT LOGS FILTERING TEST RESULTS SUMMARY")
+        print("🎯 PAGINATION BACKEND TESTING RESULTS SUMMARY")
         print("=" * 80)
         
         total_tests = len(self.test_results)
@@ -624,12 +624,24 @@ class PaginationTester:
         print(f"   Failed: {failed_tests} ❌")
         print(f"   Success Rate: {(passed_tests/total_tests)*100:.1f}%")
         
-        # Show all results
-        print(f"\n📋 DETAILED RESULTS:")
+        # Show endpoint-specific results
+        print(f"\n📋 ENDPOINT RESULTS:")
+        endpoint_tests = {}
         for result in self.test_results:
-            print(f"   {result['status']}: {result['test']}")
-            if result['details']:
-                print(f"      → {result['details']}")
+            test_name = result['test']
+            if ' - ' in test_name:
+                endpoint = test_name.split(' - ')[0]
+                if endpoint not in endpoint_tests:
+                    endpoint_tests[endpoint] = {'passed': 0, 'failed': 0}
+                if result['success']:
+                    endpoint_tests[endpoint]['passed'] += 1
+                else:
+                    endpoint_tests[endpoint]['failed'] += 1
+        
+        for endpoint, counts in endpoint_tests.items():
+            total = counts['passed'] + counts['failed']
+            status = "✅" if counts['failed'] == 0 else "❌" if counts['passed'] == 0 else "⚠️"
+            print(f"   {status} {endpoint}: {counts['passed']}/{total} passed")
         
         # Show failed tests details
         failed_results = [r for r in self.test_results if not r['success']]
@@ -641,15 +653,21 @@ class PaginationTester:
                 if result.get('response_data'):
                     print(f"   Response: {result['response_data']}")
         
-        print(f"\n🎯 AUDIT LOGS FILTERING ASSESSMENT:")
+        print(f"\n🎯 PAGINATION SYSTEM ASSESSMENT:")
         if failed_tests == 0:
-            print("   ✅ ALL TESTS PASSED - AUDIT LOGS FILTERING FULLY FUNCTIONAL")
-        elif failed_tests <= 2:
+            print("   ✅ ALL PAGINATION ENDPOINTS FULLY FUNCTIONAL")
+            print("   ✅ All 7 endpoints support standardized pagination")
+            print("   ✅ Pagination metadata calculations are accurate")
+            print("   ✅ Boundary cases handled correctly")
+        elif failed_tests <= 3:
             print(f"   ⚠️  MOSTLY FUNCTIONAL - {failed_tests} minor issues to fix")
-        elif failed_tests <= 5:
+            print("   ⚠️  Most pagination endpoints working correctly")
+        elif failed_tests <= 7:
             print(f"   ⚠️  NEEDS WORK - {failed_tests} issues to fix")
+            print("   ⚠️  Some pagination endpoints need attention")
         else:
-            print(f"   ❌ NOT FUNCTIONAL - {failed_tests} critical issues to fix")
+            print(f"   ❌ PAGINATION NOT FUNCTIONAL - {failed_tests} critical issues")
+            print("   ❌ Multiple pagination endpoints failing")
         
         print("\n" + "=" * 80)
 
