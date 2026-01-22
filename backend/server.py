@@ -1400,9 +1400,12 @@ async def convert_jobcard_to_invoice(jobcard_id: str, invoice_data: dict, curren
     invoice_items = []
     subtotal = 0
     
+    # MODULE 8: Get metal_rate - Priority: invoice_data override > jobcard gold_rate > default 20.0
+    metal_rate = invoice_data.get('metal_rate') or jobcard.get('gold_rate_at_jobcard') or 20.0
+    metal_rate = round(float(metal_rate), 2)  # Ensure 2 decimal precision for rate
+    
     # First pass: Create invoice items and calculate subtotal
     for item in jobcard.get('items', []):
-        metal_rate = 20.0
         weight = item.get('weight_out') or item.get('weight_in') or 0
         weight = float(weight) if weight else 0.0
         gold_value = round(weight * metal_rate, 3)
