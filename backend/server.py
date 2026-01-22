@@ -3326,6 +3326,217 @@ async def export_inventory_pdf(
     )
 
 
+# ============================================================================
+# MODULE 5/10: SALES HISTORY REPORT (Finalized Invoices Only)
+# ============================================================================
+
+@api_router.get("/reports/sales-history")
+async def get_sales_history_report(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    party_id: Optional[str] = None,
+    search: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get sales history report showing ONLY finalized invoices.
+    
+    Filters:
+    - date_from/date_to: Date range filter
+    - party_id: Filter by specific party (or "all" for all parties)
+    - search: Search in customer name, phone, or invoice_id
+    
+    Returns table with:
+    - invoice_id
+    - customer name + phone (handles both saved and walk-in)
+    - date
+    - total_weight_grams (sum of all item weights)
+    - purity summary ("Mixed" if multiple purities, otherwise single purity)
+    - grand_total
+    """
+    # Query for FINALIZED invoices only
+    query = {
+        "is_deleted": False,
+        "status": "finalized"  # CRITICAL: Only finalized invoices
+    }
+    
+    # Date filters
+    if date_from:
+        query['date'] = {"$gte": datetime.fromisoformat(date_from)}
+    if date_to:
+        end_dt = datetime.fromisoformat(date_to)
+        if 'date' in query:
+            query['date']['$lte'] = end_dt
+        else:
+            query['date'] = {"$lte": end_dt}
+    
+    # Party filter
+    if party_id and party_id != 'all':
+        query['customer_id'] = party_id
+    
+    # Get invoices
+    invoices = await db.invoices.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
+    
+    # Process each invoice to calculate totals and purity summary
+    sales_records = []
+    total_sales = 0.0
+    total_weight = 0.0
+    
+    for inv in invoices:
+        # Get customer info (handle both saved and walk-in)
+        if inv.get('customer_type') == 'walk_in':
+            customer_name = inv.get('walk_in_name', 'Walk-in Customer')
+            customer_phone = inv.get('walk_in_phone', '')
+        else:
+            customer_name = inv.get('customer_name', 'Unknown Customer')
+            # Fetch phone from party if saved customer
+            customer_phone = ''
+            if inv.get('customer_id'):
+                party = await db.parties.find_one({"id": inv['customer_id']}, {"_id": 0, "phone": 1})
+                if party:
+                    customer_phone = party.get('phone', '')
+        
+        # Calculate total weight and purity summary
+        items = inv.get('items', [])
+        invoice_weight = sum(item.get('weight', 0) for item in items)
+        
+        # Check for purity diversity
+        purities = list(set(item.get('purity') for item in items if item.get('purity')))
+        if len(purities) == 0:
+            purity_summary = "N/A"
+        elif len(purities) == 1:
+            purity_summary = f"{purities[0]}K"
+        else:
+            purity_summary = "Mixed"
+        
+        # Apply search filter (if provided)
+        if search:
+            search_lower = search.lower()
+            if not (
+                search_lower in customer_name.lower() or
+                search_lower in customer_phone.lower() or
+                search_lower in inv.get('invoice_number', '').lower()
+            ):
+                continue  # Skip this invoice if search doesn't match
+        
+        # Format date
+        invoice_date = inv.get('date', '')
+        if isinstance(invoice_date, str):
+            invoice_date = invoice_date[:10]
+        elif hasattr(invoice_date, 'strftime'):
+            invoice_date = invoice_date.strftime('%Y-%m-%d')
+        
+        sales_records.append({
+            "invoice_id": inv.get('invoice_number', ''),
+            "customer_name": customer_name,
+            "customer_phone": customer_phone,
+            "date": invoice_date,
+            "total_weight_grams": round(invoice_weight, 3),
+            "purity_summary": purity_summary,
+            "grand_total": round(inv.get('grand_total', 0), 2)
+        })
+        
+        total_sales += inv.get('grand_total', 0)
+        total_weight += invoice_weight
+    
+    return {
+        "sales_records": sales_records,
+        "summary": {
+            "total_sales": round(total_sales, 2),
+            "total_weight": round(total_weight, 3),
+            "total_invoices": len(sales_records)
+        }
+    }
+
+
+@api_router.get("/reports/sales-history-export")
+async def export_sales_history(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    party_id: Optional[str] = None,
+    search: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+):
+    """Export sales history report as Excel file with applied filters"""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    
+    # Get data using the main report function
+    data = await get_sales_history_report(
+        date_from=date_from,
+        date_to=date_to,
+        party_id=party_id,
+        search=search,
+        current_user=current_user
+    )
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sales History"
+    
+    # Add summary section
+    ws.merge_cells('A1:G1')
+    title_cell = ws['A1']
+    title_cell.value = "Sales History Report (Finalized Invoices)"
+    title_cell.font = Font(bold=True, size=14)
+    title_cell.alignment = Alignment(horizontal='center')
+    
+    ws['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    if date_from or date_to:
+        ws['A3'] = f"Period: {date_from or 'Start'} to {date_to or 'End'}"
+    
+    # Summary row
+    summary_row = 5
+    ws[f'A{summary_row}'] = "Total Invoices:"
+    ws[f'B{summary_row}'] = data['summary']['total_invoices']
+    ws[f'C{summary_row}'] = "Total Weight:"
+    ws[f'D{summary_row}'] = f"{data['summary']['total_weight']:.3f} g"
+    ws[f'E{summary_row}'] = "Total Sales:"
+    ws[f'F{summary_row}'] = f"{data['summary']['total_sales']:.2f} OMR"
+    
+    # Headers
+    header_row = summary_row + 2
+    headers = ["Invoice #", "Customer Name", "Phone", "Date", "Weight (g)", "Purity", "Grand Total (OMR)"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col, value=header)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Data rows
+    for row_idx, record in enumerate(data['sales_records'], header_row + 1):
+        ws.cell(row=row_idx, column=1, value=record['invoice_id'])
+        ws.cell(row=row_idx, column=2, value=record['customer_name'])
+        ws.cell(row=row_idx, column=3, value=record['customer_phone'])
+        ws.cell(row=row_idx, column=4, value=record['date'])
+        ws.cell(row=row_idx, column=5, value=record['total_weight_grams'])
+        ws.cell(row=row_idx, column=6, value=record['purity_summary'])
+        ws.cell(row=row_idx, column=7, value=record['grand_total'])
+    
+    # Column widths
+    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 18
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"sales_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+
 app.include_router(api_router)
 
 app.add_middleware(
