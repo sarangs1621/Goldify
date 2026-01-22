@@ -2935,7 +2935,7 @@ async def delete_account(account_id: str, current_user: User = Depends(get_curre
     await create_audit_log(current_user.id, current_user.full_name, "account", account_id, "delete")
     return {"message": "Account deleted successfully"}
 
-@api_router.get("/transactions", response_model=List[Transaction])
+@api_router.get("/transactions")
 async def get_transactions(
     page: int = 1,
     per_page: int = 50,
