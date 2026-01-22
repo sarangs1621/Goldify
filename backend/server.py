@@ -3167,7 +3167,7 @@ async def update_daily_closing(closing_id: str, update_data: dict, current_user:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to update daily closing: {str(e)}")
 
-@api_router.get("/audit-logs", response_model=List[AuditLog])
+@api_router.get("/audit-logs")
 async def get_audit_logs(
     module: Optional[str] = None,
     action: Optional[str] = None,
