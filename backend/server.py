@@ -1977,7 +1977,17 @@ async def generate_invoice_pdf(invoice_id: str, current_user: User = Depends(get
     p.setFont("Helvetica-Bold", 10)
     p.drawString(370, y_position, "Subtotal:")
     p.drawString(450, y_position, f"{invoice.get('subtotal', 0):.2f} OMR")
+    
+    # MODULE 7: Add discount line if discount exists
+    discount_amount = invoice.get('discount_amount', 0)
+    if discount_amount > 0:
+        y_position -= 15
+        p.setFont("Helvetica", 10)
+        p.drawString(370, y_position, "Discount:")
+        p.drawString(450, y_position, f"-{discount_amount:.2f} OMR")
+    
     y_position -= 15
+    p.setFont("Helvetica-Bold", 10)
     p.drawString(370, y_position, "VAT:")
     p.drawString(450, y_position, f"{invoice.get('vat_total', 0):.2f} OMR")
     y_position -= 15
