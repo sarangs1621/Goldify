@@ -4972,18 +4972,6 @@ async def export_purchase_history(
     )
 
 
-
-
-app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Health check endpoint (no authentication required)
 @api_router.get("/health")
 async def health_check():
@@ -5002,6 +4990,17 @@ async def health_check():
             status_code=503,
             detail=f"Service unhealthy: {str(e)}"
         )
+
+
+app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 logging.basicConfig(
     level=logging.INFO,
