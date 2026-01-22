@@ -212,9 +212,53 @@ export default function DailyClosingPage() {
                   data-testid="closing-date-input"
                   type="date"
                   value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  onChange={(e) => {
+                    setFormData({...formData, date: e.target.value});
+                    setCalculationData(null); // Reset calculation when date changes
+                  }}
                 />
               </div>
+              <div className="flex items-end">
+                <Button 
+                  onClick={autoCalculateFromTransactions}
+                  disabled={isCalculating}
+                  variant="outline"
+                  className="w-full"
+                  data-testid="auto-calculate-button"
+                >
+                  {isCalculating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Calculating...
+                    </>
+                  ) : (
+                    <>
+                      <Calculator className="w-4 h-4 mr-2" /> Auto-Calculate from Transactions
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Show calculation summary if available */}
+            {calculationData && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-md space-y-2">
+                <div className="flex items-center gap-2 text-blue-900 font-medium">
+                  <Calculator className="w-4 h-4" />
+                  Auto-Calculation Summary
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-blue-700">Total Transactions:</div>
+                  <div className="font-mono">{calculationData.transaction_count} ({calculationData.credit_count} credits, {calculationData.debit_count} debits)</div>
+                  <div className="text-blue-700">Previous Closing:</div>
+                  <div className="font-mono">{calculationData.has_previous_closing ? '✓ Found' : '✗ Not found (first day)'}</div>
+                </div>
+                <div className="text-xs text-blue-600 mt-2">
+                  💡 Values have been auto-filled. You can manually adjust them if needed.
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Opening Cash (OMR)</Label>
                 <Input
