@@ -3244,3 +3244,330 @@ agent_communication:
         * notes containing walk_in_name and walk_in_phone
         * reference_type = "invoice"
         * reference_id = invoice ID
+
+
+user_problem_statement: "API Completeness - Implement missing endpoints for comprehensive API coverage"
+
+backend:
+  - task: "Implement GET /api/dashboard endpoint"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          DASHBOARD ENDPOINT IMPLEMENTED - Pre-aggregated statistics for quick dashboard loading.
+          
+          Endpoint Details:
+          - Method: GET /api/dashboard
+          - Authentication: Required (Bearer token)
+          - Response Format: JSON with comprehensive dashboard statistics
+          
+          Response Structure:
+          1. ✅ Inventory Section:
+             - total_categories: Count of inventory headers (categories)
+             - total_stock_weight_grams: Sum of all stock weight (3 decimal precision)
+             - total_stock_qty: Sum of all stock quantities (2 decimal precision)
+             - low_stock_items: Count of items with qty < 5
+          
+          2. ✅ Financial Section:
+             - total_outstanding_omr: Sum of unpaid invoice balances (2 decimal precision)
+             - outstanding_invoices_count: Number of unpaid/partial invoices
+          
+          3. ✅ Parties Section:
+             - total_customers: Count of customer-type parties
+             - total_vendors: Count of vendor-type parties
+             - total: Combined count of all parties
+          
+          4. ✅ Job Cards Section:
+             - total: Total number of job cards
+             - pending: Count of pending job cards
+             - completed: Count of completed job cards
+          
+          5. ✅ Recent Activity Section:
+             - recent_invoices: Last 5 invoices with full details
+          
+          6. ✅ Timestamp: ISO format timestamp of data generation
+          
+          Features:
+          - ✅ Combines data from multiple collections (inventory_headers, invoices, parties, jobcards)
+          - ✅ Single API call reduces frontend complexity
+          - ✅ Pre-calculated metrics improve performance
+          - ✅ Proper decimal precision (3 for weight, 2 for money)
+          - ✅ Error handling with detailed logging
+          - ✅ Filters out soft-deleted records (is_deleted: False)
+          
+          Business Value:
+          - Provides quick dashboard overview without multiple API calls
+          - Reduces frontend load and improves user experience
+          - Centralizes dashboard logic in backend for consistency
+          
+          READY FOR TESTING - Need to verify:
+          1. Endpoint returns 200 status with valid token
+          2. All sections present in response
+          3. Calculations accurate (compare with individual endpoints)
+          4. Low stock threshold (< 5 qty) correctly calculated
+          5. Recent invoices sorted by created_at descending
+          6. Response time acceptable (should be < 1 second)
+          7. Error handling for database issues
+
+  - task: "Implement GET /api/reports endpoint"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          REPORTS LISTING ENDPOINT IMPLEMENTED - Comprehensive catalog of available reports.
+          
+          Endpoint Details:
+          - Method: GET /api/reports
+          - Authentication: Required (Bearer token)
+          - Response Format: JSON with list of all available report types
+          
+          Response Structure:
+          1. ✅ Reports Array: Contains 8 report definitions:
+             
+             a. Financial Summary Report:
+                - ID: financial-summary
+                - Category: financial
+                - Endpoints: view only
+                - Supports Filters: No
+                - Export Formats: None
+             
+             b. Inventory Report:
+                - ID: inventory
+                - Category: inventory
+                - Endpoints: view, export_excel, export_pdf
+                - Supports Filters: Yes
+                - Export Formats: excel, pdf
+             
+             c. Parties Report:
+                - ID: parties
+                - Category: parties
+                - Endpoints: view, export_excel, export_pdf
+                - Supports Filters: Yes
+                - Export Formats: excel, pdf
+             
+             d. Invoices Report:
+                - ID: invoices
+                - Category: sales
+                - Endpoints: view, export_excel, export_pdf
+                - Supports Filters: Yes
+                - Export Formats: excel, pdf
+             
+             e. Transactions Report:
+                - ID: transactions
+                - Category: financial
+                - Endpoints: view, export_pdf
+                - Supports Filters: Yes
+                - Export Formats: pdf
+             
+             f. Outstanding Report:
+                - ID: outstanding
+                - Category: financial
+                - Endpoints: view, export_pdf
+                - Supports Filters: Yes
+                - Export Formats: pdf
+             
+             g. Sales History Report:
+                - ID: sales-history
+                - Category: sales
+                - Endpoints: view, export_excel
+                - Supports Filters: Yes
+                - Export Formats: excel
+             
+             h. Purchase History Report:
+                - ID: purchase-history
+                - Category: purchases
+                - Endpoints: view, export_excel
+                - Supports Filters: Yes
+                - Export Formats: excel
+          
+          2. ✅ Metadata:
+             - total_count: Number of available reports (8)
+             - categories: Array of report categories
+             - timestamp: ISO format timestamp
+          
+          Features:
+          - ✅ Each report includes comprehensive metadata:
+             * Unique ID for programmatic access
+             * Human-readable name and description
+             * Category classification
+             * All available endpoint URLs
+             * Filter support indicator
+             * Export capabilities and formats
+          - ✅ Enables dynamic UI generation (frontend can render report menu from this data)
+          - ✅ Self-documenting API (developers can discover available reports)
+          - ✅ Supports API versioning (can evolve report structure)
+          
+          Business Value:
+          - Frontend can dynamically build reports menu without hardcoding
+          - New reports can be added without frontend changes
+          - API consumers can discover available reports programmatically
+          - Clear documentation of report capabilities
+          
+          READY FOR TESTING - Need to verify:
+          1. Endpoint returns 200 status with valid token
+          2. All 8 reports present in response
+          3. All report metadata fields populated correctly
+          4. Endpoint URLs are valid and match actual routes
+          5. Categories array contains all unique categories
+          6. Total count matches reports array length
+          7. Response structure suitable for frontend rendering
+
+  - task: "Implement GET /api/inventory endpoint"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          INVENTORY LISTING ENDPOINT IMPLEMENTED - Simplified inventory data access.
+          
+          Endpoint Details:
+          - Method: GET /api/inventory
+          - Authentication: Required (Bearer token)
+          - Query Parameters:
+            * category (optional): Filter by category name (case-insensitive regex)
+            * min_qty (optional): Filter items with quantity >= min_qty
+          - Response Format: JSON with formatted inventory list
+          
+          Response Structure:
+          1. ✅ Items Array: List of inventory items with computed fields:
+             - id: Unique identifier
+             - category: Category name (from header name)
+             - quantity: Current quantity (2 decimal precision)
+             - weight_grams: Current weight in grams (3 decimal precision)
+             - is_active: Active status flag
+             - created_at: Creation timestamp
+             - created_by: Creator user ID
+             - status: Computed status ("low_stock" if qty < 5, else "in_stock")
+          
+          2. ✅ Aggregated Statistics:
+             - total_count: Number of items in filtered result
+             - total_weight_grams: Sum of all weights (3 decimal precision)
+             - total_quantity: Sum of all quantities (2 decimal precision)
+             - low_stock_count: Number of low stock items
+             - timestamp: ISO format timestamp
+          
+          3. ✅ Documentation Note:
+             - Includes helpful note directing users to detailed endpoints
+             - Points to /api/inventory/headers and /api/inventory/movements for CRUD operations
+          
+          Features:
+          - ✅ Wrapper around inventory_headers for simplified access
+          - ✅ Category search with case-insensitive regex matching
+          - ✅ Minimum quantity filtering for stock level queries
+          - ✅ Automatic low stock status computation (qty < 5)
+          - ✅ Sorted by weight descending (highest value items first)
+          - ✅ Proper decimal precision maintained
+          - ✅ Excludes soft-deleted items (is_deleted: False)
+          - ✅ Aggregated statistics for quick insights
+          - ✅ Error handling with detailed logging
+          
+          Query Examples:
+          - GET /api/inventory → All inventory items
+          - GET /api/inventory?category=gold → Items matching "gold"
+          - GET /api/inventory?min_qty=10 → Items with qty >= 10
+          - GET /api/inventory?category=22K&min_qty=5 → Combined filters
+          
+          Relationship to Existing Endpoints:
+          - /api/inventory/headers → Full CRUD operations on categories
+          - /api/inventory/movements → Stock movement tracking (IN/OUT)
+          - /api/inventory/stock-totals → Simple totals view
+          - /api/inventory → NEW simplified listing with filtering
+          
+          Business Value:
+          - Provides simple inventory listing for basic queries
+          - Reduces learning curve for new API consumers
+          - Maintains compatibility with existing detailed endpoints
+          - Low stock identification for restocking decisions
+          
+          READY FOR TESTING - Need to verify:
+          1. Endpoint returns 200 status with valid token
+          2. No filters: Returns all inventory items
+          3. Category filter: Correctly filters by name (case-insensitive)
+          4. Min quantity filter: Correctly filters by qty threshold
+          5. Combined filters: Both filters applied correctly
+          6. Status field: "low_stock" when qty < 5, "in_stock" otherwise
+          7. Sorting: Items sorted by weight_grams descending
+          8. Aggregated stats: Calculations match filtered items
+          9. Precision: 3 decimals for weight, 2 for quantity
+          10. Note field: Helpful message pointing to detailed endpoints
+
+metadata:
+  created_by: "main_agent"
+  version: "1.1"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Test GET /api/dashboard endpoint"
+    - "Test GET /api/reports endpoint"
+    - "Test GET /api/inventory endpoint with various filters"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      API COMPLETENESS MODULE - Three new endpoints implemented for comprehensive API coverage.
+      
+      Implementation Summary:
+      
+      1. ✅ GET /api/dashboard:
+         - Pre-aggregated statistics combining inventory, financial, parties, and job cards data
+         - Single endpoint reduces frontend API calls from 4+ to 1
+         - Returns comprehensive dashboard view with proper decimal precision
+         - Includes recent activity (last 5 invoices)
+      
+      2. ✅ GET /api/reports:
+         - Catalog of all 8 available report types with full metadata
+         - Each report includes ID, name, description, category, endpoints, and capabilities
+         - Enables dynamic UI generation (frontend can build reports menu from API)
+         - Self-documenting - API consumers can discover available reports
+      
+      3. ✅ GET /api/inventory:
+         - Simplified inventory listing with optional category and min_qty filters
+         - Wrapper around inventory_headers for easier access
+         - Includes computed status field (low_stock vs in_stock)
+         - Sorted by weight descending, with aggregated statistics
+         - Helpful note directing to detailed CRUD endpoints
+      
+      Design Decisions:
+      - All endpoints maintain backward compatibility
+      - No changes to existing endpoints or database schema
+      - Duplicate functionality is intentional for API completeness
+      - Dashboard and inventory endpoints aggregate existing data
+      - Reports endpoint provides metadata only (doesn't duplicate data)
+      
+      Backend Status:
+      - All 3 endpoints added to server.py (lines 527-783)
+      - Backend restarted successfully
+      - No compilation or startup errors
+      - Proper authentication and error handling implemented
+      
+      Ready for comprehensive backend testing. Please test:
+      1. GET /api/dashboard - Verify all sections and calculations
+      2. GET /api/reports - Verify all 8 reports listed with correct metadata
+      3. GET /api/inventory - Test with no filters, category filter, min_qty filter, and combined filters
+      4. All endpoints return proper status codes (200 for success, 401 for unauthorized)
+      5. Response structures match documentation
+      6. Decimal precision correct (3 for gold weight, 2 for money/qty)
+      7. Error handling works properly
+
