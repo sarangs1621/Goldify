@@ -3355,7 +3355,7 @@ agent_communication:
       - Backend: RUNNING on port 8001
       - Frontend: RUNNING on port 3000
       - MongoDB: RUNNING
-      - Application accessible at: https://inventory-crud-1.preview.emergentagent.com
+      - Application accessible at: https://crud-inventory.preview.emergentagent.com
       - Admin credentials: admin/admin123
       
       NOW EXECUTING FOCUSED, PRIORITIZED TESTING APPROACH:
