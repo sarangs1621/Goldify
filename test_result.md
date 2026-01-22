@@ -5367,6 +5367,15 @@ backend:
           - Returns {items: [...], pagination: {...}} structure
           - Sorted by date descending
           READY FOR TESTING
+      - working: "NA"
+        agent: "main"
+        comment: |
+          CRITICAL FIX APPLIED - Response Model Mismatch Resolved
+          - REMOVED response_model=List[Transaction] from decorator (line 2938)
+          - This was causing 520 Internal Server Error due to FastAPI validation
+          - Endpoint now returns raw dict matching pagination response structure
+          - Backend restarted successfully
+          READY FOR RETESTING
 
   - task: "Pagination Backend - GET /api/audit-logs"
     implemented: true
