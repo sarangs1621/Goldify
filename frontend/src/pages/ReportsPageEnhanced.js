@@ -41,9 +41,13 @@ export default function ReportsPageEnhanced() {
   const [partiesData, setPartiesData] = useState(null);
   const [invoicesData, setInvoicesData] = useState(null);
   const [transactionsData, setTransactionsData] = useState(null);
+  const [salesHistoryData, setSalesHistoryData] = useState(null);
   const [categories, setCategories] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [parties, setParties] = useState([]);
+  
+  // Sales History specific state
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Detail view states
   const [selectedInvoice, setSelectedInvoice] = useState(null);
