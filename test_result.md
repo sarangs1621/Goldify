@@ -4754,22 +4754,160 @@ frontend:
           - Manual override capability maintained
           - Date change resets calculation data
 
+backend:
+  - task: "Audit Logs Filtering - Enhanced Backend"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Enhanced GET /api/audit-logs endpoint with comprehensive filtering options.
+          
+          NEW QUERY PARAMETERS ADDED:
+          1. date_from (Optional[str]): Filter logs from this date (ISO format: YYYY-MM-DD)
+             - Converts to datetime with timezone handling
+             - Uses $gte MongoDB query operator
+             - Gracefully handles invalid date formats
+          
+          2. date_to (Optional[str]): Filter logs up to this date (ISO format: YYYY-MM-DD)
+             - Extends to end of day (23:59:59) to include all logs on that date
+             - Uses $lte MongoDB query operator
+             - Gracefully handles invalid date formats
+          
+          3. user_id (Optional[str]): Filter by user ID who performed the action
+             - Exact match on user_id field
+          
+          4. action (Optional[str]): Filter by action type
+             - Exact match on action field (e.g., 'create', 'update', 'delete')
+          
+          EXISTING PARAMETER PRESERVED:
+          - module (Optional[str]): Filter by module name (e.g., 'invoice', 'jobcard', 'party')
+          
+          IMPLEMENTATION DETAILS:
+          - All filters are optional and can be combined
+          - Date range filter supports: from only, to only, or both
+          - Query is built dynamically based on provided parameters
+          - Maintains existing behavior (500 records limit, sorted by timestamp descending)
+          - No breaking changes to existing API contract
+          
+          QUERY EXAMPLES:
+          - /api/audit-logs?module=invoice (existing functionality)
+          - /api/audit-logs?date_from=2025-01-01&date_to=2025-01-31 (date range)
+          - /api/audit-logs?user_id=abc-123 (specific user)
+          - /api/audit-logs?action=create (only create actions)
+          - /api/audit-logs?module=invoice&action=finalize&date_from=2025-01-01 (combined)
+          
+          Ready for testing to verify:
+          1. Date range filtering works correctly
+          2. Date timezone handling is accurate
+          3. End date includes full day (23:59:59)
+          4. User ID filtering returns correct results
+          5. Action filtering works as expected
+          6. Multiple filters can be combined
+          7. Invalid date formats are handled gracefully
+          8. Backward compatibility maintained
+
+frontend:
+  - task: "Audit Logs Filtering - Enhanced UI"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/pages/AuditLogsPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Comprehensive filter UI added to Audit Logs page.
+          
+          NEW FEATURES IMPLEMENTED:
+          
+          1. FILTER INPUTS (5 filters total):
+             a. From Date (date input with calendar icon)
+                - HTML date input type for easy selection
+                - Sends date_from parameter to backend
+             
+             b. To Date (date input with calendar icon)
+                - HTML date input type for easy selection
+                - Sends date_to parameter to backend
+             
+             c. User Filter (dropdown with all users)
+                - Fetches users from /api/users on page load
+                - Dropdown shows user full names
+                - Sends user_id parameter to backend
+                - Shows "All Users" option for clearing filter
+             
+             d. Module Filter (text input)
+                - Free text input for module name
+                - Placeholder: "e.g., invoice, jobcard, party"
+                - Sends module parameter to backend
+             
+             e. Action Filter (text input)
+                - Free text input for action type
+                - Placeholder: "e.g., create, update, delete"
+                - Sends action parameter to backend
+          
+          2. FILTER CONTROLS:
+             - "Apply Filters" button (blue, prominent)
+             - "Clear Filters" button (X icon, only shows when filters are active)
+             - All filters in responsive grid (1 col mobile, 2 tablet, 3 desktop)
+          
+          3. ACTIVE FILTERS DISPLAY:
+             - Shows below filter inputs when any filter is active
+             - Color-coded badges for each active filter:
+               * Blue badges for dates
+               * Purple badge for user
+               * Green badge for module
+               * Amber badge for action
+             - Shows user full name (not ID) for better UX
+          
+          4. ENHANCED TABLE:
+             - Entry count in header: "Activity Timeline (X entries)"
+             - Empty state with icon and message when no results
+             - Maintains existing table columns and styling
+          
+          5. STATE MANAGEMENT:
+             - Filter state object with all 5 filters
+             - hasActiveFilters computed with useMemo
+             - loadLogs function builds params object dynamically
+             - Clear filters resets all and reloads data
+          
+          6. UX IMPROVEMENTS:
+             - Icons for visual clarity (Calendar, User, Filter, X)
+             - Responsive design across all screen sizes
+             - Loading state preserved during API calls
+             - Data-testid attributes for testing
+          
+          Ready for frontend testing to verify:
+          1. All 5 filter inputs render correctly
+          2. User dropdown populates from API
+          3. Date inputs work properly
+          4. Apply Filters button triggers API call with params
+          5. Clear Filters button resets all and reloads
+          6. Active filters display shows correct badges
+          7. User name displays in badge (not ID)
+          8. Entry count updates correctly
+          9. Empty state shows when no results
+          10. Responsive layout works on mobile/tablet/desktop
+          11. All filters can be combined
+          12. Filters persist during session
+
 metadata:
   created_by: "main_agent"
-  version: "2.0"
-  test_sequence: 1
-  run_ui: true
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
 
 test_plan:
   current_focus:
-    - "Test daily closing auto-calculation endpoint"
-    - "Test opening cash from previous closing"
-    - "Test credit/debit summation from transactions"
-    - "Test expected closing calculation"
-    - "Test first day scenario (no previous closing)"
-    - "Test frontend auto-calculation on dialog open"
-    - "Test manual auto-calculate button"
-    - "Test date change behavior"
+    - "Audit Logs Filtering - Enhanced Backend"
+    - "Audit Logs Filtering - Enhanced UI"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -4799,4 +4937,64 @@ agent_communication:
       3. Transaction summation is correct
       4. First day scenario handled properly
       5. All precision maintained at 3 decimals
+  
+  - agent: "main"
+    message: |
+      Audit Logs Filtering Enhancement Completed - Module REQUEST Implementation.
+      
+      USER REQUEST: "For Audit Logs: a. Add filtering by date range, user, module, action?"
+      
+      BACKEND CHANGES (server.py):
+      - Enhanced GET /api/audit-logs endpoint with 4 NEW query parameters:
+        1. date_from: Filter logs from this date (ISO format)
+        2. date_to: Filter logs up to this date (includes full day)
+        3. user_id: Filter by user who performed action
+        4. action: Filter by action type
+      - Existing module filter preserved (5 filters total)
+      - All filters optional and can be combined
+      - Proper date timezone handling with graceful error handling
+      - Maintains existing 500 record limit and timestamp sorting
+      
+      FRONTEND CHANGES (AuditLogsPage.js):
+      - Added comprehensive filter UI section with:
+        * From Date and To Date inputs (HTML date type with calendar icons)
+        * User dropdown (populated from /api/users endpoint)
+        * Module text input
+        * Action text input
+        * Apply Filters and Clear Filters buttons
+      - Active filters display with color-coded badges
+      - Entry count in table header
+      - Empty state for no results
+      - Responsive grid layout (1/2/3 columns based on screen size)
+      - Complete state management with useMemo optimization
+      
+      KEY FEATURES:
+      ✅ Date range filtering (from/to)
+      ✅ User filtering (dropdown with full names)
+      ✅ Module filtering (text input)
+      ✅ Action filtering (text input)
+      ✅ Combine multiple filters
+      ✅ Active filter badges with color coding
+      ✅ Clear all filters button
+      ✅ Entry count display
+      ✅ Empty state handling
+      ✅ Responsive design
+      ✅ Backward compatible
+      
+      Ready for comprehensive testing to verify:
+      BACKEND:
+      1. Each filter parameter works individually
+      2. Multiple filters can be combined
+      3. Date range includes full end date (23:59:59)
+      4. Invalid dates handled gracefully
+      5. Results are correctly filtered
+      
+      FRONTEND:
+      1. All filter inputs render and function
+      2. User dropdown populates correctly
+      3. Apply/Clear buttons work as expected
+      4. Active filter badges display correctly
+      5. Entry count updates properly
+      6. Empty state shows when no results
+      7. Responsive layout works across devices
 
