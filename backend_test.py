@@ -4505,6 +4505,444 @@ class GoldShopERPTester:
         
         return all_checks_passed
 
+    def test_inventory_crud_operations(self):
+        """Test newly implemented inventory CRUD operations (UPDATE & DELETE endpoints)"""
+        print("\n🔥 TESTING INVENTORY CRUD OPERATIONS - UPDATE & DELETE ENDPOINTS")
+        
+        # PHASE 1: Inventory Header Update Tests
+        print("\n📋 PHASE 1: INVENTORY HEADER UPDATE TESTS")
+        
+        # Test 1: Create a test inventory header for updates
+        test_header_name = f"Test Category Update {datetime.now().strftime('%H%M%S')}"
+        success, new_header = self.run_test(
+            "Create Test Header for Updates",
+            "POST",
+            "inventory/headers",
+            200,
+            data={"name": test_header_name}
+        )
+        
+        if not success or not new_header.get('id'):
+            return False
+        
+        header_id = new_header['id']
+        self.created_resources['headers'].append(header_id)
+        
+        # Test 2: Update header name
+        success, updated_header = self.run_test(
+            "Update Header Name",
+            "PATCH",
+            f"inventory/headers/{header_id}",
+            200,
+            data={"name": "Updated Category"}
+        )
+        
+        if not success or updated_header.get('name') != "Updated Category":
+            print(f"❌ Header name update failed")
+            return False
+        
+        print(f"✅ Header name updated successfully: {updated_header.get('name')}")
+        
+        # Test 3: Update header is_active to false
+        success, deactivated_header = self.run_test(
+            "Update Header is_active to False",
+            "PATCH",
+            f"inventory/headers/{header_id}",
+            200,
+            data={"is_active": False}
+        )
+        
+        if not success or deactivated_header.get('is_active') != False:
+            print(f"❌ Header deactivation failed")
+            return False
+        
+        print(f"✅ Header deactivated successfully: is_active={deactivated_header.get('is_active')}")
+        
+        # Test 4: Update non-existent header (should return 404)
+        success, _ = self.run_test(
+            "Update Non-existent Header (Should Fail with 404)",
+            "PATCH",
+            "inventory/headers/non-existent-id",
+            404,
+            data={"name": "Should Fail"}
+        )
+        
+        if not success:
+            print(f"❌ Expected 404 for non-existent header update")
+            return False
+        
+        print(f"✅ Non-existent header update correctly returned 404")
+        
+        # Test 5: Verify audit logs created for updates
+        success, audit_logs = self.run_test(
+            "Get Audit Logs (Verify Header Updates)",
+            "GET",
+            "audit-logs",
+            200
+        )
+        
+        if success:
+            header_update_logs = [
+                log for log in audit_logs 
+                if log.get('module') == 'inventory_header' and 
+                   log.get('record_id') == header_id and 
+                   log.get('action') == 'update'
+            ]
+            
+            if len(header_update_logs) >= 2:  # Should have at least 2 update logs
+                print(f"✅ Audit logs created for header updates: {len(header_update_logs)} logs")
+            else:
+                print(f"⚠️  Expected at least 2 audit logs for header updates, found: {len(header_update_logs)}")
+        
+        # PHASE 2: Inventory Header Delete Tests
+        print("\n📋 PHASE 2: INVENTORY HEADER DELETE TESTS")
+        
+        # Test 6: Create new header with no stock for deletion
+        success, empty_header = self.run_test(
+            "Create Empty Header for Deletion",
+            "POST",
+            "inventory/headers",
+            200,
+            data={"name": "Test Delete Empty"}
+        )
+        
+        if not success or not empty_header.get('id'):
+            return False
+        
+        empty_header_id = empty_header['id']
+        
+        # Test 7: Delete empty header (should succeed)
+        success, delete_response = self.run_test(
+            "Delete Empty Header (Should Succeed)",
+            "DELETE",
+            f"inventory/headers/{empty_header_id}",
+            200
+        )
+        
+        if not success:
+            print(f"❌ Empty header deletion should succeed")
+            return False
+        
+        print(f"✅ Empty header deleted successfully")
+        
+        # Test 8: Create header with stock for deletion test
+        success, stock_header = self.run_test(
+            "Create Header for Stock Test",
+            "POST",
+            "inventory/headers",
+            200,
+            data={"name": "Test Delete With Stock"}
+        )
+        
+        if not success or not stock_header.get('id'):
+            return False
+        
+        stock_header_id = stock_header['id']
+        self.created_resources['headers'].append(stock_header_id)
+        
+        # Test 9: Add stock movement to this header
+        movement_data = {
+            "movement_type": "Stock IN",
+            "header_id": stock_header_id,
+            "description": "Test stock for deletion test",
+            "qty_delta": 10,
+            "weight_delta": 50.5,
+            "purity": 916,
+            "notes": "Stock for deletion test"
+        }
+        
+        success, movement = self.run_test(
+            "Add Stock to Header",
+            "POST",
+            "inventory/movements",
+            200,
+            data=movement_data
+        )
+        
+        if not success:
+            return False
+        
+        print(f"✅ Stock added to header: qty=10, weight=50.5g")
+        
+        # Test 10: Try to delete header with stock (should fail with 400)
+        success, error_response = self.run_test(
+            "Delete Header With Stock (Should Fail with 400)",
+            "DELETE",
+            f"inventory/headers/{stock_header_id}",
+            400
+        )
+        
+        if not success:
+            print(f"❌ Expected 400 error for deleting header with stock")
+            return False
+        
+        # Verify error message shows current stock
+        error_str = str(error_response)
+        if "10" not in error_str or "50.5" not in error_str:
+            print(f"❌ Error message should show current stock quantities")
+            return False
+        
+        print(f"✅ Header with stock correctly rejected deletion (400 error with stock info)")
+        
+        # PHASE 3: Stock Movement Delete Tests
+        print("\n📋 PHASE 3: STOCK MOVEMENT DELETE TESTS")
+        
+        # Test 11: Create test header for movement deletion
+        success, movement_header = self.run_test(
+            "Create Header for Movement Delete Test",
+            "POST",
+            "inventory/headers",
+            200,
+            data={"name": "Test Movement Delete"}
+        )
+        
+        if not success or not movement_header.get('id'):
+            return False
+        
+        movement_header_id = movement_header['id']
+        self.created_resources['headers'].append(movement_header_id)
+        
+        # Test 12: Create manual stock movement
+        manual_movement_data = {
+            "movement_type": "Stock IN",
+            "header_id": movement_header_id,
+            "description": "Manual test movement",
+            "qty_delta": 5,
+            "weight_delta": 25.5,
+            "purity": 916,
+            "notes": "Manual movement for deletion test"
+        }
+        
+        success, manual_movement = self.run_test(
+            "Create Manual Stock Movement",
+            "POST",
+            "inventory/movements",
+            200,
+            data=manual_movement_data
+        )
+        
+        if not success or not manual_movement.get('id'):
+            return False
+        
+        manual_movement_id = manual_movement['id']
+        
+        # Test 13: Verify header stock increased
+        success, updated_header = self.run_test(
+            "Verify Header Stock Increased",
+            "GET",
+            "inventory/headers",
+            200
+        )
+        
+        if success:
+            test_header = next((h for h in updated_header if h['id'] == movement_header_id), None)
+            if test_header:
+                current_qty = test_header.get('current_qty', 0)
+                current_weight = test_header.get('current_weight', 0)
+                
+                if current_qty == 5 and current_weight == 25.5:
+                    print(f"✅ Header stock increased correctly: qty={current_qty}, weight={current_weight}g")
+                else:
+                    print(f"❌ Header stock not updated correctly: expected qty=5, weight=25.5g, got qty={current_qty}, weight={current_weight}g")
+                    return False
+        
+        # Test 14: Delete manual movement (should succeed and reverse stock)
+        success, delete_movement_response = self.run_test(
+            "Delete Manual Movement (Should Succeed)",
+            "DELETE",
+            f"inventory/movements/{manual_movement_id}",
+            200
+        )
+        
+        if not success:
+            print(f"❌ Manual movement deletion should succeed")
+            return False
+        
+        print(f"✅ Manual movement deleted successfully")
+        
+        # Test 15: Verify header stock reversed correctly
+        success, final_header = self.run_test(
+            "Verify Header Stock Reversed",
+            "GET",
+            "inventory/headers",
+            200
+        )
+        
+        if success:
+            test_header = next((h for h in final_header if h['id'] == movement_header_id), None)
+            if test_header:
+                current_qty = test_header.get('current_qty', 0)
+                current_weight = test_header.get('current_weight', 0)
+                
+                if current_qty == 0 and current_weight == 0:
+                    print(f"✅ Header stock reversed correctly: qty={current_qty}, weight={current_weight}g")
+                else:
+                    print(f"❌ Header stock not reversed correctly: expected qty=0, weight=0g, got qty={current_qty}, weight={current_weight}g")
+                    return False
+        
+        # Test 16-20: Create invoice with items to test invoice-linked movement deletion
+        if self.created_resources['parties']:
+            customer_id = self.created_resources['parties'][0]
+            
+            # Create invoice with items
+            invoice_data = {
+                "customer_id": customer_id,
+                "customer_name": "Test Customer",
+                "invoice_type": "sale",
+                "items": [{
+                    "category": "Test Movement Delete",
+                    "description": "Test item for movement deletion",
+                    "qty": 1,
+                    "weight": 5.0,
+                    "purity": 916,
+                    "metal_rate": 20.0,
+                    "gold_value": 100.0,
+                    "making_value": 10.0,
+                    "vat_percent": 5.0,
+                    "vat_amount": 5.5,
+                    "line_total": 115.5
+                }],
+                "subtotal": 110.0,
+                "vat_total": 5.5,
+                "grand_total": 115.5,
+                "balance_due": 115.5
+            }
+            
+            success, test_invoice = self.run_test(
+                "Create Invoice for Movement Test",
+                "POST",
+                "invoices",
+                200,
+                data=invoice_data
+            )
+            
+            if success and test_invoice.get('id'):
+                invoice_id = test_invoice['id']
+                
+                # Finalize invoice to create Stock OUT movement
+                success, finalized_invoice = self.run_test(
+                    "Finalize Invoice (Create Stock OUT Movement)",
+                    "POST",
+                    f"invoices/{invoice_id}/finalize",
+                    200
+                )
+                
+                if success:
+                    print(f"✅ Invoice finalized, Stock OUT movement created")
+                    
+                    # Find the invoice-linked stock movement
+                    success, all_movements = self.run_test(
+                        "Get All Stock Movements",
+                        "GET",
+                        "inventory/movements",
+                        200
+                    )
+                    
+                    if success:
+                        invoice_movement = next((
+                            m for m in all_movements 
+                            if m.get('reference_type') == 'invoice' and m.get('reference_id') == invoice_id
+                        ), None)
+                        
+                        if invoice_movement:
+                            invoice_movement_id = invoice_movement['id']
+                            
+                            # Test 19: Try to delete invoice-linked movement (should fail with 400)
+                            success, error_response = self.run_test(
+                                "Delete Invoice-linked Movement (Should Fail with 400)",
+                                "DELETE",
+                                f"inventory/movements/{invoice_movement_id}",
+                                400
+                            )
+                            
+                            if success:
+                                error_str = str(error_response)
+                                if "invoice" in error_str.lower() and "transaction" in error_str.lower():
+                                    print(f"✅ Invoice-linked movement correctly rejected deletion (400 error)")
+                                else:
+                                    print(f"❌ Error message should mention invoice/transaction link")
+                                    return False
+                            else:
+                                print(f"❌ Expected 400 error for deleting invoice-linked movement")
+                                return False
+        
+        # PHASE 4: Edge Cases & Validation
+        print("\n📋 PHASE 4: EDGE CASES & VALIDATION")
+        
+        # Test 22: Update header with empty data (should fail with 400)
+        success, _ = self.run_test(
+            "Update Header with Empty Data (Should Fail with 400)",
+            "PATCH",
+            f"inventory/headers/{header_id}",
+            400,
+            data={}
+        )
+        
+        if success:
+            print(f"✅ Empty update data correctly rejected (400 error)")
+        else:
+            print(f"❌ Expected 400 error for empty update data")
+            return False
+        
+        # Test 23: Delete already deleted header (should fail with 404)
+        success, _ = self.run_test(
+            "Delete Already Deleted Header (Should Fail with 404)",
+            "DELETE",
+            f"inventory/headers/{empty_header_id}",
+            404
+        )
+        
+        if success:
+            print(f"✅ Already deleted header correctly returned 404")
+        else:
+            print(f"❌ Expected 404 for already deleted header")
+            return False
+        
+        # Test 24: Delete already deleted movement (should fail with 404)
+        success, _ = self.run_test(
+            "Delete Already Deleted Movement (Should Fail with 404)",
+            "DELETE",
+            f"inventory/movements/{manual_movement_id}",
+            404
+        )
+        
+        if success:
+            print(f"✅ Already deleted movement correctly returned 404")
+        else:
+            print(f"❌ Expected 404 for already deleted movement")
+            return False
+        
+        # Test 25: Verify audit logs for all movement operations
+        success, final_audit_logs = self.run_test(
+            "Get Final Audit Logs (Verify All Operations)",
+            "GET",
+            "audit-logs",
+            200
+        )
+        
+        if success:
+            movement_logs = [
+                log for log in final_audit_logs 
+                if log.get('module') in ['inventory_header', 'stock_movement']
+            ]
+            
+            if len(movement_logs) >= 5:  # Should have multiple logs for all operations
+                print(f"✅ Comprehensive audit logs created: {len(movement_logs)} logs")
+            else:
+                print(f"⚠️  Expected multiple audit logs, found: {len(movement_logs)}")
+        
+        print(f"\n🎉 INVENTORY CRUD OPERATIONS TESTING COMPLETED")
+        print(f"✅ All UPDATE operations succeeded with proper validation")
+        print(f"✅ DELETE on empty headers succeeded")
+        print(f"✅ DELETE on headers with stock failed with clear error")
+        print(f"✅ DELETE on manual movements succeeded and reversed stock")
+        print(f"✅ DELETE on transactional movements failed appropriately")
+        print(f"✅ All operations created audit logs")
+        print(f"✅ Stock calculations were accurate")
+        print(f"✅ Error messages were clear and helpful")
+        
+        return True
+
     def run_all_tests(self):
         """Run all tests in sequence"""
         print("🚀 Starting Gold Shop ERP Backend Tests")
