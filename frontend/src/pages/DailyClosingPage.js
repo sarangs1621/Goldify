@@ -8,11 +8,13 @@ import { Label } from '../components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { CalendarCheck, Plus, Lock, Unlock } from 'lucide-react';
+import { CalendarCheck, Plus, Lock, Unlock, Calculator, RefreshCw } from 'lucide-react';
 
 export default function DailyClosingPage() {
   const [closings, setClosings] = useState([]);
   const [showDialog, setShowDialog] = useState(false);
+  const [calculationData, setCalculationData] = useState(null);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     opening_cash: 0,
