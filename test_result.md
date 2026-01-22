@@ -684,6 +684,107 @@ backend:
           8. Backend PDF shows discount line when discount > 0
           9. Backend PDF hides discount line when discount = 0
 
+
+  - task: "MODULE 8/10 - JobCard Gold Rate Field + Auto-fill Invoice Rate"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py, frontend/src/pages/JobCardsPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          MODULE 8 IMPLEMENTED - Job Card Gold Rate with Auto-fill to Invoice.
+          
+          Backend Implementation:
+          
+          1. ✅ JobCard Model Enhanced (line 139-162):
+             ADDED NEW FIELD:
+             - gold_rate_at_jobcard: Optional[float] = None
+             - Stores the gold rate (per gram) at time of job card creation
+             - Optional field for backward compatibility
+          
+          2. ✅ POST /api/jobcards Enhanced:
+             - Accepts gold_rate_at_jobcard in request
+             - Rounds to 2 decimal precision for money
+             - Stores in JobCard document
+          
+          3. ✅ PATCH /api/jobcards/{id} Enhanced:
+             - Allows updating gold_rate_at_jobcard
+             - Maintains 2 decimal precision
+          
+          4. ✅ POST /api/jobcards/{id}/convert-to-invoice CRITICAL ENHANCEMENT (line 1398-1408):
+             Auto-fill Logic with Priority Chain:
+             - Priority 1: invoice_data.metal_rate (user override from convert dialog)
+             - Priority 2: jobcard.gold_rate_at_jobcard (from job card)
+             - Priority 3: Default 20.0 (fallback for backward compatibility)
+             
+             Previous Logic (line 1404):
+             - metal_rate = 20.0 (hardcoded for all items)
+             
+             New Logic:
+             - metal_rate = invoice_data.get('metal_rate') or jobcard.get('gold_rate_at_jobcard') or 20.0
+             - Ensures 2 decimal precision with round(float(metal_rate), 2)
+             - Applied to ALL invoice items consistently
+             - Backward compatible: existing job cards without gold rate use default 20.0
+          
+          Frontend Implementation:
+          
+          1. ✅ JobCardsPage.js - Form State Enhanced (line 29-53):
+             - Added gold_rate_at_jobcard: '' to formData state initialization
+             - Proper parsing with parseFloat() in handleCreateJobCard
+             - Included in edit/update flow
+          
+          2. ✅ JobCardsPage.js - Gold Rate Input Field Added (after line 555):
+             - Positioned after Status field and before Notes section
+             - Label: "Gold Rate (per gram) - OMR"
+             - Input type: number with step="0.01" for 2 decimal precision
+             - Min value: 0 (prevents negative rates)
+             - Placeholder: "e.g., 20.00"
+             - Helper text: "Optional: This rate will auto-fill when converting to invoice"
+             - Data-testid: "gold-rate-input" for testing
+          
+          3. ✅ JobCardsPage.js - handleEditJobCard Enhanced (line 196-219):
+             - Loads gold_rate_at_jobcard when editing existing job card
+             - Populates input field with existing value
+          
+          4. ✅ JobCardsPage.js - handleCloseDialog Enhanced (line 237-268):
+             - Resets gold_rate_at_jobcard to '' when closing dialog
+             - Maintains clean state for new job cards
+          
+          5. ✅ JobCardsPage.js - Convert Dialog Enhanced (line 741-883):
+             - Added informational display showing gold rate from job card
+             - Positioned between job card info and customer type selection
+             - Only shows if gold_rate_at_jobcard exists
+             - Display format: "💰 Gold Rate from Job Card: {rate} OMR/gram"
+             - Helper text: "This rate will be auto-filled in the invoice"
+             - Amber-colored card for visibility
+          
+          Key Business Rules Implemented:
+          - ✅ gold_rate_at_jobcard is optional (backward compatible)
+          - ✅ Rate stored at job card creation time (historical record)
+          - ✅ Auto-fills to invoice during conversion (reduces manual entry)
+          - ✅ User can override rate during conversion if needed
+          - ✅ Default fallback (20.0) for existing job cards
+          - ✅ Consistent rate applied to all items in invoice
+          - ✅ 2 decimal precision maintained throughout
+          - ✅ Visual feedback in convert dialog
+          
+          READY FOR COMPREHENSIVE TESTING - Need to verify:
+          1. Create job card WITH gold rate field (e.g., 25.50)
+          2. Create job card WITHOUT gold rate field (leave empty)
+          3. Edit job card and change gold rate
+          4. Convert job card WITH gold rate → verify invoice items use that rate
+          5. Convert job card WITHOUT gold rate → verify invoice items use default 20.0
+          6. Convert dialog shows gold rate from job card correctly
+          7. Existing job cards (created before Module 8) still convert correctly
+          8. Gold rate field accepts decimal values (0.01 precision)
+          9. Validation: negative gold rate prevented (min="0")
+          10. Backend calculation uses correct priority chain
+          11. All invoice items use same metal_rate consistently
+
   - task: "Job Card Locking with Admin Override"
     implemented: true
     working: true
