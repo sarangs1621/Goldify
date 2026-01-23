@@ -136,42 +136,58 @@ export default function JobCardsPage() {
         const oldNormalized = normalizeStatus(oldStatus);
         const newNormalized = normalizeStatus(newStatus);
         
-        // Check if transitioning to completed or delivered
-        if (newNormalized === 'completed' && oldNormalized !== 'completed') {
-          if (!window.confirm(`Mark job card as COMPLETED?\n\nThis indicates the work is finished and ready for customer pickup.\n\nContinue?`)) {
-            return;
-          }
-        } else if (newNormalized === 'delivered' && oldNormalized !== 'delivered') {
-          if (!window.confirm(`Mark job card as DELIVERED?\n\nThis indicates the customer has received the item.\n\nThis action will allow converting to invoice.\n\nContinue?`)) {
-            return;
-          }
+        // Check if transitioning to completed or delivered - show enhanced confirmation
+        if ((newNormalized === 'completed' && oldNormalized !== 'completed') ||
+            (newNormalized === 'delivered' && oldNormalized !== 'delivered')) {
+          
+          // Load impact data
+          const impactRes = await axios.get(`${API}/jobcards/${editingJobCard.id}/impact`);
+          const impact = impactRes.data;
+          
+          return new Promise((resolve) => {
+            const statusLabel = newNormalized === 'completed' ? 'COMPLETED' : 'DELIVERED';
+            const statusDescription = newNormalized === 'completed' 
+              ? 'This indicates the work is finished and ready for customer pickup.'
+              : 'This indicates the customer has received the item and allows converting to invoice.';
+            
+            setConfirmDialog({
+              open: true,
+              type: 'status_change',
+              title: `Mark Job Card as ${statusLabel}`,
+              description: `${statusDescription}\n\nThis action will update the job card status and cannot be easily reversed.`,
+              impact: impact,
+              action: async () => {
+                try {
+                  setConfirmDialog(prev => ({ ...prev, loading: true }));
+                  await performJobCardUpdate(data, editingJobCard.id);
+                  setConfirmDialog(prev => ({ ...prev, open: false, loading: false }));
+                  resolve(true);
+                } catch (error) {
+                  setConfirmDialog(prev => ({ ...prev, loading: false }));
+                  resolve(false);
+                }
+              },
+              loading: false
+            });
+          });
         }
       }
 
-      const data = {
-        ...formData,
-        gold_rate_at_jobcard: formData.gold_rate_at_jobcard ? parseFloat(formData.gold_rate_at_jobcard) : null,
-        delivery_days_offset: formData.delivery_days_offset ? parseInt(formData.delivery_days_offset) : null,
-        items: formData.items.map(item => ({
-          ...item,
-          qty: parseInt(item.qty),
-          weight_in: parseFloat(item.weight_in),
-          weight_out: item.weight_out ? parseFloat(item.weight_out) : null,
-          purity: parseInt(item.purity),
-          making_charge_value: item.making_charge_value ? parseFloat(item.making_charge_value) : null,
-          vat_percent: item.vat_percent ? parseFloat(item.vat_percent) : null
-        }))
-      };
-
-      // Add customer name for saved customers
-      if (formData.customer_type === 'saved') {
-        const customer = parties.find(p => p.id === formData.customer_id);
-        data.customer_name = customer?.name || '';
-      }
+      // If no confirmation needed, proceed with update/create
+      await performJobCardUpdate(data, editingJobCard?.id);
       
-      if (editingJobCard) {
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || `Failed to ${editingJobCard ? 'update' : 'create'} job card`;
+      toast.error(errorMsg);
+    }
+  };
+
+  // Helper function to perform the actual update/create
+  const performJobCardUpdate = async (data, jobcardId) => {
+    try {
+      if (jobcardId) {
         // Update existing job card
-        await axios.patch(`${API}/jobcards/${editingJobCard.id}`, data);
+        await axios.patch(`${API}/jobcards/${jobcardId}`, data);
         toast.success('Job card updated successfully');
       } else {
         // Create new job card
@@ -182,8 +198,7 @@ export default function JobCardsPage() {
       handleCloseDialog();
       loadData();
     } catch (error) {
-      const errorMsg = error.response?.data?.detail || `Failed to ${editingJobCard ? 'update' : 'create'} job card`;
-      toast.error(errorMsg);
+      throw error;
     }
   };
 
