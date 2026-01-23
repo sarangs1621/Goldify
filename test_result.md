@@ -6325,3 +6325,321 @@ backend:
           - Handles edge cases correctly (empty, null, whitespace)
           
           DUPLICATE PHONE VALIDATION IS WORKING PERFECTLY - ALL REQUIREMENTS MET
+
+#====================================================================================================
+# NEW CRITICAL FIX - Inventory Stock Flow Correction
+#====================================================================================================
+
+user_problem_statement: "Fix inventory and stock movement system to allow only ONE correct path for stock reduction through Invoice Finalization. The current implementation allowed multiple incorrect paths (manual Stock OUT creation, negative delta bypass) that break audit trail, accounting accuracy, and GST compliance. Implement production-grade controls to ensure inventory can only be reduced via invoice finalization."
+
+backend:
+  - task: "Restrict Manual Stock OUT Creation"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          CRITICAL FIX IMPLEMENTED - Production-Grade Inventory Control
+          
+          Modified POST /api/inventory/movements endpoint (lines 591-678):
+          
+          1. ✅ BLOCK STOCK OUT MOVEMENTS:
+             - Added explicit validation to reject movement_type="Stock OUT"
+             - Returns HTTP 403 Forbidden with detailed error message
+             - Error explains Stock OUT can ONLY happen through invoice finalization
+             - Ensures audit trail, accounting accuracy, and GST compliance
+          
+          2. ✅ PREVENT NEGATIVE DELTA BYPASS:
+             - Added validation to reject negative qty_delta or weight_delta for Stock IN/Adjustment
+             - Prevents users from bypassing Stock OUT restriction using negative values
+             - Returns HTTP 400 Bad Request with clear guidance
+          
+          3. ✅ VALIDATE MOVEMENT TYPES:
+             - Only allows "Stock IN" and "Adjustment" movement types
+             - Rejects any other movement_type values
+             - Returns HTTP 400 Bad Request with list of allowed types
+          
+          4. ✅ ENHANCED AUDIT LOGGING:
+             - Added movement details to audit log (movement_type, qty_delta, weight_delta)
+             - Maintains complete audit trail for all stock changes
+          
+          5. ✅ COMPREHENSIVE DOCUMENTATION:
+             - Added detailed docstring explaining restrictions and reasons
+             - Documents allowed vs prohibited operations
+             - References invoice finalization as authoritative path
+          
+          BUSINESS RULES ENFORCED:
+          - ✅ Stock OUT can ONLY occur through POST /api/invoices/{id}/finalize
+          - ✅ Manual movements limited to Stock IN and Adjustment (positive values only)
+          - ✅ No bypass via negative deltas
+          - ✅ Complete audit trail maintained
+          - ✅ Accounting accuracy ensured (all stock reductions tied to invoices)
+          - ✅ GST compliance maintained (all sales generate tax)
+
+  - task: "Strengthen Stock Movement Deletion Controls"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          CRITICAL ENHANCEMENT - Audit Trail Protection
+          
+          Enhanced DELETE /api/inventory/movements/{movement_id} endpoint (lines 680-730):
+          
+          1. ✅ EXISTING PROTECTION MAINTAINED:
+             - Already blocks deletion of movements with reference_type (invoice/purchase)
+             - Returns HTTP 403 Forbidden for official transaction movements
+             - Preserves audit trail for financial transactions
+          
+          2. ✅ NEW: BLOCK STOCK OUT DELETION:
+             - Added explicit validation to prevent deletion of ANY Stock OUT movement
+             - Even if somehow created without reference_type, cannot be deleted
+             - Returns HTTP 403 Forbidden with clear security message
+             - Additional safety layer to preserve audit trail
+          
+          3. ✅ ENHANCED ERROR MESSAGES:
+             - Changed status code from 400 to 403 (Forbidden) for security violations
+             - Added detailed explanations mentioning audit trail, accounting, GST compliance
+             - Clear guidance on when to contact system administrator
+          
+          4. ✅ COMPREHENSIVE DOCUMENTATION:
+             - Updated docstring to explain restrictions clearly
+             - Lists what CAN and CANNOT be deleted
+             - Emphasizes audit trail preservation
+          
+          DELETION RULES ENFORCED:
+          - ✅ CAN delete: Manual Stock IN/Adjustment movements (no reference_type)
+          - ❌ CANNOT delete: Invoice-linked movements (reference_type="invoice")
+          - ❌ CANNOT delete: Purchase-linked movements (reference_type="purchase")
+          - ❌ CANNOT delete: ANY Stock OUT movements (regardless of reference_type)
+          - ✅ Validation prevents negative stock after deletion
+          - ✅ Complete audit trail preserved
+
+  - task: "Document Authoritative Stock Paths"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          DOCUMENTATION ENHANCEMENT - Clear Path Definition
+          
+          1. ✅ INVOICE FINALIZATION (Lines 2258-2277):
+             - Enhanced docstring with CRITICAL - AUTHORITATIVE STOCK REDUCTION PATH header
+             - Clearly marks as ONLY authorized way to reduce inventory
+             - Explains why this restriction ensures audit trail, accounting, GST compliance
+             - Lists all atomic operations performed
+             - Emphasizes all operations succeed/fail together
+          
+          2. ✅ PURCHASE FINALIZATION (Lines 1665-1687):
+             - Enhanced docstring with CRITICAL - AUTHORITATIVE STOCK ADDITION PATH header
+             - Marks as primary way to add vendor-purchased inventory
+             - Explains complete audit trail and vendor payable tracking
+             - Lists all atomic operations performed
+             - Notes manual Stock IN allowed for returns/adjustments
+          
+          3. ✅ COMPREHENSIVE DOCUMENTATION FILE:
+             - Created /app/INVENTORY_FLOW_DOCUMENTATION.md
+             - Complete reference guide for developers and admins
+             - Documents all authorized vs prohibited operations
+             - Includes flow diagrams and test checklists
+             - Provides incident response procedures
+             - Critical classification: PRODUCTION INTEGRITY
+
+  - task: "Create Inventory Flow Documentation"
+    implemented: true
+    working: "NA"
+    file: "/app/INVENTORY_FLOW_DOCUMENTATION.md"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          COMPREHENSIVE DOCUMENTATION CREATED
+          
+          Created detailed documentation covering:
+          - ✅ Authorized stock addition paths (Purchase Finalization, Manual Stock IN)
+          - ✅ Single authorized stock reduction path (Invoice Finalization ONLY)
+          - ✅ Prohibited operations (Manual Stock OUT, negative bypass, unauthorized deletions)
+          - ✅ Stock flow diagrams
+          - ✅ Audit trail integrity requirements
+          - ✅ Accounting and GST compliance benefits
+          - ✅ Developer guidelines
+          - ✅ Testing checklist
+          - ✅ Incident response procedures
+          
+          Document serves as authoritative reference for:
+          - Development team (maintaining controls)
+          - Testing team (verification procedures)
+          - System administrators (troubleshooting)
+          - Auditors (compliance verification)
+
+metadata:
+  created_by: "main_agent"
+  version: "2.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Restrict Manual Stock OUT Creation - CRITICAL TEST"
+    - "Prevent Negative Delta Bypass - CRITICAL TEST"
+    - "Strengthen Stock Movement Deletion Controls - CRITICAL TEST"
+    - "Verify Invoice Finalization Path Still Works - CRITICAL TEST"
+    - "Verify Purchase Finalization Path Still Works - CRITICAL TEST"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "critical_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      🔒 CRITICAL INVENTORY FLOW CORRECTION COMPLETED - READY FOR COMPREHENSIVE TESTING
+      
+      PROBLEM IDENTIFIED:
+      The inventory system had multiple paths for stock reduction, allowing users to bypass
+      invoice finalization and directly reduce stock through manual Stock OUT movements.
+      This broke:
+      - Audit trail integrity (stock reduced without invoice)
+      - Accounting accuracy (no revenue recorded)
+      - GST compliance (no tax collected)
+      - Financial integrity (unauthorized stock removal)
+      
+      SOLUTION IMPLEMENTED:
+      Established SINGLE AUTHORITATIVE PATH for stock reduction through Invoice Finalization.
+      
+      CHANGES MADE:
+      
+      1. ✅ POST /api/inventory/movements - NOW BLOCKS:
+         - "Stock OUT" movement_type (HTTP 403)
+         - Negative qty_delta or weight_delta for Stock IN (HTTP 400)
+         - Invalid movement_type values (HTTP 400)
+         - Only allows: "Stock IN" and "Adjustment" with positive values
+      
+      2. ✅ DELETE /api/inventory/movements/{id} - NOW BLOCKS:
+         - Stock OUT movement deletions (HTTP 403)
+         - Invoice-linked movement deletions (HTTP 403 - already existed)
+         - Purchase-linked movement deletions (HTTP 403 - already existed)
+      
+      3. ✅ DOCUMENTATION ENHANCED:
+         - Invoice finalization marked as ONLY authorized Stock OUT path
+         - Purchase finalization marked as primary authorized Stock IN path
+         - Created comprehensive INVENTORY_FLOW_DOCUMENTATION.md
+      
+      AUTHORIZED PATHS PRESERVED:
+      - ✅ Stock OUT: ONLY through POST /api/invoices/{id}/finalize
+      - ✅ Stock IN: Through POST /api/purchases/{id}/finalize (vendors)
+      - ✅ Stock IN: Through POST /api/inventory/movements (returns, adjustments)
+      
+      TESTING REQUIREMENTS - COMPREHENSIVE VERIFICATION NEEDED:
+      
+      🔴 CRITICAL TEST SCENARIOS:
+      
+      1. BLOCK MANUAL STOCK OUT CREATION:
+         Test: POST /api/inventory/movements with movement_type="Stock OUT"
+         Expected: HTTP 403 Forbidden
+         Expected Message: "Manual 'Stock OUT' movements are prohibited..."
+         Verify: Error message mentions invoice finalization as correct path
+      
+      2. BLOCK NEGATIVE DELTA BYPASS:
+         Test: POST /api/inventory/movements with movement_type="Stock IN", qty_delta=-10
+         Expected: HTTP 400 Bad Request
+         Expected Message: "Invalid Stock IN movement: qty_delta and weight_delta must be positive..."
+         Verify: Cannot bypass using negative values
+      
+      3. ALLOW LEGITIMATE STOCK IN:
+         Test: POST /api/inventory/movements with movement_type="Stock IN", positive deltas
+         Expected: HTTP 200 Success
+         Verify: Movement created, inventory increased
+      
+      4. ALLOW LEGITIMATE ADJUSTMENT:
+         Test: POST /api/inventory/movements with movement_type="Adjustment", positive deltas
+         Expected: HTTP 200 Success
+         Verify: Movement created, inventory adjusted
+      
+      5. BLOCK INVALID MOVEMENT TYPES:
+         Test: POST /api/inventory/movements with movement_type="Random Type"
+         Expected: HTTP 400 Bad Request
+         Expected Message: Lists allowed types
+      
+      6. BLOCK STOCK OUT DELETION:
+         Setup: Create invoice, finalize (creates Stock OUT movement)
+         Test: DELETE /api/inventory/movements/{stock_out_movement_id}
+         Expected: HTTP 403 Forbidden
+         Expected Message: "Cannot delete 'Stock OUT' movement..."
+      
+      7. BLOCK INVOICE-LINKED DELETION:
+         Test: DELETE /api/inventory/movements/{invoice_linked_movement_id}
+         Expected: HTTP 403 Forbidden
+         Expected Message: "Cannot delete stock movement linked to invoice..."
+      
+      8. ALLOW MANUAL MOVEMENT DELETION:
+         Setup: Create manual Stock IN movement (no reference_type)
+         Test: DELETE /api/inventory/movements/{manual_movement_id}
+         Expected: HTTP 200 Success
+         Verify: Movement soft-deleted, inventory reversed
+      
+      9. INVOICE FINALIZATION STILL WORKS:
+         Test: Create draft invoice → POST /api/invoices/{id}/finalize
+         Expected: HTTP 200 Success
+         Verify: Stock OUT movement created with reference_type="invoice"
+         Verify: Inventory decreased correctly
+         Verify: Invoice status="finalized"
+      
+      10. PURCHASE FINALIZATION STILL WORKS:
+          Test: Create draft purchase → POST /api/purchases/{id}/finalize
+          Expected: HTTP 200 Success
+          Verify: Stock IN movement created with reference_type="purchase"
+          Verify: Inventory increased correctly
+          Verify: Purchase status="finalized"
+      
+      11. END-TO-END INTEGRITY CHECK:
+          Setup: Record starting inventory for a category
+          Execute: Finalize purchase (add stock) → Finalize invoice (reduce stock)
+          Verify: 
+          - Inventory current_qty and current_weight match expected values
+          - Stock movements table has 2 entries (IN and OUT)
+          - Both movements have reference_type set
+          - Cannot delete either movement
+          - Audit trail complete
+      
+      BACKEND RESTART STATUS:
+      ✅ Backend restarted successfully
+      ✅ No startup errors detected
+      ✅ Server running on http://0.0.0.0:8001
+      
+      AUTHENTICATION:
+      Use existing admin/staff credentials from previous tests
+      
+      PRIORITY:
+      CRITICAL - These are production integrity controls
+      All 11 test scenarios must pass before considering complete
+      
+      EXPECTED OUTCOMES:
+      - All manual Stock OUT attempts blocked (tests 1, 2, 5)
+      - All legitimate Stock IN operations work (tests 3, 4)
+      - All unauthorized deletions blocked (tests 6, 7)
+      - All authorized deletions work (test 8)
+      - Official transaction paths work perfectly (tests 9, 10, 11)
+      - Complete audit trail maintained
+      - No bypass paths exist
+      
+      This fix establishes production-grade inventory control with single authoritative
+      paths for stock changes, ensuring audit trail integrity, accounting accuracy,
+      and GST compliance.
