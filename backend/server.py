@@ -33,6 +33,7 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXPIRATION_HOURS = 24
 
 def decimal_to_float(obj):
+    """Convert Decimal128, datetime, and ObjectId objects to JSON-serializable types"""
     if isinstance(obj, dict):
         return {k: decimal_to_float(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -41,6 +42,8 @@ def decimal_to_float(obj):
         return float(obj.to_decimal())
     elif isinstance(obj, datetime):
         return obj.isoformat()
+    elif isinstance(obj, ObjectId):
+        return str(obj)
     return obj
 
 def float_to_decimal128(value):
