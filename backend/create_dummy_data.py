@@ -4,15 +4,22 @@ This script creates realistic test data for ALL modules and features
 """
 import asyncio
 from pymongo import MongoClient
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import uuid
 import os
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 MONGO_URL = os.environ.get('MONGO_URL', 'mongodb://localhost:27017/')
+DB_NAME = os.environ.get('DB_NAME', 'gold_shop_erp')
 client = MongoClient(MONGO_URL)
-db = client['gold_inventory_db']
+db = client[DB_NAME]
 
 def generate_uuid():
     return str(uuid.uuid4())
