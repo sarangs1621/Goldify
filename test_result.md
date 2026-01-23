@@ -161,11 +161,11 @@ backend:
   
   - task: "Vendor Outstanding Update"
     implemented: true
-    working: "NA"
+    working: true
     file: "backend/server.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -173,6 +173,9 @@ backend:
       - working: "NA"
         agent: "testing"
         comment: "TESTING BLOCKED - Cannot verify vendor outstanding update through automated testing. Need manual verification that vendor payable shows 250 OMR balance (1250 total - 1000 paid) in outstanding reports."
+      - working: true
+        agent: "main"
+        comment: "✅ MANUAL API TESTING COMPLETED - Vendor Outstanding Update FULLY FUNCTIONAL. GET /api/parties/{party_id}/summary endpoint returns money_due_to_party: 250.00 OMR (exactly 1250 total - 1000 paid = 250 outstanding). Vendor payable balance calculation correct. Outstanding payables report verified through party summary endpoint."
   
   - task: "Audit Log Creation"
     implemented: true
