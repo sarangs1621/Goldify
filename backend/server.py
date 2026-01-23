@@ -1665,15 +1665,28 @@ async def update_purchase(
 @api_router.post("/purchases/{purchase_id}/finalize")
 async def finalize_purchase(purchase_id: str, current_user: User = Depends(get_current_user)):
     """
-    MODULE 4: Finalize a purchase - performs all required operations atomically:
+    Finalize a purchase - performs all required operations atomically.
+    
+    ⚠️ CRITICAL - AUTHORITATIVE STOCK ADDITION PATH (from vendors) ⚠️
+    This endpoint is the primary authorized way to add purchased inventory stock (Stock IN from vendors).
+    Combined with manual Stock IN/Adjustment movements (for returns, found items), this ensures:
+    - Complete audit trail (all vendor purchases tracked)
+    - Accurate accounting (vendor payables recorded)
+    - Cost tracking (purchase rates maintained)
+    - Financial integrity (no unauthorized stock additions from vendors)
+    
+    Atomic operations performed:
     1. Update purchase status to 'finalized'
-    2. Create Stock IN movement (adds to inventory using valuation_purity_fixed = 916)
-    3. MODULE 4: Create DEBIT transaction if paid_amount_money > 0 (we paid vendor)
-    4. MODULE 4: Create GoldLedgerEntry OUT if advance_in_gold_grams > 0 (shop gives gold to vendor)
-    5. MODULE 4: Create GoldLedgerEntry IN if exchange_in_gold_grams > 0 (shop receives gold from vendor)
-    6. Create vendor payable transaction (credit entry) ONLY for balance_due_money
-    7. Lock the purchase to prevent further edits
-    8. Create audit log
+    2. Create Stock IN movement (adds to inventory using valuation_purity_fixed = 916) - AUTHORIZED PATH
+    3. Directly increase inventory header current_qty and current_weight
+    4. Create DEBIT transaction if paid_amount_money > 0 (we paid vendor)
+    5. Create GoldLedgerEntry OUT if advance_in_gold_grams > 0 (shop gives gold to vendor)
+    6. Create GoldLedgerEntry IN if exchange_in_gold_grams > 0 (shop receives gold from vendor)
+    7. Create vendor payable transaction (credit entry) ONLY for balance_due_money
+    8. Lock the purchase to prevent further edits
+    9. Create audit log
+    
+    All operations succeed together or fail together to maintain data consistency.
     """
     # Get purchase
     purchase = await db.purchases.find_one({"id": purchase_id, "is_deleted": False})
