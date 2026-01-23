@@ -765,12 +765,15 @@ export default function JobCardsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="created">Created</SelectItem>
-                      <SelectItem value="in progress">In Progress</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="delivered">Delivered</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Workflow: Created → In Progress → Completed → Delivered
+                  </p>
                 </div>
               )}
             </div>
