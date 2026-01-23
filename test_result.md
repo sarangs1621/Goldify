@@ -8100,3 +8100,260 @@ agent_communication:
       ❌ Broken (NOW FIXED): Account balance update, Purchases serialization, Outstanding reports
       
       Ready for comprehensive testing to verify all fixes!
+
+
+user_problem_statement: "Fix 3 Critical Bugs Identified in Testing: Bug #1 - Account Balance Update (blocked by missing endpoint), Bug #2 - GET /api/purchases Serialization (verified working), Bug #3 - Outstanding Reports Datetime Timezone Error (broken)"
+
+backend:
+  - task: "Fix Outstanding Reports Datetime Timezone Error"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          🔥 CRITICAL FIX #1: Outstanding Reports Datetime Timezone Error
+          
+          ROOT CAUSE:
+          Line 4134 in server.py was causing TypeError: "can't subtract offset-naive and offset-aware datetimes"
+          - today = datetime.now(timezone.utc)  # timezone-aware
+          - txn_date from database could be timezone-naive
+          - Subtraction (today - txn_date).days caused crash
+          
+          FIX APPLIED:
+          1. Line 4077: Added timezone check for invoice due_date calculations
+          2. Line 4134: Added timezone check for purchase transaction date calculations
+          
+          Code added:
+          ```python
+          # CRITICAL FIX: Ensure date is timezone-aware to match today
+          if due_date.tzinfo is None:
+              due_date = due_date.replace(tzinfo=timezone.utc)
+          ```
+          
+          This ensures all datetime objects are timezone-aware (UTC) before subtraction,
+          preventing the TypeError and allowing overdue calculations to work correctly.
+          
+          IMPACT:
+          - Outstanding reports endpoint will now work without 500 errors
+          - Vendor payables overdue buckets (0-7, 8-30, 31+ days) will calculate correctly
+          - Customer receivables overdue calculations will also be consistent
+  
+  - task: "Add Missing GET /accounts/{id} Endpoint"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          🔥 CRITICAL FIX #2: Missing Account Detail Endpoint
+          
+          ISSUE IDENTIFIED:
+          Testing agent couldn't verify account balance updates because:
+          - GET /accounts endpoint exists (returns list of all accounts)
+          - GET /accounts/{id} endpoint was MISSING (405 Method Not Allowed)
+          - No way to retrieve individual account details
+          
+          FIX APPLIED:
+          Added new endpoint at line 3044-3049 in server.py:
+          ```python
+          @api_router.get("/accounts/{account_id}", response_model=Account)
+          async def get_account(account_id: str, current_user: User = Depends(get_current_user)):
+              """Get a single account by ID"""
+              account = await db.accounts.find_one({"id": account_id, "is_deleted": False}, {"_id": 0})
+              if not account:
+                  raise HTTPException(status_code=404, detail="Account not found")
+              return account
+          ```
+          
+          FEATURES:
+          - Returns complete account details with proper Account model validation
+          - Includes current_balance, opening_balance, and all account fields
+          - Returns 404 if account not found or deleted
+          - Protected by authentication (requires JWT token)
+          - Follows same pattern as other resource detail endpoints
+          
+          IMPACT:
+          - Testing agent can now verify account balance updates
+          - Frontend can display individual account details
+          - Bug Fix #1 (Account Balance Update) can now be properly tested
+
+metadata:
+  created_by: "main_agent"
+  version: "2.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Fix Outstanding Reports Datetime Timezone Error - IMPLEMENTED"
+    - "Add Missing GET /accounts/{id} Endpoint - IMPLEMENTED"
+    - "Re-test all 3 bug fixes comprehensively"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "critical_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      🔧 CRITICAL BUG FIXES COMPLETED - 2 BACKEND FIXES APPLIED
+      
+      SUMMARY OF CHANGES:
+      ═══════════════════════════════════════════════════════════════════
+      
+      📊 BUG STATUS BEFORE FIXES:
+      ✅ Bug #2 (GET /api/purchases): Already fixed and verified working
+      ❌ Bug #1 (Account Balance Update): Blocked by missing GET /accounts/{id} endpoint
+      ❌ Bug #3 (Outstanding Reports): Server error due to datetime timezone mismatch
+      
+      🔧 FIXES APPLIED IN THIS SESSION:
+      
+      ═══════════════════════════════════════════════════════════════════
+      FIX #1: Outstanding Reports Datetime Timezone Error (CRITICAL)
+      ═══════════════════════════════════════════════════════════════════
+      
+      Problem: 
+      - /api/reports/outstanding endpoint returning 500 Internal Server Error
+      - Error: "can't subtract offset-naive and offset-aware datetimes"
+      - Location: server.py line 4134
+      
+      Root Cause:
+      - today = datetime.now(timezone.utc) is timezone-aware (UTC)
+      - txn_date from database was timezone-naive
+      - Python can't subtract timezone-naive from timezone-aware datetime
+      
+      Solution:
+      - Added timezone check at TWO locations in outstanding reports endpoint:
+        1. Line ~4077: For invoice due_date overdue calculations
+        2. Line ~4137: For purchase transaction date overdue calculations
+      
+      Code Pattern:
+      ```python
+      if date.tzinfo is None:
+          date = date.replace(tzinfo=timezone.utc)
+      ```
+      
+      Expected Result:
+      ✅ GET /api/reports/outstanding will return 200 OK
+      ✅ Vendor payables will show with correct overdue buckets
+      ✅ Customer receivables will calculate correctly
+      ✅ No more datetime subtraction errors
+      
+      ═══════════════════════════════════════════════════════════════════
+      FIX #2: Add Missing GET /accounts/{id} Endpoint (CRITICAL)
+      ═══════════════════════════════════════════════════════════════════
+      
+      Problem:
+      - Testing blocked: Cannot verify account balance updates
+      - Only GET /accounts (list all) exists
+      - No GET /accounts/{id} to retrieve individual account
+      - Returned 405 Method Not Allowed
+      
+      Solution:
+      - Added new endpoint at server.py line 3044-3049
+      - Pattern: @api_router.get("/accounts/{account_id}", response_model=Account)
+      - Returns: Complete account with all fields including current_balance
+      - Error handling: Returns 404 if account not found
+      
+      Expected Result:
+      ✅ GET /accounts/{id} will return 200 OK with account details
+      ✅ Can verify account balance before and after operations
+      ✅ Bug Fix #1 (Account Balance Update) can now be tested
+      ✅ Frontend can display individual account details
+      
+      ═══════════════════════════════════════════════════════════════════
+      BACKEND STATUS:
+      ═══════════════════════════════════════════════════════════════════
+      ✅ Both fixes implemented successfully
+      ✅ Backend restarted without errors
+      ✅ Application startup complete
+      ✅ Running on port 8001
+      
+      ═══════════════════════════════════════════════════════════════════
+      TESTING REQUIREMENTS:
+      ═══════════════════════════════════════════════════════════════════
+      
+      Please conduct comprehensive testing to verify ALL 3 bug fixes:
+      
+      🧪 TEST #1: Outstanding Reports (NEWLY FIXED)
+      ──────────────────────────────────────────────
+      Endpoint: GET /api/reports/outstanding
+      
+      Expected:
+      ✅ Returns 200 OK (not 500 error)
+      ✅ Response contains vendor payables list
+      ✅ Each vendor has overdue buckets: overdue_0_7, overdue_8_30, overdue_31_plus
+      ✅ Calculations work without datetime errors
+      ✅ Overdue days calculated correctly
+      
+      Test Data Needed:
+      - Create finalized purchase with vendor payable
+      - Verify vendor appears in outstanding reports
+      - Verify overdue amount in correct bucket based on purchase date
+      
+      🧪 TEST #2: Account Detail Endpoint (NEWLY ADDED)
+      ───────────────────────────────────────────────
+      Endpoint: GET /accounts/{account_id}
+      
+      Expected:
+      ✅ Returns 200 OK with account details
+      ✅ Response includes: id, name, type, opening_balance, current_balance
+      ✅ Returns 404 for non-existent account
+      ✅ Requires authentication (403 without token)
+      
+      Test Data Needed:
+      - Get list of accounts from GET /api/accounts
+      - Pick an account ID
+      - Test GET /accounts/{id} endpoint
+      
+      🧪 TEST #3: Account Balance Update (PREVIOUSLY BLOCKED, NOW TESTABLE)
+      ──────────────────────────────────────────────────────────────────
+      Workflow: Purchase Creation → Finalization → Account Balance Verification
+      
+      Steps:
+      1. Get account balance BEFORE: GET /accounts/{id} → note current_balance
+      2. Create purchase with vendor, paid_amount_money = 500.0 OMR
+      3. Finalize purchase
+      4. Get account balance AFTER: GET /accounts/{id} → verify current_balance
+      
+      Expected:
+      ✅ Account balance decreases by EXACTLY 500.0 OMR
+      ✅ Transaction created with type "debit"
+      ✅ Transaction linked to account and purchase
+      ✅ current_balance reflects payment immediately
+      
+      🧪 COMPREHENSIVE VALIDATION:
+      ────────────────────────────
+      Target: 10/10 tests passed (100% success rate)
+      
+      Re-test from original test session:
+      1. Purchase creation (should still work)
+      2. Purchase finalization (should still work)
+      3. GET /api/purchases (already verified working - Bug #2)
+      4. Account balance update (NOW TESTABLE - Bug #1)
+      5. Outstanding reports (NOW FIXED - Bug #3)
+      6. Inventory impact (should still work)
+      7. Daily closing (should still work)
+      8. Audit trail (should still work)
+      
+      ═══════════════════════════════════════════════════════════════════
+      CRITICAL SUCCESS CRITERIA:
+      ═══════════════════════════════════════════════════════════════════
+      ✅ All 3 bug fixes verified working
+      ✅ Outstanding reports return vendor payables correctly
+      ✅ Account detail endpoint returns proper data
+      ✅ Account balance updates verified through new endpoint
+      ✅ No datetime timezone errors
+      ✅ No 500 server errors
+      ✅ 100% test success rate (10/10)
+      
+      Ready for comprehensive testing! 🚀
+
