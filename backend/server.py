@@ -3098,6 +3098,59 @@ async def add_payment_to_invoice(
         }
 
 
+@api_router.get("/invoices/{invoice_id}/impact")
+async def get_invoice_impact(invoice_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Get impact summary for invoice actions (finalization or deletion).
+    Shows decision-critical data: items, totals, linked data, what will be locked.
+    """
+    invoice = await db.invoices.find_one({"id": invoice_id, "is_deleted": False}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Get items breakdown
+    items = invoice.get("items", [])
+    total_items = len(items)
+    total_weight = sum(item.get("weight", 0) for item in items)
+    subtotal = invoice.get("subtotal", 0)
+    vat_total = invoice.get("vat_total", 0)
+    discount_amount = invoice.get("discount_amount", 0)
+    grand_total = invoice.get("grand_total", 0)
+    paid_amount = invoice.get("paid_amount", 0)
+    balance_due = invoice.get("balance_due", 0)
+    
+    # Check linked job card
+    linked_jobcard = None
+    if invoice.get("jobcard_id"):
+        jobcard = await db.jobcards.find_one(
+            {"id": invoice["jobcard_id"], "is_deleted": False},
+            {"_id": 0, "id": 1, "job_card_number": 1, "status": 1}
+        )
+        if jobcard:
+            linked_jobcard = jobcard
+    
+    # Build impact summary
+    impact = {
+        "invoice_number": invoice.get("invoice_number"),
+        "current_status": invoice.get("status", "draft"),
+        "customer_name": invoice.get("customer_name"),
+        "total_items": total_items,
+        "total_weight_grams": round(total_weight, 3),
+        "subtotal": round(subtotal, 2),
+        "vat_total": round(vat_total, 2),
+        "discount_amount": round(discount_amount, 2),
+        "grand_total": round(grand_total, 2),
+        "paid_amount": round(paid_amount, 2),
+        "balance_due": round(balance_due, 2),
+        "payment_status": invoice.get("payment_status", "unpaid"),
+        "has_linked_jobcard": linked_jobcard is not None,
+        "linked_jobcard": linked_jobcard if linked_jobcard else None,
+        "will_lock_jobcard": linked_jobcard is not None and invoice.get("status") == "draft",
+        "finalized_at": invoice.get("finalized_at")
+    }
+    
+    return impact
+
 @api_router.delete("/invoices/{invoice_id}")
 async def delete_invoice(invoice_id: str, current_user: User = Depends(get_current_user)):
     existing = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
