@@ -2046,6 +2046,15 @@ async def update_jobcard(jobcard_id: str, update_data: dict, current_user: User 
     if not existing:
         raise HTTPException(status_code=404, detail="Job card not found")
     
+    # Validate status transition if status is being changed
+    if "status" in update_data:
+        current_status = existing.get("status", "created")
+        new_status = update_data["status"]
+        
+        is_valid, error_msg = validate_status_transition("jobcard", current_status, new_status)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
+    
     # Check if job card is locked (linked to finalized invoice)
     if existing.get("locked", False):
         # Admin override: Allow admins to edit locked job cards
