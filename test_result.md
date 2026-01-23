@@ -102,6 +102,135 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
+user_problem_statement: "Fix error in Purchase page when new purchase is added. React runtime error: 'Objects are not valid as a React child (found: object with keys {type, loc, msg, input, url})'. This error occurs when trying to add a new purchase and validation errors are returned from the backend."
+
+frontend:
+  - task: "Fix error handling for Pydantic validation errors in PurchasesPage"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ROOT CAUSE IDENTIFIED AND FIXED:
+          When FastAPI returns Pydantic validation errors (422 status), the error response has this structure:
+          {
+            "detail": [
+              {"type": "...", "loc": ["body", "field"], "msg": "error message", "input": "...", "url": "..."}
+            ]
+          }
+          
+          The frontend was trying to render this array object directly in toast notifications:
+          const errorMsg = error.response?.data?.detail || 'Failed to save purchase';
+          toast.error(errorMsg); // This tries to render an array object, causing React error
+          
+          FIXES APPLIED:
+          1. Created utility function /app/frontend/src/utils/errorHandler.js with extractErrorMessage()
+             - Handles Pydantic validation errors (array format)
+             - Extracts field names and error messages
+             - Formats as readable string: "field: error message, field2: error message2"
+             - Handles string and object error formats as well
+          
+          2. Updated PurchasesPage.js error handling:
+             - Import extractErrorMessage utility
+             - Updated handleSavePurchase catch block to use extractErrorMessage(error, 'Failed to save purchase')
+             - Updated handleFinalizePurchase catch block to use extractErrorMessage(error, 'Failed to finalize purchase')
+          
+          3. Frontend successfully compiled and restarted with hot reload
+          
+          The fix ensures that validation error objects are properly converted to human-readable strings
+          before being displayed in toast notifications, preventing the React rendering error.
+
+  - task: "Create reusable error handler utility"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/utils/errorHandler.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Created utility function to handle API error responses consistently across the application.
+          
+          Features:
+          - Handles Pydantic validation errors (array format)
+          - Extracts field names from error.loc array
+          - Formats as "field: message, field2: message2"
+          - Handles string and object error formats
+          - Provides default message fallback
+          
+          This utility can be imported and used in other pages to prevent similar issues.
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Test PurchasesPage error handling with validation errors"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      PURCHASE PAGE ERROR FIX COMPLETED - Ready for Testing
+      
+      CONTEXT:
+      User reported React runtime error when adding new purchase:
+      "Objects are not valid as a React child (found: object with keys {type, loc, msg, input, url})"
+      
+      ROOT CAUSE:
+      FastAPI Pydantic validation errors return an array of error objects in the detail field.
+      Frontend was trying to render this array directly in toast notification, causing React error.
+      
+      SOLUTION IMPLEMENTED:
+      1. Created utility function extractErrorMessage() in /app/frontend/src/utils/errorHandler.js
+      2. Updated PurchasesPage.js to use this utility in both error handlers
+      3. Frontend compiled successfully and is running
+      
+      TESTING NEEDED:
+      Please test the following scenarios in PurchasesPage:
+      
+      1. ✅ Valid Purchase Creation:
+         - Fill all required fields correctly
+         - Verify purchase is created successfully
+         - Verify success toast is shown
+      
+      2. ✅ Validation Error - Missing Description:
+         - Leave description field empty
+         - Try to create purchase
+         - Verify error message is displayed as readable text (not object)
+         - Verify no React runtime error occurs
+      
+      3. ✅ Validation Error - Invalid Weight:
+         - Enter zero or negative weight
+         - Try to create purchase
+         - Verify error message is displayed properly
+      
+      4. ✅ Validation Error - Invalid Vendor:
+         - Test with invalid vendor ID if possible
+         - Verify 404 error message is displayed properly
+      
+      5. ✅ Finalize Purchase Error:
+         - Try to finalize an already finalized purchase
+         - Verify error message is displayed properly
+      
+      CRITICAL VERIFICATION:
+      - No React runtime errors about "Objects are not valid as a React child"
+      - Error messages are displayed as readable strings
+      - Field names are included in validation error messages
+      - All error scenarios show user-friendly messages
+
 user_problem_statement: "Fix pagination-related runtime error: jobcards.map is not a function"
 
 backend:
