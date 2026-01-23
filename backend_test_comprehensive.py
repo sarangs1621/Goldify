@@ -498,10 +498,10 @@ class GoldShopERPTester:
         """Test pagination functionality"""
         print("📄 Testing Pagination...")
         
-        # Test pagination on major endpoints
+        # Test pagination on major endpoints (only those that actually support pagination)
         endpoints_to_test = [
             "parties", "jobcards", "invoices", "transactions", 
-            "purchases", "daily-closings"
+            "purchases"
         ]
         
         for endpoint in endpoints_to_test:
