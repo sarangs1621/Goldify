@@ -102,6 +102,173 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
+user_problem_statement: "End-to-End Testing of Purchases Module - Verify purchase creation, stock addition, finance impact, reports, and audit logging consistency across Inventory, Finance, Reports, and Daily Closing modules"
+
+backend:
+  - task: "Purchase Creation API"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to test purchase creation with vendor, weight, purity, rate, payment details"
+  
+  - task: "Inventory Stock Update on Purchase"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify stock increases by purchase weight and valuation purity stored as 916 (22K)"
+  
+  - task: "Finance Transaction on Purchase Payment"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify debit transaction created for payment amount"
+  
+  - task: "Vendor Outstanding Update"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify vendor payable balance updated correctly (Total - Paid)"
+  
+  - task: "Audit Log Creation"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify audit logs created for purchase, stock movement, and finance transaction"
+
+frontend:
+  - task: "Purchase Creation Form"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to test purchase form with all required fields and finalization"
+  
+  - task: "Purchase Records Display"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify purchase record shows correct status, amount, paid, balance"
+  
+  - task: "Inventory Display & Recent Movements"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify stock increase and movement record with correct type and weight"
+  
+  - task: "Finance Accounts & Transactions Display"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify cash account decrease and debit transaction with correct category"
+  
+  - task: "Reports - Outstanding, Purchase History, Overview"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify all reports show updated data after purchase"
+  
+  - task: "Daily Closing Impact"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify daily closing reflects purchase payment in debit and expected closing"
+  
+  - task: "Audit Logs Display"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to verify audit logs show purchase creation, stock movement, and finance transaction"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Purchase Creation Form"
+    - "End-to-End Purchase Flow"
+    - "Cross-Module Verification"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "sequential"
+
+agent_communication:
+  - agent: "main"
+    message: "Services restarted and running. Ready to test end-to-end Purchases Module flow. Test will create a purchase with specific details (50g gold, 999 purity, 25 OMR/g, 1000 OMR paid out of 1250 OMR total) and verify impact across all related modules: Purchases, Inventory, Finance, Reports, Daily Closing, and Audit Logs."
+
 user_problem_statement: "Gold Shop ERP System - Comprehensive jewelry/gold business management with inventory, job cards, invoicing, parties, transactions, accounts, and daily closing features"
 
 backend:
