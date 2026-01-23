@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
 """
-CRITICAL BUG FIX VERIFICATION - Comprehensive Backend Testing
-Testing all 3 critical bug fixes:
-1. Outstanding Reports Timezone Error (Bug Fix #3) - PRIORITY 1
-2. Account Detail Endpoint (New Feature) - PRIORITY 2  
-3. Account Balance Update After Purchase Finalization (Bug Fix #1) - PRIORITY 3 (MOST CRITICAL)
-4. GET /api/purchases Serialization Error (Bug Fix #2) - PRIORITY 4
+COMPREHENSIVE BUG FIX VERIFICATION - Test All 3 Critical Bug Fixes
+
+CONTEXT:
+Previous testing identified 3 critical bugs. TWO fixes were verified working (Bug #3 timezone error, Bug #2 missing endpoint). 
+Bug #1 was BLOCKED by ObjectId serialization error. A NEW FIX has been applied to resolve the ObjectId serialization issue.
+
+CRITICAL FIXES APPLIED:
+1. ✅ Fixed datetime timezone handling (lines 4090-4092, 4151-4153)
+2. ✅ Added GET /accounts/{account_id} endpoint (lines 3048-3054)  
+3. ✅ Fixed ObjectId serialization in decimal_to_float() function (line 45)
+
+TESTING PRIORITIES:
+1. Bug #1 (HIGHEST) - Previously blocked, needs full verification
+2. Bug #2 (MEDIUM) - Re-confirm still working after new fix
+3. Bug #3 (LOW) - Re-confirm still working (was already verified)
 """
 
 import requests
@@ -13,7 +22,7 @@ import json
 from datetime import datetime
 import time
 
-# Configuration
+# Configuration - Read from frontend/.env
 BASE_URL = "https://bugfix-progress-1.preview.emergentagent.com/api"
 USERNAME = "admin"
 PASSWORD = "admin123"
