@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { FileText, Printer, CheckCircle, Lock, DollarSign, AlertTriangle } from 'lucide-react';
+import { FileText, Printer, CheckCircle, Lock, DollarSign, AlertTriangle, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -18,7 +18,9 @@ export default function InvoicesPage() {
   const [accounts, setAccounts] = useState([]);
   const [finalizing, setFinalizing] = useState(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [viewInvoice, setViewInvoice] = useState(null);
   const [paymentData, setPaymentData] = useState({
     amount: '',
     payment_mode: 'Cash',
