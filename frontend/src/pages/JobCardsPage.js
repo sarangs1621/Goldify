@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, FileText, Trash2, Edit, AlertTriangle, Save, FolderOpen, Settings } from 'lucide-react';
+import { Plus, FileText, Trash2, Edit, AlertTriangle, Save, FolderOpen, Settings, CheckCircle, Truck } from 'lucide-react';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 
 export default function JobCardsPage() {
