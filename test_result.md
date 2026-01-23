@@ -8723,4 +8723,203 @@ agent_communication:
       ✅ 100% test success rate (10/10)
       
       Ready for comprehensive testing! 🚀
+  - agent: "main"
+    message: |
+      🔥 CRITICAL BUG FIXES READY FOR COMPREHENSIVE TESTING - ALL 3 FIXES IMPLEMENTED
+      
+      CONTEXT:
+      Previous testing session identified 3 critical bugs that needed immediate attention.
+      All fixes have now been implemented and are ready for comprehensive verification.
+      
+      ================================================================================
+      IMPLEMENTATION SUMMARY - ALL FIXES COMPLETE
+      ================================================================================
+      
+      ✅ BUG FIX #1: Account Balance Update After Purchase Finalization
+      STATUS: IMPLEMENTED - NEEDS TESTING
+      LOCATION: server.py lines 1814-1820
+      WHAT WAS FIXED:
+      - Added account balance update when purchase is finalized with payment
+      - Account current_balance decreases when money is paid to vendor (debit)
+      - Uses MongoDB $inc for atomic balance updates
+      - Delta is negative for debit transactions (money going out)
+      
+      ✅ BUG FIX #2: GET /api/purchases Serialization Error
+      STATUS: ALREADY VERIFIED WORKING
+      PREVIOUS TEST RESULT: Returns 200 OK with proper pagination structure
+      NO RETESTING NEEDED: Already confirmed working in previous session
+      
+      ✅ BUG FIX #3: Outstanding Reports Datetime Timezone Error
+      STATUS: IMPLEMENTED - NEEDS TESTING
+      LOCATION: server.py lines 4091-4092 and 4151-4153
+      WHAT WAS FIXED:
+      - Added timezone awareness check before datetime subtraction
+      - Converts naive datetimes to UTC timezone-aware
+      - Prevents TypeError: "can't subtract offset-naive and offset-aware datetimes"
+      - Applied to both invoice and vendor payable overdue calculations
+      
+      ✅ NEW ENDPOINT: GET /api/accounts/{account_id}
+      STATUS: IMPLEMENTED - NEEDS TESTING
+      LOCATION: server.py lines 3048-3054
+      PURPOSE: Required for verifying account balance changes
+      FUNCTIONALITY: Returns single account by ID (complements list endpoint)
+      
+      ================================================================================
+      COMPREHENSIVE TESTING REQUIRED - PRIORITY ORDER
+      ================================================================================
+      
+      🔥 TEST PRIORITY 1: Outstanding Reports (Bug Fix #3)
+      ENDPOINT: GET /api/reports/outstanding
+      CRITICAL VERIFICATION:
+      ✓ Returns 200 OK (not 500 Internal Server Error)
+      ✓ Response contains vendor_payables array
+      ✓ Response contains invoice_receivables array
+      ✓ No TypeError or timezone-related errors
+      ✓ Overdue calculations present: overdue_0_7, overdue_8_30, overdue_31_plus
+      
+      🔥 TEST PRIORITY 2: Account Detail Endpoint (New Feature)
+      ENDPOINT: GET /api/accounts/{account_id}
+      VERIFICATION STEPS:
+      1. Get list of accounts: GET /api/accounts
+      2. Extract an account_id from the list
+      3. Call GET /api/accounts/{account_id} with valid ID
+      4. Verify returns 200 OK with complete account object
+      5. Verify response includes: id, name, type, opening_balance, current_balance
+      6. Test with invalid ID → verify 404 Not Found
+      
+      🔥 TEST PRIORITY 3: Account Balance Update (Bug Fix #1)
+      COMPREHENSIVE WORKFLOW TEST:
+      
+      PRE-CONDITIONS:
+      - At least one Cash or Bank account exists
+      - At least one Vendor party exists
+      - Note the initial account balance
+      
+      TEST STEPS:
+      STEP 1: Create New Purchase
+      - POST /api/purchases with:
+        * vendor_party_id: {valid_vendor_id}
+        * description: "Test gold purchase for balance update verification"
+        * weight_grams: 100.5
+        * purity_karats: 916
+        * rate_per_gram_omr: 45.00
+        * total_amount_omr: 4522.50 (calculated: 100.5 * 45.00)
+      - Verify returns 200 OK with purchase_id
+      - Verify status = "draft"
+      
+      STEP 2: Check Account Balance Before Finalization
+      - GET /api/accounts/{account_id}
+      - Record current_balance (e.g., initial_balance = 10000.00 OMR)
+      
+      STEP 3: Finalize Purchase with Payment
+      - POST /api/purchases/{purchase_id}/finalize with:
+        * finalize_data:
+          - paid_amount: 2500.00 (partial payment to vendor)
+          - payment_mode: "cash" or "bank_transfer"
+          - account_id: {the_account_id_from_step_2}
+          - notes: "Test payment for purchase finalization balance update"
+      - Verify returns 200 OK
+      - Verify response contains:
+        * purchase status = "finalized"
+        * payment_transaction_id (transaction created)
+      
+      STEP 4: Verify Account Balance Decreased (CRITICAL TEST)
+      - GET /api/accounts/{account_id}
+      - Verify current_balance = 7500.00 OMR (10000.00 - 2500.00)
+      - ✅ Balance must have decreased by EXACTLY 2500.00 OMR
+      - ✅ This proves account balance update is working
+      
+      STEP 5: Verify Transaction Created
+      - GET /api/transactions?account_id={account_id}&category=Purchase Payment
+      - Find the transaction created during finalization
+      - Verify transaction fields:
+        * transaction_type = "debit" (money going out)
+        * category = "Purchase Payment"
+        * amount = 2500.00
+        * account_id = {the_account_id}
+        * party_id = {vendor_party_id}
+        * reference_type = "purchase"
+        * reference_id = {purchase_id}
+      
+      STEP 6: Test Full Payment Scenario
+      - Create another purchase: 1000.00 OMR total
+      - Check account balance: current = 7500.00 OMR
+      - Finalize with full payment: paid_amount = 1000.00 OMR
+      - Verify account balance = 6500.00 OMR (7500.00 - 1000.00)
+      - ✅ Full payment balance update working
+      
+      STEP 7: Test Zero Payment Scenario
+      - Create another purchase: 500.00 OMR total
+      - Finalize with paid_amount = 0 (no payment yet)
+      - Verify account balance = 6500.00 OMR (unchanged)
+      - ✅ Zero payment doesn't affect balance (correct behavior)
+      
+      🔥 TEST PRIORITY 4: GET /api/purchases Serialization (Quick Retest)
+      ENDPOINT: GET /api/purchases
+      VERIFICATION:
+      ✓ Returns 200 OK (not 500 error)
+      ✓ Response structure: {items: [], pagination: {}}
+      ✓ All purchases properly serialized
+      ✓ No ObjectId or Decimal serialization errors
+      (This should still be working - quick verification only)
+      
+      ================================================================================
+      EXPECTED TESTING OUTCOMES
+      ================================================================================
+      
+      TARGET: 10/10 TESTS PASSING (100% SUCCESS RATE)
+      
+      ✅ TEST 1: Outstanding reports return 200 OK without timezone errors
+      ✅ TEST 2: Outstanding reports contain proper vendor payables data
+      ✅ TEST 3: Outstanding reports contain proper invoice receivables data
+      ✅ TEST 4: GET /api/accounts/{account_id} returns valid account
+      ✅ TEST 5: GET /api/accounts/{invalid_id} returns 404
+      ✅ TEST 6: Account balance decreases after purchase payment (partial)
+      ✅ TEST 7: Account balance decreases after purchase payment (full)
+      ✅ TEST 8: Account balance unchanged when payment = 0
+      ✅ TEST 9: Transaction record created with correct debit type
+      ✅ TEST 10: GET /api/purchases continues working without serialization errors
+      
+      ================================================================================
+      BACKEND STATUS
+      ================================================================================
+      
+      ✅ Backend service: Running on port 8001
+      ✅ All fixes: Implemented and deployed
+      ✅ Code changes: Complete and ready
+      ✅ Endpoints: All accessible
+      
+      ================================================================================
+      CRITICAL TESTING NOTES
+      ================================================================================
+      
+      1. USE AUTHENTICATION: All endpoints require JWT authentication
+         Test credentials: username=admin, password=admin123
+      
+      2. USE BACKEND URL: https://account-balance-fix.preview.emergentagent.com/api
+      
+      3. TEST ORDER MATTERS:
+         - Start with Outstanding Reports (most critical fix)
+         - Then test Account Detail endpoint (enables balance testing)
+         - Then test Account Balance Update (most complex workflow)
+         - Finally retest Purchases endpoint (quick verification)
+      
+      4. ACCOUNT BALANCE TESTING IS CRITICAL:
+         - The balance must decrease by EXACT payment amount
+         - No rounding errors, no missing updates
+         - This was the core bug that needed fixing
+      
+      5. IF ANY TEST FAILS:
+         - Report the specific endpoint and error message
+         - Include request/response details
+         - Main agent will investigate and fix immediately
+      
+      ================================================================================
+      READY FOR COMPREHENSIVE TESTING
+      ================================================================================
+      
+      All 3 bug fixes have been implemented with proper error handling and atomic operations.
+      The code is production-ready pending successful test verification.
+      
+      Please proceed with comprehensive backend testing to verify all fixes are working correctly.
 
