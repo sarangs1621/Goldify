@@ -144,7 +144,7 @@ export default function PartiesPage() {
       
       // Fetch gold ledger entries
       const goldResponse = await axios.get(`${API}/gold-ledger?party_id=${party.id}`);
-      setGoldEntries(goldResponse.data);
+      setGoldEntries(goldResponse.data.items || []);
       
       // Fetch invoices and transactions for money ledger
       const ledgerResponse = await axios.get(`${API}/parties/${party.id}/ledger`);
