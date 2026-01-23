@@ -288,16 +288,19 @@ class CriticalBugFixTester:
             print("   STEP 2: Create Purchase")
             
             purchase_data = {
-                "vendor_id": vendor_id,
+                "vendor_party_id": vendor_id,
                 "description": "Test purchase for account balance verification",
                 "weight_grams": 50.0,
                 "purity": 916,
+                "entered_purity": 916,
                 "rate_per_gram": 50.0,
                 "amount": 2500.0,
+                "amount_total": 2500.0,
                 "paid_amount_money": 1000.0,
-                "paid_via_account": account_id,
+                "account_id": account_id,
                 "balance_due_money": 1500.0,
-                "notes": "Critical bug fix verification test"
+                "notes": "Critical bug fix verification test",
+                "created_by": "admin"
             }
             
             response = self.session.post(f"{BASE_URL}/purchases", json=purchase_data)
