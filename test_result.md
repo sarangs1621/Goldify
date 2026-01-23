@@ -7818,3 +7818,285 @@ agent_communication:
       
       Navigate to: Invoices page
       Test both draft and finalized invoices to verify view functionality works for all invoice types.
+
+user_problem_statement: "Fix 3 Critical Bugs in Purchases Module identified by testing agent: 1) Account Balance NOT updated after purchase payment, 2) GET /api/purchases serialization error (ObjectId not iterable), 3) Vendor payables from purchases not appearing in outstanding reports"
+
+backend:
+  - task: "Fix Account Balance Update in Purchase Finalization"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ❌ CRITICAL BUG IDENTIFIED IN PREVIOUS TESTING:
+          Purchase finalization creates payment transactions but DOES NOT update account balance.
+          - Expected: Account balance should decrease by 1000.0 OMR after payment
+          - Actual: Account balance remains unchanged (10000.0 OMR)
+          - Root Cause: Missing account balance update code after line 1803
+          - Impact: Financial records inconsistent, accounting reconciliation broken
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ CRITICAL FIX IMPLEMENTED:
+          Added account balance update logic in purchase finalization endpoint after payment transaction creation.
+          
+          Location: /app/backend/server.py, lines ~1805-1811 (after line 1803)
+          
+          Code Added:
+          ```python
+          # CRITICAL FIX: Update account balance when payment is made to vendor
+          # Debit transaction decreases the account balance (money going out)
+          delta = -payment_transaction.amount  # Negative for debit (money out)
+          await db.accounts.update_one(
+              {"id": purchase["account_id"]}, 
+              {"$inc": {"current_balance": delta}}
+          )
+          ```
+          
+          Implementation Details:
+          - Uses MongoDB atomic $inc operation for safety
+          - Delta is negative for debit transactions (money going out to vendor)
+          - Updates account balance immediately after transaction creation
+          - Mirrors the fix pattern used in invoice payment integration (tested and working)
+          
+          Expected Result After Fix:
+          - When purchase with paid_amount_money = 1000.0 OMR is finalized
+          - Payment transaction (debit) is created ✅
+          - Account balance decreases by EXACTLY 1000.0 OMR ✅
+          - Financial integrity maintained ✅
+
+  - task: "Fix GET /api/purchases Serialization Error"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ❌ CRITICAL BUG IDENTIFIED IN PREVIOUS TESTING:
+          GET /api/purchases returns 500 Internal Server Error
+          - Error: "ObjectId object is not iterable" serialization error
+          - Root Cause: Purchase data not processed through decimal_to_float() function
+          - Impact: Cannot retrieve purchase records, breaking purchase management workflow
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ CRITICAL FIX IMPLEMENTED:
+          Added decimal_to_float() processing to purchases endpoint response.
+          
+          Location: /app/backend/server.py, lines ~1586-1588
+          
+          Code Added:
+          ```python
+          # CRITICAL FIX: Process purchases through decimal_to_float to handle Decimal serialization
+          purchases = [decimal_to_float(p) for p in purchases]
+          ```
+          
+          Implementation Details:
+          - Processes each purchase document through decimal_to_float() helper
+          - Converts Decimal128 MongoDB types to native Python floats
+          - Ensures proper JSON serialization without ObjectId errors
+          - Applied before returning pagination response
+          
+          Expected Result After Fix:
+          - GET /api/purchases returns 200 OK with proper JSON ✅
+          - No serialization errors ✅
+          - All purchase records retrievable ✅
+          - Purchase management workflow functional ✅
+
+  - task: "Fix Outstanding Reports - Include Vendor Payables from Purchases"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: |
+          ❌ BUG IDENTIFIED IN PREVIOUS TESTING:
+          Vendor not appearing in outstanding reports after purchase finalization
+          - Expected: Vendor should show 250.0 OMR payable in outstanding report
+          - Actual: Vendor not listed in report
+          - Root Cause: Outstanding report only processes invoices, not purchase transactions
+          - Impact: Vendor payable tracking incomplete
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ FIX IMPLEMENTED:
+          Enhanced outstanding reports endpoint to include vendor payables from purchase transactions.
+          
+          Location: /app/backend/server.py, lines ~4004-4007 and ~4089-4144
+          
+          Changes Made:
+          
+          1. Updated transaction query to include "Purchase" category:
+          ```python
+          # CRITICAL FIX: Include "Purchase" category for vendor payables from purchase finalization
+          transactions = await db.transactions.find(
+              {"is_deleted": False, "category": {"$in": ["Sales Invoice", "Purchase Invoice", "Purchase"]}},
+              {"_id": 0}
+          ).to_list(10000)
+          ```
+          
+          2. Added vendor payables processing logic after invoice processing:
+          ```python
+          # CRITICAL FIX: Process Purchase transactions to add vendor payables from purchase finalization
+          # These are credit transactions (we owe vendor) with category "Purchase" and transaction_type "credit"
+          for txn in transactions:
+              if txn.get('category') == 'Purchase' and txn.get('transaction_type') == 'credit':
+                  # Initialize vendor in party_data if not exists
+                  # Add outstanding amounts
+                  # Calculate overdue buckets (0-7, 8-30, 31+ days)
+          ```
+          
+          Implementation Details:
+          - Processes credit transactions with category "Purchase" (vendor payables created during purchase finalization)
+          - Adds vendors to party_data structure if not already present
+          - Calculates overdue amounts in same buckets as invoices (0-7, 8-30, 31+ days)
+          - Respects party_id and party_type filters
+          - Includes vendor payables in vendor_payable summary total
+          
+          Expected Result After Fix:
+          - Vendor appears in outstanding report after purchase finalization ✅
+          - Shows correct payable amount (e.g., 250.0 OMR) ✅
+          - Overdue calculations work correctly ✅
+          - Vendor payable tracking complete ✅
+
+metadata:
+  created_by: "main_agent"
+  version: "1.1"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Fix Account Balance Update in Purchase Finalization"
+    - "Fix GET /api/purchases Serialization Error"
+    - "Fix Outstanding Reports - Include Vendor Payables from Purchases"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "critical_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      🔧 CRITICAL BUG FIXES COMPLETED - Ready for Comprehensive Testing
+      
+      CONTEXT:
+      Testing agent identified 3 critical bugs in Purchases module during comprehensive testing:
+      - Success Rate: 7/10 tests passed (70%)
+      - Critical Issues: 3 bugs requiring immediate attention
+      - Production Readiness: BLOCKED until fixes verified
+      
+      FIXES IMPLEMENTED:
+      
+      ========================================================================
+      1. ✅ ACCOUNT BALANCE UPDATE FIX (CRITICAL PRIORITY)
+      ========================================================================
+      Issue: Purchase finalization created transactions but didn't update account balance
+      Fix: Added account balance update logic using MongoDB $inc operator
+      Location: /app/backend/server.py lines ~1805-1811
+      Pattern: Mirrors invoice payment fix (tested and working)
+      
+      ========================================================================
+      2. ✅ SERIALIZATION ERROR FIX (CRITICAL PRIORITY)
+      ========================================================================
+      Issue: GET /api/purchases returned 500 error due to ObjectId serialization
+      Fix: Added decimal_to_float() processing to purchases list
+      Location: /app/backend/server.py lines ~1586-1588
+      Pattern: Standard approach used in other endpoints
+      
+      ========================================================================
+      3. ✅ OUTSTANDING REPORTS FIX (HIGH PRIORITY)
+      ========================================================================
+      Issue: Vendor payables from purchases not appearing in outstanding reports
+      Fix: Enhanced report to process Purchase transactions with credit type
+      Location: /app/backend/server.py lines ~4004-4007 and ~4089-4144
+      Pattern: Processes vendor payables alongside invoice data
+      
+      BACKEND STATUS:
+      ✅ All fixes implemented and backend restarted successfully
+      ✅ No syntax errors or startup issues
+      ✅ Backend running on port 8001
+      
+      TESTING REQUIRED:
+      Please conduct comprehensive testing to verify all 3 fixes:
+      
+      📋 TEST SCENARIO 1: Account Balance Update
+      ─────────────────────────────────────────────
+      Pre-conditions:
+      - Create test account with known balance (e.g., 10000.0 OMR)
+      - Create test vendor
+      
+      Test Steps:
+      1. Create purchase with paid_amount_money = 1000.0 OMR
+      2. Finalize the purchase
+      3. Verify account balance decreased by EXACTLY 1000.0 OMR
+      4. Verify payment transaction created with correct details
+      
+      Expected Results:
+      ✅ Account balance: 10000.0 → 9000.0 OMR (decrease of 1000.0)
+      ✅ Payment transaction (debit) created successfully
+      ✅ Transaction linked to correct account and purchase
+      ✅ Financial integrity maintained
+      
+      📋 TEST SCENARIO 2: Purchases Endpoint Serialization
+      ─────────────────────────────────────────────────────
+      Test Steps:
+      1. Call GET /api/purchases
+      2. Verify 200 OK response (not 500 error)
+      3. Verify JSON structure with items array
+      4. Verify all purchase fields properly serialized
+      
+      Expected Results:
+      ✅ GET /api/purchases returns 200 OK
+      ✅ Response structure: {items: [], pagination: {}}
+      ✅ All Decimal fields converted to floats
+      ✅ No ObjectId serialization errors
+      
+      📋 TEST SCENARIO 3: Outstanding Reports Integration
+      ────────────────────────────────────────────────────
+      Test Steps:
+      1. Create purchase with balance_due_money = 250.0 OMR
+      2. Finalize purchase (creates vendor payable transaction)
+      3. Call GET /api/reports/outstanding
+      4. Verify vendor appears in report with correct payable amount
+      5. Verify overdue calculations work correctly
+      
+      Expected Results:
+      ✅ Vendor appears in outstanding report parties list
+      ✅ Shows correct payable amount (250.0 OMR)
+      ✅ party_type = "vendor"
+      ✅ Overdue buckets calculated correctly based on purchase date
+      ✅ Vendor payable included in summary totals
+      
+      📋 COMPREHENSIVE VALIDATION:
+      ────────────────────────────
+      - Re-run ALL 10 tests from previous testing session
+      - Target: 10/10 tests passed (100% success rate)
+      - Verify: All atomic operations work together correctly
+      - Confirm: Production readiness achieved
+      
+      CRITICAL SUCCESS CRITERIA:
+      ✅ Account balances update immediately after purchase finalization
+      ✅ GET /api/purchases returns valid JSON without errors
+      ✅ Vendor payables appear in outstanding reports
+      ✅ All purchase workflow operations work end-to-end
+      ✅ Financial data integrity maintained
+      ✅ Audit trail complete
+      
+      PREVIOUS TESTING RESULTS (for reference):
+      ✅ Working: Authentication, Purchase Creation, Finalization atomicity, Inventory Impact, Daily Closing, Audit Trail
+      ❌ Broken (NOW FIXED): Account balance update, Purchases serialization, Outstanding reports
+      
+      Ready for comprehensive testing to verify all fixes!
