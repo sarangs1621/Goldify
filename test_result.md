@@ -1564,12 +1564,28 @@ backend:
 
   - task: "Bug Fix #2 Re-confirmation: GET /api/purchases Serialization"
     implemented: true
-    working: false
+    working: "needs_testing"
     file: "/app/backend/server.py"
     stuck_count: 1
     priority: "medium"
     needs_retesting: true
     status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          🔧 OBJECTID SERIALIZATION FIX APPLIED
+          
+          Fixed ObjectId serialization issue in decimal_to_float() function:
+          - Added ObjectId handling: elif isinstance(obj, ObjectId): return str(obj)
+          - Removed incompatible pydantic.json.ENCODERS_BY_TYPE line (Pydantic v1 syntax)
+          - Backend restarted successfully with new fix
+          
+          TESTING REQUIRED:
+          Verify GET /api/purchases endpoint works correctly:
+          1. Returns 200 OK (not 500 or 520 error)
+          2. Response structure: {items: [], pagination: {}}
+          3. All purchase objects properly serialized
+          4. No ObjectId serialization errors in logs
       - working: false
         agent: "testing"
         comment: |
