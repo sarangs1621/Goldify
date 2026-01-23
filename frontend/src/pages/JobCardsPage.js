@@ -426,7 +426,7 @@ export default function JobCardsPage() {
   const handleDeleteJobCard = async (jobcardId, jobcardNumber) => {
     // Load impact data first
     try {
-      const impactRes = await axios.get(`${API}/jobcards/${jobcardId}/impact`);
+      const impactRes = await axios.get(`${API}/jobcards/${jobcardId}/delete-impact`);
       const impact = impactRes.data;
       
       setConfirmDialog({
@@ -444,6 +444,70 @@ export default function JobCardsPage() {
             loadData();
           } catch (error) {
             const errorMsg = error.response?.data?.detail || 'Failed to delete job card';
+            toast.error(errorMsg);
+            setConfirmDialog(prev => ({ ...prev, loading: false }));
+          }
+        },
+        loading: false
+      });
+    } catch (error) {
+      toast.error('Failed to load job card details');
+    }
+  };
+
+  const handleCompleteJobCard = async (jobcardId, jobcardNumber) => {
+    // Load impact data first
+    try {
+      const impactRes = await axios.get(`${API}/jobcards/${jobcardId}/complete-impact`);
+      const impact = impactRes.data;
+      
+      setConfirmDialog({
+        open: true,
+        type: 'status_change',
+        title: 'Complete Job Card',
+        description: `Mark job card ${jobcardNumber} as completed? This will update the status from "In Progress" to "Completed".`,
+        impact: impact,
+        action: async () => {
+          try {
+            setConfirmDialog(prev => ({ ...prev, loading: true }));
+            await axios.patch(`${API}/jobcards/${jobcardId}`, { status: 'completed' });
+            toast.success('Job card marked as completed');
+            setConfirmDialog(prev => ({ ...prev, open: false, loading: false }));
+            loadData();
+          } catch (error) {
+            const errorMsg = error.response?.data?.detail || 'Failed to complete job card';
+            toast.error(errorMsg);
+            setConfirmDialog(prev => ({ ...prev, loading: false }));
+          }
+        },
+        loading: false
+      });
+    } catch (error) {
+      toast.error('Failed to load job card details');
+    }
+  };
+
+  const handleDeliverJobCard = async (jobcardId, jobcardNumber) => {
+    // Load impact data first
+    try {
+      const impactRes = await axios.get(`${API}/jobcards/${jobcardId}/deliver-impact`);
+      const impact = impactRes.data;
+      
+      setConfirmDialog({
+        open: true,
+        type: 'status_change',
+        title: 'Deliver Job Card',
+        description: `Mark job card ${jobcardNumber} as delivered? This will finalize the job card and the customer has received their items.`,
+        impact: impact,
+        action: async () => {
+          try {
+            setConfirmDialog(prev => ({ ...prev, loading: true }));
+            await axios.patch(`${API}/jobcards/${jobcardId}`, { status: 'delivered' });
+            toast.success('Job card marked as delivered');
+            setConfirmDialog(prev => ({ ...prev, open: false, loading: false }));
+            loadData();
+          } catch (error) {
+            const errorMsg = error.response?.data?.detail || 'Failed to deliver job card';
             toast.error(errorMsg);
             setConfirmDialog(prev => ({ ...prev, loading: false }));
           }
