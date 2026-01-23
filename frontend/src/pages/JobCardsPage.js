@@ -646,74 +646,64 @@ export default function JobCardsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Card Type</Label>
-                <Select value={formData.card_type} onValueChange={(val) => setFormData({...formData, card_type: val})}>
-                  <SelectTrigger data-testid="card-type-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="template">Template</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {/* Saved Customer Section */}
-              {formData.customer_type === 'saved' && (
-                <div>
-                  <Label>Customer *</Label>
-                  <Select value={formData.customer_id} onValueChange={(val) => {
-                    const selected = parties.find(p => p.id === val);
-                    setFormData({
-                      ...formData, 
-                      customer_id: val,
-                      customer_name: selected?.name || ''
-                    });
-                  }}>
-                    <SelectTrigger data-testid="customer-select">
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {parties.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ✓ Ledger tracking and outstanding balance enabled
-                  </p>
-                </div>
-              )}
-              
-              {/* Walk-in Customer Section */}
-              {formData.customer_type === 'walk_in' && (
-                <>
-                  <div>
-                    <Label>Customer Name *</Label>
-                    <Input
-                      data-testid="walk-in-name-input"
-                      value={formData.walk_in_name}
-                      onChange={(e) => setFormData({...formData, walk_in_name: e.target.value})}
-                      placeholder="Enter customer name"
-                    />
-                  </div>
-                  <div>
-                    <Label>Phone Number</Label>
-                    <Input
-                      data-testid="walk-in-phone-input"
-                      value={formData.walk_in_phone}
-                      onChange={(e) => setFormData({...formData, walk_in_phone: e.target.value})}
-                      placeholder="Enter phone (optional)"
-                    />
-                    <p className="text-xs text-amber-600 mt-1">
-                      ⚠ Walk-in customers are NOT saved in Parties
+            {/* Grid for Card Type and Customer Selection - Hide for templates */}
+            {!saveAsTemplate && !editingTemplate && (
+              <div className="grid grid-cols-2 gap-4">
+                {/* Saved Customer Section */}
+                {formData.customer_type === 'saved' && (
+                  <div className="col-span-2">
+                    <Label>Customer *</Label>
+                    <Select value={formData.customer_id} onValueChange={(val) => {
+                      const selected = parties.find(p => p.id === val);
+                      setFormData({
+                        ...formData, 
+                        customer_id: val,
+                        customer_name: selected?.name || ''
+                      });
+                    }}>
+                      <SelectTrigger data-testid="customer-select">
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {parties.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ✓ Ledger tracking and outstanding balance enabled
                     </p>
                   </div>
-                </>
-              )}
-            </div>
+                )}
+                
+                {/* Walk-in Customer Section */}
+                {formData.customer_type === 'walk_in' && (
+                  <>
+                    <div>
+                      <Label>Customer Name *</Label>
+                      <Input
+                        data-testid="walk-in-name-input"
+                        value={formData.walk_in_name}
+                        onChange={(e) => setFormData({...formData, walk_in_name: e.target.value})}
+                        placeholder="Enter customer name"
+                      />
+                    </div>
+                    <div>
+                      <Label>Phone Number</Label>
+                      <Input
+                        data-testid="walk-in-phone-input"
+                        value={formData.walk_in_phone}
+                        onChange={(e) => setFormData({...formData, walk_in_phone: e.target.value})}
+                        placeholder="Enter phone (optional)"
+                      />
+                      <p className="text-xs text-amber-600 mt-1">
+                        ⚠ Walk-in customers are NOT saved in Parties
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             
             <div className="grid grid-cols-2 gap-4">
               <div>
