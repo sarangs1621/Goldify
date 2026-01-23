@@ -90,6 +90,38 @@ export default function FinancePage() {
     }
   };
 
+  const handleDeleteClick = (transaction) => {
+    setTransactionToDelete(transaction);
+    setShowDeleteConfirmation(true);
+    setDeleteReason('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteReason.trim()) {
+      toast.error('Please provide a reason for deletion');
+      return;
+    }
+
+    try {
+      await axios.delete(`${API}/transactions/${transactionToDelete.id}`, {
+        data: { reason: deleteReason }
+      });
+      toast.success('Transaction deleted successfully');
+      setShowDeleteConfirmation(false);
+      setTransactionToDelete(null);
+      setDeleteReason('');
+      loadData();
+    } catch (error) {
+      toast.error('Failed to delete transaction');
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirmation(false);
+    setTransactionToDelete(null);
+    setDeleteReason('');
+  };
+
   return (
     <div data-testid="finance-page">
       <div className="mb-8">
