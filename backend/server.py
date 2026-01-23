@@ -1726,6 +1726,54 @@ async def update_purchase(
     updated = await db.purchases.find_one({"id": purchase_id})
     return updated
 
+@api_router.get("/purchases/{purchase_id}/impact")
+async def get_purchase_impact(purchase_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Get impact summary for purchase actions (finalization or deletion).
+    Shows decision-critical data: weight, cost, stock impact, vendor payable, what will be locked.
+    """
+    purchase = await db.purchases.find_one({"id": purchase_id, "is_deleted": False}, {"_id": 0})
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Get vendor details
+    vendor = await db.parties.find_one(
+        {"id": purchase["vendor_party_id"], "is_deleted": False},
+        {"_id": 0, "id": 1, "name": 1}
+    )
+    
+    weight_grams = purchase.get("weight_grams", 0)
+    entered_purity = purchase.get("entered_purity", 0)
+    valuation_purity_fixed = purchase.get("valuation_purity_fixed", 916)
+    rate_per_gram = purchase.get("rate_per_gram", 0)
+    amount_total = purchase.get("amount_total", 0)
+    paid_amount_money = purchase.get("paid_amount_money", 0)
+    balance_due_money = purchase.get("balance_due_money", 0)
+    advance_in_gold_grams = purchase.get("advance_in_gold_grams", 0)
+    exchange_in_gold_grams = purchase.get("exchange_in_gold_grams", 0)
+    
+    # Build impact summary
+    impact = {
+        "current_status": purchase.get("status", "draft"),
+        "vendor_name": vendor.get("name") if vendor else "Unknown",
+        "description": purchase.get("description"),
+        "weight_grams": round(weight_grams, 3),
+        "entered_purity": entered_purity,
+        "valuation_purity": valuation_purity_fixed,
+        "rate_per_gram": round(rate_per_gram, 2),
+        "amount_total": round(amount_total, 2),
+        "paid_amount_money": round(paid_amount_money, 2),
+        "balance_due_money": round(balance_due_money, 2),
+        "advance_in_gold_grams": round(advance_in_gold_grams, 3) if advance_in_gold_grams else 0,
+        "exchange_in_gold_grams": round(exchange_in_gold_grams, 3) if exchange_in_gold_grams else 0,
+        "stock_will_increase_by": round(weight_grams, 3),
+        "stock_purity_used": valuation_purity_fixed,
+        "vendor_payable_will_be": round(balance_due_money, 2),
+        "account_debit_amount": round(paid_amount_money, 2) if paid_amount_money > 0 else 0
+    }
+    
+    return impact
+
 @api_router.post("/purchases/{purchase_id}/finalize")
 async def finalize_purchase(purchase_id: str, current_user: User = Depends(get_current_user)):
     """
