@@ -297,17 +297,18 @@ class PurchasesBugFixTester:
             vendor_name = self.test_data['vendor']['name']
             
             purchase_data = {
-                "vendor_id": vendor_id,
+                "vendor_party_id": vendor_id,
                 "date": datetime.now(timezone.utc).isoformat(),
                 "description": "Test Purchase - Outstanding Reports Verification",
                 "weight_grams": 25.0,
-                "purity_entered": 916,
+                "entered_purity": 916,
                 "rate_per_gram": 40.0,
                 "amount_total": 1000.0,  # 25.0 * 40.0
                 "paid_amount_money": 750.0,   # Partial payment
                 "balance_due_money": 250.0,   # Vendor payable
                 "account_id": self.test_data['cash_account']['id'],
-                "payment_mode": "Cash"
+                "payment_mode": "Cash",
+                "created_by": "admin"
             }
             
             response = self.session.post(f"{BASE_URL}/purchases", json=purchase_data)
