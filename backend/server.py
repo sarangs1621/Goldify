@@ -4085,6 +4085,62 @@ async def get_outstanding_report(
                     elif overdue_days > 30:
                         party_data[party_key]['overdue_31_plus'] += outstanding_amount
     
+    # CRITICAL FIX: Process Purchase transactions to add vendor payables from purchase finalization
+    # These are credit transactions (we owe vendor) with category "Purchase" and transaction_type "credit"
+    for txn in transactions:
+        if txn.get('category') == 'Purchase' and txn.get('transaction_type') == 'credit':
+            party_key = txn.get('party_id')
+            if not party_key:
+                continue
+            
+            # Filter by party_id if specified
+            if party_id and party_key != party_id:
+                continue
+            
+            # Filter by party_type (vendor payables only)
+            if party_type and party_type != 'vendor':
+                continue
+            
+            # Get party name
+            party_name = txn.get('party_name', 'Unknown Vendor')
+            
+            # Initialize party data if not exists
+            if party_key not in party_data:
+                party_data[party_key] = {
+                    "party_id": party_key,
+                    "party_name": party_name,
+                    "party_type": "vendor",
+                    "total_invoiced": 0,
+                    "total_paid": 0,
+                    "total_outstanding": 0,
+                    "overdue_0_7": 0,
+                    "overdue_8_30": 0,
+                    "overdue_31_plus": 0,
+                    "last_invoice_date": None,
+                    "last_payment_date": None,
+                    "invoice_count": 0
+                }
+            
+            # Add vendor payable amount to outstanding
+            txn_amount = txn.get('amount', 0)
+            party_data[party_key]['total_outstanding'] += txn_amount
+            
+            # Calculate overdue for vendor payables
+            txn_date = txn.get('date')
+            if txn_date and txn_amount > 0:
+                if isinstance(txn_date, str):
+                    txn_date = datetime.fromisoformat(txn_date)
+                
+                overdue_days = (today - txn_date).days
+                
+                if overdue_days >= 0:  # Only count if actually overdue
+                    if 0 <= overdue_days <= 7:
+                        party_data[party_key]['overdue_0_7'] += txn_amount
+                    elif 8 <= overdue_days <= 30:
+                        party_data[party_key]['overdue_8_30'] += txn_amount
+                    elif overdue_days > 30:
+                        party_data[party_key]['overdue_31_plus'] += txn_amount
+    
     # Get last payment dates from transactions
     for txn in transactions:
         party_key = txn.get('party_id')
