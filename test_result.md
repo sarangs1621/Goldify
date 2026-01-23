@@ -137,15 +137,18 @@ backend:
 
   - task: "Stock Movements"
     implemented: true
-    working: "needs_testing"
+    working: true
     file: "backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "needs_testing"
         agent: "main"
         comment: "Stock IN/OUT/Adjustment tracking with purity, weight, qty. 178 dummy movements created across all categories"
+      - working: true
+        agent: "testing"
+        comment: "✅ STOCK MOVEMENTS TESTING COMPLETED - ALL 178 MOVEMENTS VERIFIED. GET /api/inventory/movements returns exactly 178 stock movements with all required fields: header_id, movement_type, qty_delta, weight_delta, purity. Stock movement tracking system fully functional."
 
   - task: "Party Management (Customers/Vendors/Workers)"
     implemented: true
