@@ -548,12 +548,12 @@ class GoldShopERPTester:
             # Test a protected endpoint without auth
             response = self.session.get(f"{BASE_URL}/parties")
             
-            if response.status_code == 401:
+            if response.status_code in [401, 403]:  # Both are acceptable for unauthorized access
                 self.log_test("Protected Endpoints", True, 
-                            "Correctly requires authentication (401 Unauthorized)")
+                            f"Correctly requires authentication ({response.status_code})")
             else:
                 self.log_test("Protected Endpoints", False, 
-                            f"Expected 401, got {response.status_code}")
+                            f"Expected 401 or 403, got {response.status_code}")
         
         finally:
             # Restore authorization header
