@@ -243,160 +243,169 @@ class BugFixTester:
             self.log_result("Purchases Serialization - Exception", "FAIL", f"Exception: {str(e)}")
             return False
     
-    def test_account_balance_update(self):
-        """🔥 PRIORITY 3: Test Account Balance Update (Bug Fix #1) - MOST CRITICAL"""
-        print("🔥 PRIORITY 3: TESTING ACCOUNT BALANCE UPDATE (Bug Fix #1) - MOST CRITICAL")
-        print("=" * 60)
+    def test_bug_1_account_balance_update(self):
+        """🔥 TEST 1: Bug Fix #1 - Account Balance Update After Purchase Finalization (PRIORITY)"""
+        print("🔥 TEST 1: Bug Fix #1 - Account Balance Update After Purchase Finalization (PRIORITY)")
+        print("=" * 80)
         
         try:
-            # STEP 1: Get vendor for purchase
-            parties_response = self.session.get(f"{BASE_URL}/parties?party_type=vendor")
-            if parties_response.status_code != 200:
-                self.log_result("Account Balance Update - Get Vendors", "FAIL", 
-                              f"Status: {parties_response.status_code}")
+            # STEP 1: Create test vendor
+            print("STEP 1: Creating test vendor...")
+            vendor_data = {
+                "name": "Test Vendor for Balance Update",
+                "party_type": "vendor",
+                "phone": "98765432"
+            }
+            
+            vendor_response = self.session.post(f"{BASE_URL}/parties", json=vendor_data)
+            if vendor_response.status_code not in [200, 201]:
+                self.log_result("Bug #1 - Create Vendor", "FAIL", 
+                              f"Status: {vendor_response.status_code}, Response: {vendor_response.text}")
                 return False
             
-            parties_data = parties_response.json()
-            vendors = parties_data.get("items", []) if isinstance(parties_data, dict) else parties_data
+            vendor = vendor_response.json()
+            vendor_id = vendor["id"]
+            self.log_result("Bug #1 - Create Vendor", "PASS", f"Created vendor: {vendor['name']}")
             
-            if not vendors:
-                self.log_result("Account Balance Update - Get Vendors", "FAIL", "No vendors found")
+            # STEP 2: Create test account
+            print("STEP 2: Creating test account...")
+            account_data = {
+                "name": "Test Cash Account",
+                "account_type": "cash",
+                "opening_balance": 10000.00
+            }
+            
+            account_response = self.session.post(f"{BASE_URL}/accounts", json=account_data)
+            if account_response.status_code not in [200, 201]:
+                self.log_result("Bug #1 - Create Account", "FAIL", 
+                              f"Status: {account_response.status_code}, Response: {account_response.text}")
                 return False
             
-            vendor = vendors[0]
-            self.log_result("Account Balance Update - Get Vendors", "PASS", 
-                          f"Using vendor: {vendor['name']}")
+            account = account_response.json()
+            account_id = account["id"]
+            initial_balance = account["current_balance"]
+            self.log_result("Bug #1 - Create Account", "PASS", 
+                          f"Created account: {account['name']}, Balance: {initial_balance}")
             
-            # STEP 2: Get account for payment
-            accounts_response = self.session.get(f"{BASE_URL}/accounts")
-            if accounts_response.status_code != 200:
-                self.log_result("Account Balance Update - Get Accounts", "FAIL", 
-                              f"Status: {accounts_response.status_code}")
+            # STEP 3: Verify initial account balance
+            print("STEP 3: Verifying initial account balance...")
+            account_detail_response = self.session.get(f"{BASE_URL}/accounts/{account_id}")
+            if account_detail_response.status_code != 200:
+                self.log_result("Bug #1 - Get Account Detail", "FAIL", 
+                              f"Status: {account_detail_response.status_code}")
                 return False
             
-            accounts_data = accounts_response.json()
-            accounts = accounts_data.get("items", []) if isinstance(accounts_data, dict) else accounts_data
+            account_detail = account_detail_response.json()
+            current_balance = account_detail["current_balance"]
             
-            if not accounts:
-                self.log_result("Account Balance Update - Get Accounts", "FAIL", "No accounts found")
+            if current_balance != 10000.00:
+                self.log_result("Bug #1 - Initial Balance Check", "FAIL", 
+                              f"Expected 10000.00, got {current_balance}")
                 return False
             
-            # Find a cash or bank account
-            test_account = None
-            for account in accounts:
-                if account.get("type", "").lower() in ["cash", "bank"]:
-                    test_account = account
-                    break
+            self.log_result("Bug #1 - Initial Balance Check", "PASS", f"Balance: {current_balance}")
             
-            if not test_account:
-                test_account = accounts[0]  # Use first account if no cash/bank found
-            
-            initial_balance = test_account["current_balance"]
-            self.log_result("Account Balance Update - Get Accounts", "PASS", 
-                          f"Using account: {test_account['name']}, Initial balance: {initial_balance} OMR")
-            
-            # STEP 3: Create new purchase
+            # STEP 4: Create purchase
+            print("STEP 4: Creating purchase...")
             purchase_data = {
-                "vendor_party_id": vendor["id"],
-                "description": "Test gold purchase for balance update verification",
-                "weight_grams": 100.5,
-                "purity_karats": 916,
-                "rate_per_gram_omr": 45.00,
-                "total_amount_omr": 4522.50
+                "vendor_party_id": vendor_id,
+                "description": "Test purchase for balance update",
+                "weight_grams": 50.5,
+                "entered_purity": 916,
+                "rate_per_gram": 250.0,
+                "paid_amount_money": 1000.0,
+                "payment_mode": "Cash",
+                "account_id": account_id
             }
             
             purchase_response = self.session.post(f"{BASE_URL}/purchases", json=purchase_data)
-            
-            if purchase_response.status_code != 201:
-                self.log_result("Account Balance Update - Create Purchase", "FAIL", 
+            if purchase_response.status_code not in [200, 201]:
+                self.log_result("Bug #1 - Create Purchase", "FAIL", 
                               f"Status: {purchase_response.status_code}, Response: {purchase_response.text}")
                 return False
             
             purchase = purchase_response.json()
             purchase_id = purchase["id"]
-            self.log_result("Account Balance Update - Create Purchase", "PASS", 
-                          f"Created purchase: {purchase_id}, Amount: {purchase['total_amount_omr']} OMR")
+            self.log_result("Bug #1 - Create Purchase", "PASS", 
+                          f"Created purchase: {purchase_id}, Amount: 1000.0")
             
-            # STEP 4: Finalize purchase with payment
-            finalize_data = {
-                "paid_amount": 2500.00,
-                "payment_mode": "cash",
-                "account_id": test_account["id"],
-                "notes": "Test payment for purchase finalization"
-            }
+            # STEP 5: Verify balance unchanged after creation
+            print("STEP 5: Verifying balance unchanged after purchase creation...")
+            account_after_create = self.session.get(f"{BASE_URL}/accounts/{account_id}").json()
+            balance_after_create = account_after_create["current_balance"]
             
-            finalize_response = self.session.post(f"{BASE_URL}/purchases/{purchase_id}/finalize", 
-                                                json=finalize_data)
+            if balance_after_create != 10000.00:
+                self.log_result("Bug #1 - Balance After Create", "FAIL", 
+                              f"Balance changed unexpectedly: {balance_after_create}")
+                return False
+            
+            self.log_result("Bug #1 - Balance After Create", "PASS", 
+                          f"Balance unchanged: {balance_after_create}")
+            
+            # STEP 6: Finalize purchase (CRITICAL TEST)
+            print("STEP 6: Finalizing purchase (CRITICAL TEST)...")
+            finalize_response = self.session.post(f"{BASE_URL}/purchases/{purchase_id}/finalize")
             
             if finalize_response.status_code != 200:
-                self.log_result("Account Balance Update - Finalize Purchase", "FAIL", 
-                              f"Status: {finalize_response.status_code}, Response: {finalize_response.text}")
+                error_text = finalize_response.text
+                if "ObjectId" in error_text or "not JSON serializable" in error_text:
+                    self.log_result("Bug #1 - Purchase Finalization", "FAIL", 
+                                  f"ObjectId serialization error: {error_text}")
+                else:
+                    self.log_result("Bug #1 - Purchase Finalization", "FAIL", 
+                                  f"Status: {finalize_response.status_code}, Response: {error_text}")
                 return False
             
-            finalize_result = finalize_response.json()
-            self.log_result("Account Balance Update - Finalize Purchase", "PASS", 
-                          f"Purchase finalized successfully")
+            self.log_result("Bug #1 - Purchase Finalization", "PASS", "Purchase finalized successfully")
             
-            # STEP 5: CRITICAL VERIFICATION - Check account balance after finalization
+            # STEP 7: CRITICAL VERIFICATION - Check account balance after finalization
+            print("STEP 7: CRITICAL VERIFICATION - Checking account balance after finalization...")
             time.sleep(1)  # Brief pause to ensure database update
             
-            updated_account_response = self.session.get(f"{BASE_URL}/accounts/{test_account['id']}")
+            account_after_finalize = self.session.get(f"{BASE_URL}/accounts/{account_id}").json()
+            final_balance = account_after_finalize["current_balance"]
+            expected_balance = 9000.00  # 10000 - 1000
             
-            if updated_account_response.status_code != 200:
-                self.log_result("Account Balance Update - Get Updated Balance", "FAIL", 
-                              f"Status: {updated_account_response.status_code}")
-                return False
-            
-            updated_account = updated_account_response.json()
-            new_balance = updated_account["current_balance"]
-            expected_balance = initial_balance - 2500.00  # Payment should decrease balance
-            
-            # Check if balance updated correctly (allowing for small floating point differences)
-            balance_difference = abs(new_balance - expected_balance)
-            
-            if balance_difference < 0.01:  # Within 1 cent tolerance
-                self.log_result("Account Balance Update - Balance Verification", "PASS", 
-                              f"Balance updated correctly: {initial_balance} → {new_balance} OMR (decreased by 2500.00)")
-                
-                # STEP 6: Verify transaction created
-                transactions_response = self.session.get(f"{BASE_URL}/transactions?account_id={test_account['id']}")
-                
-                if transactions_response.status_code == 200:
-                    transactions_data = transactions_response.json()
-                    transactions = transactions_data.get("items", []) if isinstance(transactions_data, dict) else transactions_data
-                    
-                    # Look for the purchase payment transaction
-                    purchase_transaction = None
-                    for txn in transactions:
-                        if (txn.get("category") == "Purchase Payment" and 
-                            txn.get("amount") == 2500.00 and
-                            txn.get("transaction_type") == "debit"):
-                            purchase_transaction = txn
-                            break
-                    
-                    if purchase_transaction:
-                        self.log_result("Account Balance Update - Transaction Verification", "PASS", 
-                                      f"Transaction created: Type={purchase_transaction['transaction_type']}, "
-                                      f"Category={purchase_transaction['category']}, Amount={purchase_transaction['amount']}")
-                    else:
-                        self.log_result("Account Balance Update - Transaction Verification", "FAIL", 
-                                      "Purchase payment transaction not found")
-                        return False
-                else:
-                    self.log_result("Account Balance Update - Transaction Verification", "FAIL", 
-                                  f"Failed to get transactions: {transactions_response.status_code}")
-                    return False
-                
-                return True
-                
+            if abs(final_balance - expected_balance) < 0.01:
+                self.log_result("Bug #1 - Account Balance Update", "PASS", 
+                              f"Balance updated correctly: 10000.00 → {final_balance} (decreased by 1000.00)")
             else:
-                self.log_result("Account Balance Update - Balance Verification", "FAIL", 
-                              f"Balance incorrect: Expected {expected_balance}, Got {new_balance}, "
-                              f"Difference: {balance_difference}")
+                self.log_result("Bug #1 - Account Balance Update", "FAIL", 
+                              f"Balance incorrect: Expected {expected_balance}, Got {final_balance}")
                 return False
+            
+            # STEP 8: Verify transaction created
+            print("STEP 8: Verifying transaction created...")
+            transactions_response = self.session.get(f"{BASE_URL}/transactions")
+            if transactions_response.status_code == 200:
+                transactions_data = transactions_response.json()
+                transactions = transactions_data.get("items", [])
                 
+                # Look for the purchase payment transaction
+                purchase_transaction = None
+                for txn in transactions:
+                    if (txn.get("category") == "Purchase Payment" and 
+                        txn.get("amount") == 1000.0 and
+                        txn.get("transaction_type") == "debit"):
+                        purchase_transaction = txn
+                        break
+                
+                if purchase_transaction:
+                    self.log_result("Bug #1 - Transaction Created", "PASS", 
+                                  f"Transaction: type=debit, amount=1000.0, category=Purchase Payment")
+                else:
+                    self.log_result("Bug #1 - Transaction Created", "FAIL", 
+                                  "Purchase payment transaction not found")
+                    return False
+            else:
+                self.log_result("Bug #1 - Transaction Created", "FAIL", 
+                              f"Failed to get transactions: {transactions_response.status_code}")
+                return False
+            
+            return True
+            
         except Exception as e:
-            self.log_result("Account Balance Update - Exception", "FAIL", f"Exception: {str(e)}")
+            self.log_result("Bug #1 - Exception", "FAIL", f"Exception: {str(e)}")
             return False
     
     def run_all_tests(self):
