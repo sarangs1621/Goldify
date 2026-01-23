@@ -435,10 +435,7 @@ export default function PartiesPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => {
-                              setDeleteingParty(party);
-                              setShowDeleteDialog(true);
-                            }}
+                            onClick={() => handleDeleteClick(party)}
                             className="text-destructive hover:text-destructive"
                             title="Delete"
                           >
