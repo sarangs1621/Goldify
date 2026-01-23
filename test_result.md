@@ -1437,7 +1437,7 @@ agent_communication:
       accuracy and data integrity. No further changes are required for this feature.
 
 
-user_problem_statement: "CRITICAL BUG FIX VERIFICATION - Test All 3 Bug Fixes Comprehensively. Previous testing session identified 3 critical bugs: Bug #1: Account balance not updating after purchase finalization (BLOCKED - missing endpoint), Bug #2: GET /api/purchases serialization error (VERIFIED WORKING ✅), Bug #3: Outstanding reports datetime timezone error (BROKEN ❌). TWO CRITICAL FIXES JUST APPLIED: 1. Fixed datetime timezone handling in outstanding reports (lines 4077 & 4137), 2. Added missing GET /accounts/{id} endpoint (line 3044-3049). BACKEND URL: Use environment variable REACT_APP_BACKEND_URL from /app/frontend/.env, AUTH: admin/admin123"
+user_problem_statement: "CRITICAL BUG FIX VERIFICATION - Test All 3 Bug Fixes Comprehensively. Previous testing session identified 3 critical bugs: Bug #1: Account balance not updating after purchase finalization (BLOCKED - missing endpoint), Bug #2: GET /api/purchases serialization error (VERIFIED WORKING ✅), Bug #3: Outstanding reports datetime timezone error (BROKEN ❌). THREE CRITICAL FIXES JUST APPLIED: 1. Fixed datetime timezone handling in outstanding reports (lines 4090-4092 & 4151-4153), 2. Added missing GET /accounts/{id} endpoint (lines 3048-3054), 3. Fixed Pydantic v2 compatibility issue with ObjectId serialization (removed pydantic.json.ENCODERS_BY_TYPE, added ObjectId handling in decimal_to_float function)." BACKEND URL: Use environment variable REACT_APP_BACKEND_URL from /app/frontend/.env, AUTH: admin/admin123"
 
 backend:
   - task: "Bug Fix #3: Outstanding Reports Datetime Timezone Error"
