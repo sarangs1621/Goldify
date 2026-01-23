@@ -125,12 +125,26 @@ export default function PartiesPage() {
     setShowDialog(true);
   };
 
+  const handleDeleteClick = async (party) => {
+    try {
+      setDeleteingParty(party);
+      // Fetch delete impact before showing dialog
+      const response = await axios.get(`${API}/parties/${party.id}/delete-impact`);
+      setDeleteImpact(response.data);
+      setShowDeleteDialog(true);
+    } catch (error) {
+      toast.error('Failed to fetch party dependencies');
+      console.error(error);
+    }
+  };
+
   const handleDelete = async () => {
     try {
       await axios.delete(`${API}/parties/${deletingParty.id}`);
       toast.success('Party deleted successfully');
       setShowDeleteDialog(false);
       setDeleteingParty(null);
+      setDeleteImpact(null);
       loadParties();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to delete party');
