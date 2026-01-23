@@ -1132,6 +1132,120 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Fixed pagination-related errors across multiple frontend pages. The backend was returning paginated responses with structure {items: [], pagination: {}} but frontend was expecting direct arrays. Updated 6 pages: JobCardsPage, InvoicesPage, PurchasesPage, AuditLogsPage, FinancePage, and ReportsPageEnhanced to properly extract the items array using response.data.items || []. All changes have been applied and frontend has been recompiled successfully. The app is now running and should display all data correctly."
+  - agent: "main"
+    message: |
+      ✅ PHASE 4: INVENTORY PAGE ENHANCEMENTS COMPLETED
+      
+      IMPLEMENTATION SUMMARY:
+      Successfully implemented confirmation dialog system for Stock IN/OUT adjustments with comprehensive impact summary and audit trail support.
+      
+      🎯 KEY FEATURES IMPLEMENTED:
+      
+      1. CONFIRMATION DIALOG FOR STOCK ADJUSTMENTS ✅
+         - Added mandatory confirmation step before any stock movement
+         - Shows comprehensive impact summary before submission
+         - Cannot be bypassed - required for all Stock IN/OUT/Adjustment operations
+      
+      2. REASON TEXT FIELD ✅
+         - Required text field for explaining the adjustment
+         - Placeholder guidance provided for users
+         - Reason is appended to notes field for audit trail
+         - Submit button disabled until reason is provided
+      
+      3. IMPACT SUMMARY DISPLAY ✅
+         - Current Stock: Shows existing quantity and weight
+         - Proposed Change: Visual indicator (↑ for IN, ↓ for OUT) with change amount
+         - New Stock Level: Calculated post-adjustment values
+         - Movement Type: Color-coded badge (Green for IN, Red for OUT)
+         - Category Information: Shows affected category name
+         - Weight Display: 3 decimal precision (e.g., 125.456g)
+         - Quantity Display: Integer values
+         - Purity Display: Shows purity in Karat format
+      
+      4. VISUAL ENHANCEMENTS ✅
+         - Amber-themed warning banner for impact summary
+         - Color-coded movement indicators (Green: TrendingUp, Red: TrendingDown)
+         - Three-column layout showing: Current → Change → New
+         - Red warning banner about irreversible action
+         - AlertTriangle icons for visual emphasis
+      
+      5. VALIDATION & SAFETY ✅
+         - Form validation before showing confirmation
+         - Required fields: Category, Description, Weight
+         - Reason field is mandatory in confirmation dialog
+         - Clear Cancel option to abort operation
+         - Confirm button in amber theme to indicate caution
+      
+      TECHNICAL DETAILS:
+      
+      📁 Files Modified:
+      - /app/frontend/src/pages/InventoryPage.js
+      
+      🔧 Changes Applied:
+      1. Added state management:
+         - showConfirmation: Controls confirmation dialog visibility
+         - reason: Stores user's explanation for adjustment
+         - currentStock: Holds current stock levels for impact calculation
+      
+      2. Split movement submission into two functions:
+         - handleAddMovement(): Validates form and shows confirmation
+         - handleConfirmMovement(): Actually submits after confirmation
+      
+      3. Added lucide-react icons:
+         - AlertTriangle: Warning indicators
+         - TrendingUp: Stock increase indicator
+         - TrendingDown: Stock decrease indicator
+      
+      4. Integrated Textarea component for reason field
+      
+      5. Impact calculations:
+         - Current stock fetched from stockTotals state
+         - Change amount calculated based on movement type
+         - New stock = Current ± Change (sign based on IN/OUT)
+      
+      6. Reason appended to notes field:
+         - Format: "{existing_notes} | Reason: {reason_text}"
+         - Preserves existing notes if any
+         - Creates audit trail of adjustment justification
+      
+      USER EXPERIENCE FLOW:
+      1. User clicks "Add Movement" button
+      2. Fills out movement form (type, category, description, qty, weight, purity)
+      3. Clicks "Save Movement" button
+      4. System validates form fields
+      5. Confirmation dialog appears with impact summary
+      6. User reviews current vs. new stock levels
+      7. User enters mandatory reason for adjustment
+      8. User clicks "Confirm Adjustment" (only enabled when reason provided)
+      9. Stock movement is created with reason logged
+      10. Success toast notification shown
+      11. Inventory data reloaded to reflect changes
+      
+      AUDIT TRAIL:
+      - All stock adjustments now include detailed reason in notes
+      - Reason format clearly marked with "Reason:" prefix
+      - Existing notes preserved and concatenated
+      - Timestamp and user info captured by backend API
+      
+      FRONTEND STATUS:
+      ✅ Compiled successfully with 1 warning (React Hook dependencies - non-critical)
+      ✅ Services running: backend (pid 1252), frontend (pid 1912)
+      ✅ Hot reload enabled for development
+      
+      READY FOR TESTING:
+      The Inventory Page now has complete confirmation and impact summary functionality.
+      All stock adjustments require user confirmation with mandatory reason explanation.
+      
+      NEXT STEPS:
+      Ready for comprehensive testing of:
+      - Stock IN confirmation flow
+      - Stock OUT confirmation flow
+      - Adjustment IN confirmation flow
+      - Adjustment OUT confirmation flow
+      - Reason field validation
+      - Impact calculation accuracy
+      - Cancel functionality
+      - Audit trail verification
 
 user_problem_statement: "Implement strict workflow controls and confirmations across Job Cards, Invoices, Purchases, Inventory, and Finance to ensure audit safety and prevent irreversible mistakes. 1) Status Transition Validation: Enforce sequential status transitions only (no skipping states) at backend level. Example Job Cards: Created → In Progress → Completed → Delivered. 2) Confirmation Dialogs: Add mandatory confirmation dialogs for any irreversible or high-impact action showing summary-based confirmation with what will be locked/finalized. Actions requiring confirmation: Job Card Complete/Deliver/Delete, Invoice Finalize/Delete, Purchase Finalize/Delete, Inventory Adjustment, Finance Transactions, Party deletion. 3) Cost & Impact Visibility: Show item-wise breakdown, financial impact summary, impact summary before delete. 4) General Requirements: Finalized/Completed records must be read-only, all transitions logged in audit logs, clear error messages."
 
