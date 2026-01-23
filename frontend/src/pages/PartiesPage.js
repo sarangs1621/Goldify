@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Plus, Users as UsersIcon, Edit, Trash2, Eye, TrendingUp, TrendingDown, Search, Calendar } from 'lucide-react';
+import { Plus, Users as UsersIcon, Edit, Trash2, Eye, TrendingUp, TrendingDown, Search, Calendar, AlertCircle } from 'lucide-react';
 import Pagination from '../components/Pagination';
 
 export default function PartiesPage() {
