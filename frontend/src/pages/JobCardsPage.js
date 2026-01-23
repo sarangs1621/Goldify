@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, FileText, Trash2, Edit, AlertTriangle, Save, FolderOpen, Settings } from 'lucide-react';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
 
 export default function JobCardsPage() {
   const { user } = useAuth();
