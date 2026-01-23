@@ -183,22 +183,75 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleFinalizeInvoice = async (invoiceId, invoiceNumber) => {
-    if (!window.confirm(`Are you sure you want to finalize invoice ${invoiceNumber}?\n\nThis will:\n• Deduct stock from inventory\n• Lock the invoice (cannot be edited or deleted)\n• Lock any linked job card\n• Create customer ledger entry\n\nThis action cannot be undone.`)) {
-      return;
-    }
-
-    setFinalizing(invoiceId);
+  const handleFinalizeInvoice = async (invoice) => {
+    setConfirmInvoice(invoice);
+    setConfirmLoading(true);
     try {
-      await axios.post(`${API}/invoices/${invoiceId}/finalize`);
+      const response = await axios.get(`${API}/invoices/${invoice.id}/finalize-impact`);
+      setImpactData(response.data);
+      setShowFinalizeConfirm(true);
+    } catch (error) {
+      console.error('Error fetching finalize impact:', error);
+      toast.error('Failed to load confirmation data');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const confirmFinalizeInvoice = async () => {
+    if (!confirmInvoice) return;
+    
+    setConfirmLoading(true);
+    setFinalizing(confirmInvoice.id);
+    try {
+      await axios.post(`${API}/invoices/${confirmInvoice.id}/finalize`);
       toast.success('Invoice finalized successfully! Stock has been deducted.');
-      loadInvoices(); // Reload to show updated status
+      setShowFinalizeConfirm(false);
+      setConfirmInvoice(null);
+      setImpactData(null);
+      loadInvoices();
     } catch (error) {
       console.error('Error finalizing invoice:', error);
       const errorMsg = error.response?.data?.detail || 'Failed to finalize invoice';
       toast.error(errorMsg);
     } finally {
       setFinalizing(null);
+      setConfirmLoading(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoice) => {
+    setConfirmInvoice(invoice);
+    setConfirmLoading(true);
+    try {
+      const response = await axios.get(`${API}/invoices/${invoice.id}/delete-impact`);
+      setImpactData(response.data);
+      setShowDeleteConfirm(true);
+    } catch (error) {
+      console.error('Error fetching delete impact:', error);
+      toast.error('Failed to load confirmation data');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const confirmDeleteInvoice = async () => {
+    if (!confirmInvoice) return;
+    
+    setConfirmLoading(true);
+    try {
+      await axios.delete(`${API}/invoices/${confirmInvoice.id}`);
+      toast.success('Invoice deleted successfully!');
+      setShowDeleteConfirm(false);
+      setConfirmInvoice(null);
+      setImpactData(null);
+      loadInvoices();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      const errorMsg = error.response?.data?.detail || 'Failed to delete invoice';
+      toast.error(errorMsg);
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
