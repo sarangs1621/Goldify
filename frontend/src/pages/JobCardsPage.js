@@ -659,8 +659,8 @@ export default function JobCardsPage() {
                     <td className="px-4 py-3 text-sm">{jc.items.length} items</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        {/* Edit button - show for all unlocked job cards */}
-                        {!jc.locked && (
+                        {/* Edit button - hide for locked, completed, and delivered job cards */}
+                        {!jc.locked && jc.status !== 'completed' && jc.status !== 'delivered' && (
                           <Button
                             data-testid={`edit-${jc.job_card_number}`}
                             size="sm"
@@ -671,8 +671,8 @@ export default function JobCardsPage() {
                           </Button>
                         )}
                         
-                        {/* Delete button - show for all unlocked job cards */}
-                        {!jc.locked && (
+                        {/* Delete button - hide for locked, completed, and delivered job cards */}
+                        {!jc.locked && jc.status !== 'completed' && jc.status !== 'delivered' && (
                           <Button
                             data-testid={`delete-${jc.job_card_number}`}
                             size="sm"
@@ -681,6 +681,32 @@ export default function JobCardsPage() {
                             onClick={() => handleDeleteJobCard(jc.id, jc.job_card_number)}
                           >
                             <Trash2 className="w-4 h-4 mr-1" /> Delete
+                          </Button>
+                        )}
+                        
+                        {/* Complete button - only for in_progress job cards */}
+                        {jc.status === 'in_progress' && (
+                          <Button
+                            data-testid={`complete-${jc.job_card_number}`}
+                            size="sm"
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleCompleteJobCard(jc.id, jc.job_card_number)}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" /> Complete
+                          </Button>
+                        )}
+                        
+                        {/* Deliver button - only for completed job cards */}
+                        {jc.status === 'completed' && !jc.locked && (
+                          <Button
+                            data-testid={`deliver-${jc.job_card_number}`}
+                            size="sm"
+                            variant="default"
+                            className="bg-purple-600 hover:bg-purple-700"
+                            onClick={() => handleDeliverJobCard(jc.id, jc.job_card_number)}
+                          >
+                            <Truck className="w-4 h-4 mr-1" /> Deliver
                           </Button>
                         )}
                         
