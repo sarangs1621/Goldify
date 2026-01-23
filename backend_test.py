@@ -1,727 +1,687 @@
 #!/usr/bin/env python3
 """
-Comprehensive Backend API Testing Suite for Invoice Finalization and Viewing Functionality
-Tests the Gold Shop ERP System invoice finalization and viewing capabilities.
+Comprehensive Backend Testing for Invoice Payment to Account Integration
+Critical Bug Fix Verification - Gold Shop ERP System
 
-Focus: Verify that finalized invoices can be viewed properly and display complete, accurate details.
-
-Test Requirements:
-1. Create New Invoice (Draft) with 2+ items
-2. View Draft Invoice 
-3. Finalize the Invoice
-4. View Finalized Invoice
-5. Test Invoice List View
-6. Attempt to Edit Finalized Invoice (Should Fail)
-7. Test Edge Cases
+This test verifies that when invoice payments are added:
+1. Transaction records are created correctly
+2. Account current_balance field is updated correctly  
+3. Invoice paid_amount and balance_due are updated correctly
+4. Both Cash and Bank accounts work correctly
+5. Both partial and full payments work correctly
 """
 
 import requests
 import json
 import sys
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 # Configuration
 BASE_URL = "https://invoice-payment-flow.preview.emergentagent.com/api"
-USERNAME = "admin"
-PASSWORD = "admin123"
+ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}
 
-class InvoiceFinalizationTester:
+class InvoicePaymentTester:
     def __init__(self):
         self.session = requests.Session()
         self.token = None
         self.test_results = []
-        self.test_invoice_id = None
-        self.test_customer_id = None
+        self.test_data = {}
         
-    def log_test(self, test_name, success, details="", response_data=None):
-        """Log test results"""
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status} {test_name}")
+    def log_test(self, test_name, passed, details=""):
+        """Log test result"""
+        status = "✅ PASS" if passed else "❌ FAIL"
+        print(f"{status}: {test_name}")
         if details:
             print(f"   Details: {details}")
-        if response_data and not success:
-            print(f"   Response: {response_data}")
-        print()
-        
         self.test_results.append({
             "test": test_name,
-            "success": success,
-            "details": details,
-            "response": response_data
+            "passed": passed,
+            "details": details
         })
-    
+        
     def authenticate(self):
         """Authenticate and get JWT token"""
-        print("🔐 Authenticating...")
+        print("\n🔐 STEP 0: Authentication")
         try:
-            response = self.session.post(f"{BASE_URL}/auth/login", json={
-                "username": USERNAME,
-                "password": PASSWORD
-            })
-            
+            response = self.session.post(f"{BASE_URL}/auth/login", json=ADMIN_CREDENTIALS)
             if response.status_code == 200:
                 data = response.json()
                 self.token = data.get("access_token")
                 self.session.headers.update({"Authorization": f"Bearer {self.token}"})
-                self.log_test("Authentication", True, f"Logged in as {USERNAME}")
+                self.log_test("Admin Authentication", True, "Successfully authenticated")
                 return True
             else:
-                self.log_test("Authentication", False, f"Status: {response.status_code}", response.text)
+                self.log_test("Admin Authentication", False, f"Status: {response.status_code}, Response: {response.text}")
                 return False
-                
         except Exception as e:
-            self.log_test("Authentication", False, f"Exception: {str(e)}")
+            self.log_test("Admin Authentication", False, f"Exception: {str(e)}")
             return False
     
-    def get_or_create_test_customer(self):
-        """Get existing customer or create one for testing"""
-        print("👤 Setting up test customer...")
-        
-        # First, try to get existing customers
-        response = self.session.get(f"{BASE_URL}/parties?party_type=customer&page=1&per_page=10")
-        
-        if response.status_code == 200:
-            parties_data = response.json()
-            customers = parties_data.get("items", [])
-            
-            if customers:
-                # Use first existing customer
-                self.test_customer_id = customers[0]["id"]
-                customer_name = customers[0]["name"]
-                self.log_test("Get existing customer", True, f"Using customer: {customer_name} (ID: {self.test_customer_id})")
-                return True
-        
-        # If no customers exist, create one
-        customer_data = {
-            "name": "Ahmed Al-Rashid",
-            "phone": "+968 9876 5432",
-            "party_type": "customer",
-            "address": "Muscat, Sultanate of Oman",
-            "notes": "Test customer for invoice finalization testing"
-        }
-        
-        create_response = self.session.post(f"{BASE_URL}/parties", json=customer_data)
-        
-        if create_response.status_code in [200, 201]:
-            created_customer = create_response.json()
-            self.test_customer_id = created_customer.get("id")
-            self.log_test("Create test customer", True, f"Created customer: {customer_data['name']} (ID: {self.test_customer_id})")
-            return True
-        else:
-            self.log_test("Create test customer", False, f"Status: {create_response.status_code}", create_response.text)
-            return False
-    
-    def test_step_1_create_draft_invoice(self):
-        """Step 1: Create New Invoice (Draft) with 2+ items"""
-        print("\n📝 STEP 1: Create New Invoice (Draft) with 2+ items")
-        
-        if not self.test_customer_id:
-            self.log_test("Step 1 - Create Draft Invoice", False, "No test customer available")
-            return False
-        
-        # Calculate totals for realistic invoice
-        item1_weight = 15.500
-        item1_rate = 25.50
-        item1_making = 50.00
-        item1_vat_percent = 5.0
-        item1_gold_value = item1_weight * item1_rate
-        item1_vat_amount = (item1_gold_value + item1_making) * (item1_vat_percent / 100)
-        item1_total = item1_gold_value + item1_making + item1_vat_amount
-        
-        item2_weight = 20.250
-        item2_rate = 30.00
-        item2_making = 75.00
-        item2_vat_percent = 5.0
-        item2_gold_value = item2_weight * item2_rate
-        item2_vat_amount = (item2_gold_value + item2_making) * (item2_vat_percent / 100)
-        item2_total = item2_gold_value + item2_making + item2_vat_amount
-        
-        subtotal = item1_gold_value + item1_making + item2_gold_value + item2_making
-        vat_total = item1_vat_amount + item2_vat_amount
-        grand_total = subtotal + vat_total
-        
-        invoice_data = {
-            "customer_type": "saved",
-            "customer_id": self.test_customer_id,
-            "customer_name": "Ahmed Al-Rashid",
-            "date": datetime.now().isoformat(),
-            "invoice_type": "sale",
-            "status": "draft",
-            "items": [
-                {
-                    "description": "Gold Ring 22K",
-                    "qty": 1,
-                    "weight": item1_weight,
-                    "purity": 916,
-                    "metal_rate": item1_rate,
-                    "gold_value": round(item1_gold_value, 2),
-                    "making_value": item1_making,
-                    "vat_percent": item1_vat_percent,
-                    "vat_amount": round(item1_vat_amount, 2),
-                    "line_total": round(item1_total, 2)
-                },
-                {
-                    "description": "Gold Chain 18K",
-                    "qty": 1,
-                    "weight": item2_weight,
-                    "purity": 750,
-                    "metal_rate": item2_rate,
-                    "gold_value": round(item2_gold_value, 2),
-                    "making_value": item2_making,
-                    "vat_percent": item2_vat_percent,
-                    "vat_amount": round(item2_vat_amount, 2),
-                    "line_total": round(item2_total, 2)
-                }
-            ],
-            "subtotal": round(subtotal, 2),
-            "vat_total": round(vat_total, 2),
-            "grand_total": round(grand_total, 2),
-            "paid_amount": 0.0,
-            "balance_due": round(grand_total, 2),
-            "notes": "Test invoice for finalization testing"
-        }
-        
-        response = self.session.post(f"{BASE_URL}/invoices", json=invoice_data)
-        
-        if response.status_code in [200, 201]:
-            created_invoice = response.json()
-            self.test_invoice_id = created_invoice.get("id")
-            
-            # Verify invoice creation
-            if (self.test_invoice_id and 
-                created_invoice.get("status") == "draft" and
-                len(created_invoice.get("items", [])) == 2):
-                
-                self.log_test("Step 1 - Create Draft Invoice", True, 
-                            f"Created invoice ID: {self.test_invoice_id}, Status: draft, Items: 2, Grand Total: {created_invoice.get('grand_total')} OMR")
-                return True
-            else:
-                self.log_test("Step 1 - Create Draft Invoice", False, 
-                            f"Invoice creation incomplete. ID: {self.test_invoice_id}, Status: {created_invoice.get('status')}, Items: {len(created_invoice.get('items', []))}")
-                return False
-        else:
-            self.log_test("Step 1 - Create Draft Invoice", False, 
-                        f"Status: {response.status_code}", response.text)
-            return False
-    
-    def test_step_2_view_draft_invoice(self):
-        """Step 2: View Draft Invoice"""
-        print("\n👁️ STEP 2: View Draft Invoice")
-        
-        if not self.test_invoice_id:
-            self.log_test("Step 2 - View Draft Invoice", False, "No test invoice available")
-            return False
-        
-        response = self.session.get(f"{BASE_URL}/invoices/{self.test_invoice_id}")
-        
-        if response.status_code == 200:
-            invoice_data = response.json()
-            
-            # Verify all required fields are present
-            required_fields = ["id", "invoice_number", "date", "customer_name", "items", 
-                             "subtotal", "vat_total", "grand_total", "status"]
-            missing_fields = [field for field in required_fields if field not in invoice_data]
-            
-            if not missing_fields:
-                items = invoice_data.get("items", [])
-                status = invoice_data.get("status")
-                
-                # Verify items have proper structure
-                items_valid = True
-                for item in items:
-                    item_fields = ["description", "weight", "metal_rate", "making_value", "vat_amount", "line_total"]
-                    if not all(field in item for field in item_fields):
-                        items_valid = False
-                        break
-                
-                if items_valid and status == "draft" and len(items) == 2:
-                    # Check numeric precision
-                    weight_precision_ok = all(
-                        len(str(item.get("weight", 0)).split(".")[-1]) <= 3 
-                        for item in items
-                    )
-                    money_precision_ok = all(
-                        len(str(invoice_data.get(field, 0)).split(".")[-1]) <= 2 
-                        for field in ["subtotal", "vat_total", "grand_total"]
-                    )
-                    
-                    if weight_precision_ok and money_precision_ok:
-                        self.log_test("Step 2 - View Draft Invoice", True, 
-                                    f"All fields present, Status: {status}, Items: {len(items)}, Precision: Weight ≤3 decimals, Money ≤2 decimals")
-                        return True
-                    else:
-                        self.log_test("Step 2 - View Draft Invoice", False, 
-                                    f"Precision issues - Weight precision OK: {weight_precision_ok}, Money precision OK: {money_precision_ok}")
-                        return False
-                else:
-                    self.log_test("Step 2 - View Draft Invoice", False, 
-                                f"Items validation failed or wrong status. Items valid: {items_valid}, Status: {status}, Item count: {len(items)}")
-                    return False
-            else:
-                self.log_test("Step 2 - View Draft Invoice", False, 
-                            f"Missing required fields: {missing_fields}")
-                return False
-        else:
-            self.log_test("Step 2 - View Draft Invoice", False, 
-                        f"Status: {response.status_code}", response.text)
-            return False
-    
-    def test_step_3_finalize_invoice(self):
-        """Step 3: Finalize the Invoice"""
-        print("\n🔒 STEP 3: Finalize the Invoice")
-        
-        if not self.test_invoice_id:
-            self.log_test("Step 3 - Finalize Invoice", False, "No test invoice available")
-            return False
-        
-        response = self.session.post(f"{BASE_URL}/invoices/{self.test_invoice_id}/finalize")
-        
-        if response.status_code == 200:
-            finalized_invoice = response.json()
-            
-            # Verify finalization
-            status = finalized_invoice.get("status")
-            finalized_at = finalized_invoice.get("finalized_at")
-            
-            if status == "finalized" and finalized_at:
-                self.log_test("Step 3 - Finalize Invoice", True, 
-                            f"Invoice finalized successfully. Status: {status}, Finalized at: {finalized_at}")
-                return True
-            else:
-                self.log_test("Step 3 - Finalize Invoice", False, 
-                            f"Finalization incomplete. Status: {status}, Finalized at: {finalized_at}")
-                return False
-        else:
-            self.log_test("Step 3 - Finalize Invoice", False, 
-                        f"Status: {response.status_code}", response.text)
-            return False
-    
-    def test_step_4_view_finalized_invoice(self):
-        """Step 4: View Finalized Invoice - CRITICAL TEST"""
-        print("\n🔍 STEP 4: View Finalized Invoice - CRITICAL TEST")
-        
-        if not self.test_invoice_id:
-            self.log_test("Step 4 - View Finalized Invoice", False, "No test invoice available")
-            return False
-        
-        response = self.session.get(f"{BASE_URL}/invoices/{self.test_invoice_id}")
-        
-        if response.status_code == 200:
-            invoice_data = response.json()
-            
-            # Comprehensive verification of finalized invoice
-            verification_results = []
-            
-            # 1. Basic structure
-            required_fields = ["id", "invoice_number", "date", "customer_name", "items", 
-                             "subtotal", "vat_total", "grand_total", "status", "finalized_at"]
-            missing_fields = [field for field in required_fields if field not in invoice_data]
-            verification_results.append(("Basic structure", len(missing_fields) == 0, f"Missing: {missing_fields}" if missing_fields else "All fields present"))
-            
-            # 2. Status verification
-            status = invoice_data.get("status")
-            finalized_at = invoice_data.get("finalized_at")
-            verification_results.append(("Status verification", status == "finalized" and finalized_at, 
-                                       f"Status: {status}, Finalized: {bool(finalized_at)}"))
-            
-            # 3. Customer information
-            customer_info_complete = all(invoice_data.get(field) for field in ["customer_name", "customer_id"])
-            verification_results.append(("Customer information", customer_info_complete, 
-                                       f"Customer: {invoice_data.get('customer_name')}, ID: {invoice_data.get('customer_id')}"))
-            
-            # 4. Items verification
-            items = invoice_data.get("items", [])
-            items_complete = len(items) >= 2
-            if items_complete:
-                for i, item in enumerate(items):
-                    item_fields = ["description", "weight", "purity", "metal_rate", "making_value", "vat_percent", "vat_amount", "line_total"]
-                    item_complete = all(field in item for field in item_fields)
-                    verification_results.append((f"Item {i+1} structure", item_complete, 
-                                               f"Description: {item.get('description')}, Weight: {item.get('weight')}g"))
-            
-            # 5. Calculations verification
-            subtotal = invoice_data.get("subtotal", 0)
-            vat_total = invoice_data.get("vat_total", 0)
-            grand_total = invoice_data.get("grand_total", 0)
-            
-            # Verify calculations are reasonable (basic sanity check)
-            calculations_reasonable = (subtotal > 0 and vat_total >= 0 and grand_total > subtotal)
-            verification_results.append(("Calculations", calculations_reasonable, 
-                                       f"Subtotal: {subtotal}, VAT: {vat_total}, Grand Total: {grand_total}"))
-            
-            # 6. Precision verification
-            weight_precision_ok = all(
-                len(str(item.get("weight", 0)).split(".")[-1]) <= 3 
-                for item in items
-            )
-            money_precision_ok = all(
-                len(str(invoice_data.get(field, 0)).split(".")[-1]) <= 2 
-                for field in ["subtotal", "vat_total", "grand_total"]
-            )
-            verification_results.append(("Numeric precision", weight_precision_ok and money_precision_ok, 
-                                       f"Weight ≤3 decimals: {weight_precision_ok}, Money ≤2 decimals: {money_precision_ok}"))
-            
-            # 7. Payment details
-            balance_due = invoice_data.get("balance_due", 0)
-            paid_amount = invoice_data.get("paid_amount", 0)
-            payment_details_present = "balance_due" in invoice_data and "paid_amount" in invoice_data
-            verification_results.append(("Payment details", payment_details_present, 
-                                       f"Paid: {paid_amount}, Balance: {balance_due}"))
-            
-            # Summary
-            all_passed = all(result[1] for result in verification_results)
-            passed_count = sum(1 for result in verification_results if result[1])
-            total_count = len(verification_results)
-            
-            details = f"Verification: {passed_count}/{total_count} checks passed"
-            for check_name, passed, detail in verification_results:
-                if not passed:
-                    details += f"\n   ❌ {check_name}: {detail}"
-                else:
-                    details += f"\n   ✅ {check_name}: {detail}"
-            
-            self.log_test("Step 4 - View Finalized Invoice (COMPREHENSIVE)", all_passed, details)
-            return all_passed
-        else:
-            self.log_test("Step 4 - View Finalized Invoice", False, 
-                        f"Status: {response.status_code}", response.text)
-            return False
-    
-    def test_step_5_invoice_list_view(self):
-        """Step 5: Test Invoice List View"""
-        print("\n📋 STEP 5: Test Invoice List View")
-        
-        response = self.session.get(f"{BASE_URL}/invoices?page=1&per_page=50")
-        
-        if response.status_code == 200:
-            invoices_data = response.json()
-            
-            # Verify pagination structure
-            if "items" in invoices_data and "pagination" in invoices_data:
-                items = invoices_data.get("items", [])
-                
-                # Look for our finalized invoice
-                test_invoice_found = False
-                if self.test_invoice_id:
-                    test_invoice_found = any(inv.get("id") == self.test_invoice_id for inv in items)
-                
-                if test_invoice_found:
-                    found_invoice = next(inv for inv in items if inv.get("id") == self.test_invoice_id)
-                    
-                    # Verify list preview data
-                    preview_fields = ["invoice_number", "date", "customer_name", "grand_total", "status"]
-                    preview_complete = all(field in found_invoice for field in preview_fields)
-                    
-                    if preview_complete and found_invoice.get("status") == "finalized":
-                        self.log_test("Step 5 - Invoice List View", True, 
-                                    f"Finalized invoice found in list. Invoice: {found_invoice.get('invoice_number')}, "
-                                    f"Customer: {found_invoice.get('customer_name')}, Total: {found_invoice.get('grand_total')}")
-                        return True
-                    else:
-                        self.log_test("Step 5 - Invoice List View", False, 
-                                    f"Preview data incomplete or wrong status. Complete: {preview_complete}, Status: {found_invoice.get('status')}")
-                        return False
-                else:
-                    self.log_test("Step 5 - Invoice List View", False, 
-                                f"Test invoice not found in list of {len(items)} invoices")
-                    return False
-            else:
-                self.log_test("Step 5 - Invoice List View", False, 
-                            "Invalid response structure - missing items or pagination")
-                return False
-        else:
-            self.log_test("Step 5 - Invoice List View", False, 
-                        f"Status: {response.status_code}", response.text)
-            return False
-    
-    def test_step_6_attempt_edit_finalized(self):
-        """Step 6: Attempt to Edit Finalized Invoice (Should Fail)"""
-        print("\n🚫 STEP 6: Attempt to Edit Finalized Invoice (Should Fail)")
-        
-        if not self.test_invoice_id:
-            self.log_test("Step 6 - Edit Finalized Invoice", False, "No test invoice available")
-            return False
-        
-        # Attempt to update the finalized invoice
-        update_data = {
-            "notes": "This should not be allowed - invoice is finalized"
-        }
-        
-        response = self.session.patch(f"{BASE_URL}/invoices/{self.test_invoice_id}", json=update_data)
-        
-        # This should fail with 400 or 403 error
-        if response.status_code in [400, 403]:
-            error_message = response.text or response.json().get("detail", "")
-            
-            # Check if error message indicates invoice is locked/finalized
-            locked_keywords = ["finalized", "locked", "cannot", "edit", "modify"]
-            error_indicates_locked = any(keyword.lower() in error_message.lower() for keyword in locked_keywords)
-            
-            if error_indicates_locked:
-                self.log_test("Step 6 - Edit Finalized Invoice (Should Fail)", True, 
-                            f"Correctly rejected edit attempt. Status: {response.status_code}, Message: {error_message}")
-                return True
-            else:
-                self.log_test("Step 6 - Edit Finalized Invoice (Should Fail)", False, 
-                            f"Rejected but unclear error message. Status: {response.status_code}, Message: {error_message}")
-                return False
-        elif response.status_code == 200:
-            self.log_test("Step 6 - Edit Finalized Invoice (Should Fail)", False, 
-                        "CRITICAL: Edit was allowed on finalized invoice - this should not happen!")
-            return False
-        else:
-            self.log_test("Step 6 - Edit Finalized Invoice (Should Fail)", False, 
-                        f"Unexpected status code: {response.status_code}", response.text)
-            return False
-    
-    def test_step_7_edge_cases(self):
-        """Step 7: Test Edge Cases"""
-        print("\n🧪 STEP 7: Test Edge Cases")
-        
-        edge_case_results = []
-        
-        # Edge Case 1: Test with multiple items (already done, but verify calculations)
-        if self.test_invoice_id:
-            response = self.session.get(f"{BASE_URL}/invoices/{self.test_invoice_id}")
-            if response.status_code == 200:
-                invoice_data = response.json()
-                items = invoice_data.get("items", [])
-                
-                if len(items) >= 2:
-                    # Verify each item has different VAT percentages or rates
-                    different_rates = len(set(item.get("metal_rate", 0) for item in items)) > 1
-                    edge_case_results.append(("Multiple items with different rates", different_rates, 
-                                            f"Items have different rates: {different_rates}"))
-                    
-                    # Verify calculations for each item
-                    calculations_correct = True
-                    for item in items:
-                        weight = item.get("weight", 0)
-                        rate = item.get("metal_rate", 0)
-                        making = item.get("making_value", 0)
-                        vat_percent = item.get("vat_percent", 0)
-                        
-                        expected_gold_value = weight * rate
-                        expected_vat = (expected_gold_value + making) * (vat_percent / 100)
-                        expected_total = expected_gold_value + making + expected_vat
-                        
-                        actual_gold_value = item.get("gold_value", 0)
-                        actual_vat = item.get("vat_amount", 0)
-                        actual_total = item.get("line_total", 0)
-                        
-                        # Allow small rounding differences
-                        if (abs(actual_gold_value - expected_gold_value) > 0.01 or
-                            abs(actual_vat - expected_vat) > 0.01 or
-                            abs(actual_total - expected_total) > 0.01):
-                            calculations_correct = False
-                            break
-                    
-                    edge_case_results.append(("Item-wise calculations accuracy", calculations_correct, 
-                                            f"All item calculations are accurate: {calculations_correct}"))
-        
-        # Edge Case 2: Test invoice with rounding
-        if self.test_invoice_id:
-            response = self.session.get(f"{BASE_URL}/invoices/{self.test_invoice_id}")
-            if response.status_code == 200:
-                invoice_data = response.json()
-                grand_total = invoice_data.get("grand_total", 0)
-                
-                # Check if there's a rounded field
-                grand_total_rounded = invoice_data.get("grand_total_rounded")
-                if grand_total_rounded is not None:
-                    rounding_reasonable = abs(grand_total_rounded - grand_total) <= 1.0
-                    edge_case_results.append(("Grand total rounding", rounding_reasonable, 
-                                            f"Original: {grand_total}, Rounded: {grand_total_rounded}"))
-                else:
-                    edge_case_results.append(("Grand total rounding field", True, 
-                                            "No rounding field present (acceptable)"))
-        
-        # Edge Case 3: Test payment details display
-        if self.test_invoice_id:
-            response = self.session.get(f"{BASE_URL}/invoices/{self.test_invoice_id}")
-            if response.status_code == 200:
-                invoice_data = response.json()
-                
-                paid_amount = invoice_data.get("paid_amount", 0)
-                balance_due = invoice_data.get("balance_due", 0)
-                grand_total = invoice_data.get("grand_total", 0)
-                
-                # Verify payment calculation
-                payment_calculation_correct = abs((paid_amount + balance_due) - grand_total) < 0.01
-                edge_case_results.append(("Payment calculation", payment_calculation_correct, 
-                                        f"Paid: {paid_amount}, Balance: {balance_due}, Total: {grand_total}"))
-                
-                # Determine payment status
-                if paid_amount == 0:
-                    payment_status = "unpaid"
-                elif balance_due <= 0:
-                    payment_status = "paid"
-                else:
-                    payment_status = "partial"
-                
-                actual_payment_status = invoice_data.get("payment_status", "")
-                payment_status_correct = actual_payment_status == payment_status
-                edge_case_results.append(("Payment status accuracy", payment_status_correct, 
-                                        f"Expected: {payment_status}, Actual: {actual_payment_status}"))
-        
-        # Summary of edge cases
-        all_edge_cases_passed = all(result[1] for result in edge_case_results)
-        passed_edge_cases = sum(1 for result in edge_case_results if result[1])
-        total_edge_cases = len(edge_case_results)
-        
-        details = f"Edge cases: {passed_edge_cases}/{total_edge_cases} passed"
-        for case_name, passed, detail in edge_case_results:
-            if not passed:
-                details += f"\n   ❌ {case_name}: {detail}"
-            else:
-                details += f"\n   ✅ {case_name}: {detail}"
-        
-        self.log_test("Step 7 - Edge Cases", all_edge_cases_passed, details)
-        return all_edge_cases_passed
-    
-    def cleanup_test_data(self):
-        """Clean up test data created during testing"""
-        print("🧹 Cleaning up test data...")
-        
-        # Delete test invoice
-        if hasattr(self, 'test_invoice_id') and self.test_invoice_id:
-            delete_response = self.session.delete(f"{BASE_URL}/invoices/{self.test_invoice_id}")
-            if delete_response.status_code in [200, 204]:
-                print(f"   ✅ Deleted test invoice {self.test_invoice_id}")
-            else:
-                print(f"   ⚠️ Failed to delete test invoice {self.test_invoice_id}")
-        
-        # Note: We don't delete the test customer as it might be an existing customer
-        # Only delete if we created it specifically for testing
-        if hasattr(self, 'test_customer_id') and hasattr(self, 'created_test_customer'):
-            if self.created_test_customer:
-                delete_response = self.session.delete(f"{BASE_URL}/parties/{self.test_customer_id}")
-                if delete_response.status_code in [200, 204]:
-                    print(f"   ✅ Deleted test customer {self.test_customer_id}")
-                else:
-                    print(f"   ⚠️ Failed to delete test customer {self.test_customer_id}")
-    
-    def run_all_tests(self):
-        """Run all test scenarios for Invoice Finalization and Viewing functionality"""
-        print("🚀 Starting Invoice Finalization and Viewing Backend API Testing")
-        print("🎯 Focus: Verify that finalized invoices can be viewed properly and display complete, accurate details")
-        print("=" * 80)
-        
-        if not self.authenticate():
-            print("❌ Authentication failed. Cannot proceed with tests.")
-            return False
-        
-        # Setup test customer
-        if not self.get_or_create_test_customer():
-            print("❌ Failed to setup test customer. Cannot proceed with tests.")
-            return False
-        
+    def test_1_verify_accounts(self):
+        """TEST 1: PRE-CONDITIONS VERIFICATION - Verify accounts exist"""
+        print("\n💰 TEST 1: PRE-CONDITIONS VERIFICATION")
         try:
-            # Execute all test steps
-            step_results = []
+            response = self.session.get(f"{BASE_URL}/accounts")
+            if response.status_code != 200:
+                self.log_test("Get Accounts List", False, f"Status: {response.status_code}")
+                return False
+                
+            accounts = response.json()
+            print(f"Found {len(accounts)} accounts")
             
-            # Step 1: Create New Invoice (Draft)
-            step_results.append(self.test_step_1_create_draft_invoice())
+            # Find Cash and Bank accounts
+            cash_account = None
+            bank_account = None
             
-            # Step 2: View Draft Invoice
-            step_results.append(self.test_step_2_view_draft_invoice())
+            for account in accounts:
+                if account.get('account_type', '').lower() == 'cash':
+                    cash_account = account
+                elif account.get('account_type', '').lower() == 'bank':
+                    bank_account = account
+                    
+            if not cash_account:
+                self.log_test("Cash Account Exists", False, "No Cash account found")
+                return False
+            if not bank_account:
+                self.log_test("Bank Account Exists", False, "No Bank account found")
+                return False
+                
+            # Store account details for testing
+            self.test_data['cash_account'] = cash_account
+            self.test_data['bank_account'] = bank_account
+            self.test_data['cash_opening_balance'] = float(cash_account.get('current_balance', 0))
+            self.test_data['bank_opening_balance'] = float(bank_account.get('current_balance', 0))
             
-            # Step 3: Finalize the Invoice
-            step_results.append(self.test_step_3_finalize_invoice())
+            self.log_test("Cash Account Exists", True, f"ID: {cash_account['id']}, Balance: {self.test_data['cash_opening_balance']} OMR")
+            self.log_test("Bank Account Exists", True, f"ID: {bank_account['id']}, Balance: {self.test_data['bank_opening_balance']} OMR")
             
-            # Step 4: View Finalized Invoice (CRITICAL)
-            step_results.append(self.test_step_4_view_finalized_invoice())
+            return True
             
-            # Step 5: Test Invoice List View
-            step_results.append(self.test_step_5_invoice_list_view())
+        except Exception as e:
+            self.log_test("Verify Accounts", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_2_create_test_invoice(self):
+        """TEST 2: CREATE TEST INVOICE with 2+ items"""
+        print("\n📄 TEST 2: CREATE TEST INVOICE")
+        try:
+            # Get a customer for the invoice
+            parties_response = self.session.get(f"{BASE_URL}/parties?party_type=customer&per_page=1")
+            if parties_response.status_code != 200:
+                self.log_test("Get Customer", False, f"Status: {parties_response.status_code}")
+                return False
+                
+            parties_data = parties_response.json()
+            if not parties_data.get('items') or len(parties_data['items']) == 0:
+                self.log_test("Get Customer", False, "No customers found")
+                return False
+                
+            customer = parties_data['items'][0]
             
-            # Step 6: Attempt to Edit Finalized Invoice (Should Fail)
-            step_results.append(self.test_step_6_attempt_edit_finalized())
+            # Create invoice with 2 items
+            invoice_data = {
+                "customer_type": "saved",
+                "customer_id": customer['id'],
+                "customer_name": customer['name'],
+                "customer_phone": customer.get('phone', ''),
+                "customer_address": customer.get('address', ''),
+                "items": [
+                    {
+                        "description": "Gold Ring 22K - Test Payment Integration",
+                        "weight": 15.500,
+                        "category": "Ring",
+                        "purity": 916,
+                        "metal_rate": 50.00,
+                        "making_value": 100.00,
+                        "line_total": 875.00  # (15.5 * 50) + 100
+                    },
+                    {
+                        "description": "Gold Chain 18K - Test Payment Integration", 
+                        "weight": 20.250,
+                        "category": "Chain",
+                        "purity": 750,
+                        "metal_rate": 45.00,
+                        "making_value": 150.00,
+                        "line_total": 1061.25  # (20.25 * 45) + 150
+                    }
+                ],
+                "subtotal": 1936.25,
+                "discount_amount": 0.00,
+                "vat_total": 96.81,  # 5% VAT
+                "grand_total": 2033.06,
+                "status": "draft",
+                "notes": "Test invoice for payment integration testing"
+            }
             
-            # Step 7: Test Edge Cases
-            step_results.append(self.test_step_7_edge_cases())
+            response = self.session.post(f"{BASE_URL}/invoices", json=invoice_data)
+            if response.status_code != 201:
+                self.log_test("Create Test Invoice", False, f"Status: {response.status_code}, Response: {response.text}")
+                return False
+                
+            invoice = response.json()
+            self.test_data['test_invoice'] = invoice
+            self.test_data['invoice_id'] = invoice['id']
+            self.test_data['grand_total'] = float(invoice['grand_total'])
             
-        finally:
-            # Always cleanup
-            self.cleanup_test_data()
-        
-        # Print comprehensive summary
-        print("\n" + "=" * 80)
-        print("📊 COMPREHENSIVE INVOICE FINALIZATION TEST SUMMARY")
+            self.log_test("Create Test Invoice", True, f"Invoice ID: {invoice['id']}, Grand Total: {self.test_data['grand_total']} OMR")
+            return True
+            
+        except Exception as e:
+            self.log_test("Create Test Invoice", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_3_get_account_balance_before(self):
+        """TEST 3: GET ACCOUNT BALANCE BEFORE PAYMENT"""
+        print("\n💰 TEST 3: GET ACCOUNT BALANCE BEFORE PAYMENT")
+        try:
+            cash_account_id = self.test_data['cash_account']['id']
+            response = self.session.get(f"{BASE_URL}/accounts/{cash_account_id}")
+            
+            if response.status_code != 200:
+                self.log_test("Get Cash Account Balance Before", False, f"Status: {response.status_code}")
+                return False
+                
+            account = response.json()
+            current_balance = float(account.get('current_balance', 0))
+            self.test_data['cash_balance_before'] = current_balance
+            
+            self.log_test("Get Cash Account Balance Before", True, f"Balance: {current_balance} OMR")
+            return True
+            
+        except Exception as e:
+            self.log_test("Get Cash Account Balance Before", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_4_add_partial_payment(self):
+        """TEST 4: ADD PARTIAL PAYMENT TO INVOICE (CRITICAL TEST)"""
+        print("\n💳 TEST 4: ADD PARTIAL PAYMENT TO INVOICE")
+        try:
+            invoice_id = self.test_data['invoice_id']
+            cash_account_id = self.test_data['cash_account']['id']
+            payment_amount = 500.00
+            
+            payment_data = {
+                "amount": payment_amount,
+                "payment_mode": "Cash",
+                "account_id": cash_account_id,
+                "notes": "Test payment for account balance integration"
+            }
+            
+            response = self.session.post(f"{BASE_URL}/invoices/{invoice_id}/add-payment", json=payment_data)
+            
+            if response.status_code != 200:
+                self.log_test("Add Partial Payment", False, f"Status: {response.status_code}, Response: {response.text}")
+                return False
+                
+            result = response.json()
+            
+            # Verify response structure
+            required_fields = ['message', 'transaction_id', 'transaction_number', 'new_paid_amount', 'new_balance_due', 'payment_status']
+            missing_fields = [field for field in required_fields if field not in result]
+            
+            if missing_fields:
+                self.log_test("Payment Response Structure", False, f"Missing fields: {missing_fields}")
+                return False
+                
+            # Verify payment calculations
+            expected_paid_amount = payment_amount
+            expected_balance_due = self.test_data['grand_total'] - payment_amount
+            
+            if abs(float(result['new_paid_amount']) - expected_paid_amount) > 0.01:
+                self.log_test("Payment Amount Calculation", False, f"Expected: {expected_paid_amount}, Got: {result['new_paid_amount']}")
+                return False
+                
+            if abs(float(result['new_balance_due']) - expected_balance_due) > 0.01:
+                self.log_test("Balance Due Calculation", False, f"Expected: {expected_balance_due}, Got: {result['new_balance_due']}")
+                return False
+                
+            if result['payment_status'] != 'partial':
+                self.log_test("Payment Status", False, f"Expected: partial, Got: {result['payment_status']}")
+                return False
+                
+            # Store payment details for verification
+            self.test_data['first_payment_amount'] = payment_amount
+            self.test_data['transaction_id'] = result['transaction_id']
+            self.test_data['transaction_number'] = result['transaction_number']
+            
+            self.log_test("Add Partial Payment", True, f"Amount: {payment_amount} OMR, Status: {result['payment_status']}")
+            self.log_test("Payment Response Structure", True, "All required fields present")
+            self.log_test("Payment Amount Calculation", True, f"Paid: {result['new_paid_amount']} OMR")
+            self.log_test("Balance Due Calculation", True, f"Balance: {result['new_balance_due']} OMR")
+            self.log_test("Payment Status", True, f"Status: {result['payment_status']}")
+            
+            return True
+            
+        except Exception as e:
+            self.log_test("Add Partial Payment", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_5_verify_account_balance_increased(self):
+        """TEST 5: VERIFY ACCOUNT BALANCE INCREASED (CRITICAL VERIFICATION)"""
+        print("\n💰 TEST 5: VERIFY ACCOUNT BALANCE INCREASED")
+        try:
+            cash_account_id = self.test_data['cash_account']['id']
+            response = self.session.get(f"{BASE_URL}/accounts/{cash_account_id}")
+            
+            if response.status_code != 200:
+                self.log_test("Get Cash Account Balance After", False, f"Status: {response.status_code}")
+                return False
+                
+            account = response.json()
+            current_balance = float(account.get('current_balance', 0))
+            expected_balance = self.test_data['cash_balance_before'] + self.test_data['first_payment_amount']
+            
+            # Allow for small floating point differences
+            if abs(current_balance - expected_balance) > 0.01:
+                self.log_test("Account Balance Update", False, 
+                            f"Expected: {expected_balance} OMR, Got: {current_balance} OMR, "
+                            f"Before: {self.test_data['cash_balance_before']} OMR, "
+                            f"Payment: {self.test_data['first_payment_amount']} OMR")
+                return False
+                
+            self.test_data['cash_balance_after_first'] = current_balance
+            self.log_test("Account Balance Update", True, 
+                        f"Balance increased from {self.test_data['cash_balance_before']} to {current_balance} OMR "
+                        f"(+{self.test_data['first_payment_amount']} OMR)")
+            return True
+            
+        except Exception as e:
+            self.log_test("Verify Account Balance Increased", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_6_verify_transaction_record(self):
+        """TEST 6: VERIFY TRANSACTION RECORD CREATED"""
+        print("\n📊 TEST 6: VERIFY TRANSACTION RECORD CREATED")
+        try:
+            cash_account_id = self.test_data['cash_account']['id']
+            
+            # Get transactions for the account
+            response = self.session.get(f"{BASE_URL}/transactions?account_id={cash_account_id}&per_page=25")
+            
+            if response.status_code != 200:
+                self.log_test("Get Account Transactions", False, f"Status: {response.status_code}")
+                return False
+                
+            transactions_data = response.json()
+            transactions = transactions_data.get('items', [])
+            
+            # Find the transaction we just created
+            target_transaction = None
+            for txn in transactions:
+                if txn.get('id') == self.test_data.get('transaction_id'):
+                    target_transaction = txn
+                    break
+                    
+            if not target_transaction:
+                self.log_test("Transaction Record Found", False, f"Transaction ID {self.test_data.get('transaction_id')} not found")
+                return False
+                
+            # Verify transaction fields
+            verifications = [
+                ("transaction_type", "credit", "Transaction type should be credit for payment received"),
+                ("mode", "Cash", "Payment mode should match"),
+                ("amount", self.test_data['first_payment_amount'], "Amount should match payment"),
+                ("category", "Invoice Payment", "Category should be Invoice Payment"),
+                ("reference_type", "invoice", "Reference type should be invoice"),
+                ("reference_id", self.test_data['invoice_id'], "Reference ID should match invoice ID"),
+                ("account_id", cash_account_id, "Account ID should match Cash account")
+            ]
+            
+            all_passed = True
+            for field, expected, description in verifications:
+                actual = target_transaction.get(field)
+                
+                # Handle numeric comparisons
+                if isinstance(expected, (int, float)):
+                    if abs(float(actual) - float(expected)) > 0.01:
+                        self.log_test(f"Transaction {field}", False, f"Expected: {expected}, Got: {actual}")
+                        all_passed = False
+                    else:
+                        self.log_test(f"Transaction {field}", True, f"Value: {actual}")
+                else:
+                    if actual != expected:
+                        self.log_test(f"Transaction {field}", False, f"Expected: {expected}, Got: {actual}")
+                        all_passed = False
+                    else:
+                        self.log_test(f"Transaction {field}", True, f"Value: {actual}")
+                        
+            return all_passed
+            
+        except Exception as e:
+            self.log_test("Verify Transaction Record", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_7_verify_invoice_updated(self):
+        """TEST 7: VERIFY INVOICE UPDATED"""
+        print("\n📄 TEST 7: VERIFY INVOICE UPDATED")
+        try:
+            invoice_id = self.test_data['invoice_id']
+            response = self.session.get(f"{BASE_URL}/invoices/{invoice_id}")
+            
+            if response.status_code != 200:
+                self.log_test("Get Updated Invoice", False, f"Status: {response.status_code}")
+                return False
+                
+            invoice = response.json()
+            
+            # Verify invoice payment fields
+            expected_paid_amount = self.test_data['first_payment_amount']
+            expected_balance_due = self.test_data['grand_total'] - expected_paid_amount
+            expected_status = "partial"
+            
+            verifications = [
+                ("paid_amount", expected_paid_amount, "Paid amount should match payment"),
+                ("balance_due", expected_balance_due, "Balance due should be grand_total - paid_amount"),
+                ("payment_status", expected_status, "Payment status should be partial")
+            ]
+            
+            all_passed = True
+            for field, expected, description in verifications:
+                actual = invoice.get(field)
+                
+                if isinstance(expected, (int, float)):
+                    if abs(float(actual) - float(expected)) > 0.01:
+                        self.log_test(f"Invoice {field}", False, f"Expected: {expected}, Got: {actual}")
+                        all_passed = False
+                    else:
+                        self.log_test(f"Invoice {field}", True, f"Value: {actual}")
+                else:
+                    if actual != expected:
+                        self.log_test(f"Invoice {field}", False, f"Expected: {expected}, Got: {actual}")
+                        all_passed = False
+                    else:
+                        self.log_test(f"Invoice {field}", True, f"Value: {actual}")
+                        
+            return all_passed
+            
+        except Exception as e:
+            self.log_test("Verify Invoice Updated", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_8_add_second_payment(self):
+        """TEST 8: ADD SECOND PAYMENT TO COMPLETE INVOICE"""
+        print("\n💳 TEST 8: ADD SECOND PAYMENT TO COMPLETE INVOICE")
+        try:
+            invoice_id = self.test_data['invoice_id']
+            cash_account_id = self.test_data['cash_account']['id']
+            
+            # Calculate remaining balance
+            remaining_balance = self.test_data['grand_total'] - self.test_data['first_payment_amount']
+            
+            payment_data = {
+                "amount": remaining_balance,
+                "payment_mode": "Cash",
+                "account_id": cash_account_id,
+                "notes": "Final payment to complete invoice"
+            }
+            
+            response = self.session.post(f"{BASE_URL}/invoices/{invoice_id}/add-payment", json=payment_data)
+            
+            if response.status_code != 200:
+                self.log_test("Add Second Payment", False, f"Status: {response.status_code}, Response: {response.text}")
+                return False
+                
+            result = response.json()
+            
+            # Verify payment status changed to "paid"
+            if result.get('payment_status') != 'paid':
+                self.log_test("Final Payment Status", False, f"Expected: paid, Got: {result.get('payment_status')}")
+                return False
+                
+            # Verify balance due is 0
+            if abs(float(result.get('new_balance_due', 0))) > 0.01:
+                self.log_test("Final Balance Due", False, f"Expected: 0.00, Got: {result.get('new_balance_due')}")
+                return False
+                
+            self.test_data['second_payment_amount'] = remaining_balance
+            
+            self.log_test("Add Second Payment", True, f"Amount: {remaining_balance} OMR")
+            self.log_test("Final Payment Status", True, f"Status: {result['payment_status']}")
+            self.log_test("Final Balance Due", True, f"Balance: {result['new_balance_due']} OMR")
+            
+            return True
+            
+        except Exception as e:
+            self.log_test("Add Second Payment", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_9_verify_account_balance_after_second(self):
+        """TEST 9: VERIFY ACCOUNT BALANCE AFTER SECOND PAYMENT"""
+        print("\n💰 TEST 9: VERIFY ACCOUNT BALANCE AFTER SECOND PAYMENT")
+        try:
+            cash_account_id = self.test_data['cash_account']['id']
+            response = self.session.get(f"{BASE_URL}/accounts/{cash_account_id}")
+            
+            if response.status_code != 200:
+                self.log_test("Get Cash Account Final Balance", False, f"Status: {response.status_code}")
+                return False
+                
+            account = response.json()
+            current_balance = float(account.get('current_balance', 0))
+            expected_balance = (self.test_data['cash_balance_before'] + 
+                              self.test_data['first_payment_amount'] + 
+                              self.test_data['second_payment_amount'])
+            
+            if abs(current_balance - expected_balance) > 0.01:
+                self.log_test("Final Account Balance", False, 
+                            f"Expected: {expected_balance} OMR, Got: {current_balance} OMR")
+                return False
+                
+            total_payments = self.test_data['first_payment_amount'] + self.test_data['second_payment_amount']
+            self.log_test("Final Account Balance", True, 
+                        f"Balance: {current_balance} OMR (Original: {self.test_data['cash_balance_before']} + "
+                        f"Total Payments: {total_payments} OMR)")
+            return True
+            
+        except Exception as e:
+            self.log_test("Verify Final Account Balance", False, f"Exception: {str(e)}")
+            return False
+    
+    def test_10_bank_account_payment(self):
+        """TEST 10: TEST BANK ACCOUNT PAYMENT"""
+        print("\n🏦 TEST 10: TEST BANK ACCOUNT PAYMENT")
+        try:
+            # Create another test invoice
+            parties_response = self.session.get(f"{BASE_URL}/parties?party_type=customer&per_page=1")
+            if parties_response.status_code != 200:
+                self.log_test("Get Customer for Bank Test", False, f"Status: {parties_response.status_code}")
+                return False
+                
+            parties_data = parties_response.json()
+            customer = parties_data['items'][0]
+            
+            # Create simple invoice for bank payment test
+            invoice_data = {
+                "customer_type": "saved",
+                "customer_id": customer['id'],
+                "customer_name": customer['name'],
+                "customer_phone": customer.get('phone', ''),
+                "customer_address": customer.get('address', ''),
+                "items": [
+                    {
+                        "description": "Gold Bracelet 18K - Bank Payment Test",
+                        "weight": 12.000,
+                        "category": "Bracelet",
+                        "purity": 750,
+                        "metal_rate": 45.00,
+                        "making_value": 80.00,
+                        "line_total": 620.00  # (12 * 45) + 80
+                    }
+                ],
+                "subtotal": 620.00,
+                "discount_amount": 0.00,
+                "vat_total": 31.00,  # 5% VAT
+                "grand_total": 651.00,
+                "status": "draft",
+                "notes": "Test invoice for bank payment integration"
+            }
+            
+            response = self.session.post(f"{BASE_URL}/invoices", json=invoice_data)
+            if response.status_code != 201:
+                self.log_test("Create Bank Test Invoice", False, f"Status: {response.status_code}")
+                return False
+                
+            bank_invoice = response.json()
+            bank_invoice_id = bank_invoice['id']
+            
+            # Get bank account balance before payment
+            bank_account_id = self.test_data['bank_account']['id']
+            response = self.session.get(f"{BASE_URL}/accounts/{bank_account_id}")
+            if response.status_code != 200:
+                self.log_test("Get Bank Balance Before", False, f"Status: {response.status_code}")
+                return False
+                
+            bank_balance_before = float(response.json().get('current_balance', 0))
+            
+            # Add bank payment
+            payment_amount = 651.00  # Full payment
+            payment_data = {
+                "amount": payment_amount,
+                "payment_mode": "Bank Transfer",
+                "account_id": bank_account_id,
+                "notes": "Bank transfer payment test"
+            }
+            
+            response = self.session.post(f"{BASE_URL}/invoices/{bank_invoice_id}/add-payment", json=payment_data)
+            if response.status_code != 200:
+                self.log_test("Add Bank Payment", False, f"Status: {response.status_code}, Response: {response.text}")
+                return False
+                
+            # Verify bank account balance increased
+            response = self.session.get(f"{BASE_URL}/accounts/{bank_account_id}")
+            if response.status_code != 200:
+                self.log_test("Get Bank Balance After", False, f"Status: {response.status_code}")
+                return False
+                
+            bank_balance_after = float(response.json().get('current_balance', 0))
+            expected_bank_balance = bank_balance_before + payment_amount
+            
+            if abs(bank_balance_after - expected_bank_balance) > 0.01:
+                self.log_test("Bank Account Balance Update", False, 
+                            f"Expected: {expected_bank_balance} OMR, Got: {bank_balance_after} OMR")
+                return False
+                
+            # Verify transaction created with correct bank account reference
+            response = self.session.get(f"{BASE_URL}/transactions?account_id={bank_account_id}&per_page=5")
+            if response.status_code != 200:
+                self.log_test("Get Bank Transactions", False, f"Status: {response.status_code}")
+                return False
+                
+            transactions_data = response.json()
+            transactions = transactions_data.get('items', [])
+            
+            # Find recent transaction
+            bank_transaction = None
+            for txn in transactions:
+                if (txn.get('reference_id') == bank_invoice_id and 
+                    txn.get('account_id') == bank_account_id and
+                    abs(float(txn.get('amount', 0)) - payment_amount) < 0.01):
+                    bank_transaction = txn
+                    break
+                    
+            if not bank_transaction:
+                self.log_test("Bank Transaction Created", False, "Bank transaction not found")
+                return False
+                
+            self.log_test("Create Bank Test Invoice", True, f"Invoice ID: {bank_invoice_id}")
+            self.log_test("Add Bank Payment", True, f"Amount: {payment_amount} OMR")
+            self.log_test("Bank Account Balance Update", True, 
+                        f"Balance increased from {bank_balance_before} to {bank_balance_after} OMR")
+            self.log_test("Bank Transaction Created", True, f"Transaction ID: {bank_transaction['id']}")
+            
+            return True
+            
+        except Exception as e:
+            self.log_test("Test Bank Account Payment", False, f"Exception: {str(e)}")
+            return False
+    
+    def run_comprehensive_test(self):
+        """Run all tests in sequence"""
+        print("🚀 STARTING COMPREHENSIVE INVOICE PAYMENT TO ACCOUNT INTEGRATION TESTING")
         print("=" * 80)
         
-        total_tests = len(self.test_results)
-        passed_tests = sum(1 for result in self.test_results if result["success"])
-        failed_tests = total_tests - passed_tests
-        
-        print(f"Total Tests: {total_tests}")
-        print(f"✅ Passed: {passed_tests}")
-        print(f"❌ Failed: {failed_tests}")
-        print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
-        
-        # Step-by-step results
-        step_names = [
-            "Step 1 - Create Draft Invoice",
-            "Step 2 - View Draft Invoice", 
-            "Step 3 - Finalize Invoice",
-            "Step 4 - View Finalized Invoice",
-            "Step 5 - Invoice List View",
-            "Step 6 - Edit Finalized Invoice (Should Fail)",
-            "Step 7 - Edge Cases"
+        # Authentication
+        if not self.authenticate():
+            return False
+            
+        # Run all tests
+        tests = [
+            self.test_1_verify_accounts,
+            self.test_2_create_test_invoice,
+            self.test_3_get_account_balance_before,
+            self.test_4_add_partial_payment,
+            self.test_5_verify_account_balance_increased,
+            self.test_6_verify_transaction_record,
+            self.test_7_verify_invoice_updated,
+            self.test_8_add_second_payment,
+            self.test_9_verify_account_balance_after_second,
+            self.test_10_bank_account_payment
         ]
         
-        print(f"\n📋 STEP-BY-STEP RESULTS:")
-        for i, step_name in enumerate(step_names):
-            if i < len(step_results):
-                status = "✅ PASS" if step_results[i] else "❌ FAIL"
-                print(f"   {status} {step_name}")
-            else:
-                print(f"   ⏭️ SKIP {step_name}")
+        passed_tests = 0
+        total_tests = len(tests)
         
-        # Critical verifications
-        print(f"\n🎯 CRITICAL VERIFICATIONS:")
+        for test in tests:
+            try:
+                if test():
+                    passed_tests += 1
+                else:
+                    print(f"❌ Test failed: {test.__name__}")
+            except Exception as e:
+                print(f"❌ Test error in {test.__name__}: {str(e)}")
         
-        invoice_creation_ok = any("Step 1 - Create Draft Invoice" in r["test"] and r["success"] for r in self.test_results)
-        draft_viewing_ok = any("Step 2 - View Draft Invoice" in r["test"] and r["success"] for r in self.test_results)
-        finalization_ok = any("Step 3 - Finalize Invoice" in r["test"] and r["success"] for r in self.test_results)
-        finalized_viewing_ok = any("Step 4 - View Finalized Invoice" in r["test"] and r["success"] for r in self.test_results)
-        list_view_ok = any("Step 5 - Invoice List View" in r["test"] and r["success"] for r in self.test_results)
-        edit_protection_ok = any("Step 6 - Edit Finalized Invoice" in r["test"] and r["success"] for r in self.test_results)
+        # Print summary
+        print("\n" + "=" * 80)
+        print("🎯 COMPREHENSIVE TEST RESULTS SUMMARY")
+        print("=" * 80)
         
-        print(f"   ✅ Invoice creation with 2+ items works: {'✅ YES' if invoice_creation_ok else '❌ NO'}")
-        print(f"   ✅ Draft invoice can be viewed: {'✅ YES' if draft_viewing_ok else '❌ NO'}")
-        print(f"   ✅ Finalization endpoint works: {'✅ YES' if finalization_ok else '❌ NO'}")
-        print(f"   ✅ Finalized invoice displays all details correctly: {'✅ YES' if finalized_viewing_ok else '❌ NO'}")
-        print(f"   ✅ Status shows 'finalized': {'✅ YES' if finalization_ok else '❌ NO'}")
-        print(f"   ✅ Editing finalized invoice is properly blocked: {'✅ YES' if edit_protection_ok else '❌ NO'}")
-        print(f"   ✅ No blank pages or missing data: {'✅ YES' if finalized_viewing_ok else '❌ NO'}")
+        success_rate = (passed_tests / total_tests) * 100
+        print(f"Overall Success Rate: {passed_tests}/{total_tests} ({success_rate:.1f}%)")
         
-        if failed_tests > 0:
-            print(f"\n❌ FAILED TESTS ({failed_tests}):")
-            for result in self.test_results:
-                if not result["success"]:
-                    print(f"   • {result['test']}")
-                    if result['details']:
-                        print(f"     └─ {result['details']}")
+        # Group results by category
+        critical_tests = [t for t in self.test_results if 'Balance' in t['test'] or 'Payment' in t['test']]
+        critical_passed = len([t for t in critical_tests if t['passed']])
         
-        # Production readiness assessment
-        critical_steps_passed = sum(step_results[:6])  # First 6 steps are critical
-        production_ready = critical_steps_passed >= 5  # Allow 1 failure in non-critical areas
+        print(f"\n🔥 CRITICAL TESTS (Account Balance Integration): {critical_passed}/{len(critical_tests)} PASSED")
         
-        print(f"\n🎯 PRODUCTION READINESS ASSESSMENT:")
-        print(f"   Critical Steps Passed: {critical_steps_passed}/6")
-        print(f"   Overall Assessment: {'✅ PRODUCTION READY' if production_ready else '❌ NEEDS FIXES'}")
-        
-        if production_ready:
-            print(f"   📋 Invoice finalization and viewing functionality is working correctly")
-            print(f"   📋 All calculations are accurate and properly formatted")
-            print(f"   📋 Finalized invoices are properly protected from editing")
+        # Show failed tests
+        failed_tests = [t for t in self.test_results if not t['passed']]
+        if failed_tests:
+            print(f"\n❌ FAILED TESTS ({len(failed_tests)}):")
+            for test in failed_tests:
+                print(f"   • {test['test']}: {test['details']}")
         else:
-            print(f"   ⚠️ Critical issues found that need to be addressed before production")
+            print(f"\n✅ ALL TESTS PASSED - INVOICE PAYMENT TO ACCOUNT INTEGRATION WORKING CORRECTLY!")
+            
+        # Critical success criteria
+        print(f"\n🎯 CRITICAL SUCCESS CRITERIA VERIFICATION:")
+        criteria = [
+            ("Account current_balance updates immediately after payment", 
+             any('Account Balance Update' in t['test'] and t['passed'] for t in self.test_results)),
+            ("Balance increases by EXACT payment amount", 
+             any('Account Balance Update' in t['test'] and t['passed'] for t in self.test_results)),
+            ("Transaction records created with correct fields", 
+             any('Transaction' in t['test'] and t['passed'] for t in self.test_results)),
+            ("Invoice paid_amount and balance_due updated correctly", 
+             any('Invoice' in t['test'] and 'updated' in t['test'].lower() and t['passed'] for t in self.test_results)),
+            ("Works for both Cash and Bank accounts", 
+             any('Bank' in t['test'] and t['passed'] for t in self.test_results)),
+            ("Works for both partial and full payments", 
+             any('Second Payment' in t['test'] and t['passed'] for t in self.test_results)),
+            ("Transaction type is credit for payment received", 
+             any('transaction_type' in t['test'] and t['passed'] for t in self.test_results)),
+            ("Category is Invoice Payment", 
+             any('category' in t['test'] and t['passed'] for t in self.test_results))
+        ]
         
-        return failed_tests == 0
+        for criterion, passed in criteria:
+            status = "✅" if passed else "❌"
+            print(f"   {status} {criterion}")
+            
+        return len(failed_tests) == 0
 
 if __name__ == "__main__":
-    tester = InvoiceFinalizationTester()
-    success = tester.run_all_tests()
+    tester = InvoicePaymentTester()
+    success = tester.run_comprehensive_test()
     sys.exit(0 if success else 1)
