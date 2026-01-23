@@ -460,9 +460,17 @@ export default function JobCardsPage() {
           <h1 className="text-4xl font-serif font-semibold text-gray-900 mb-2">Job Cards</h1>
           <p className="text-muted-foreground">Manage repair and custom work orders</p>
         </div>
-        <Button data-testid="create-jobcard-button" onClick={() => setShowDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Create Job Card
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowManageTemplatesDialog(true)}
+          >
+            <Settings className="w-4 h-4 mr-2" /> Manage Templates
+          </Button>
+          <Button data-testid="create-jobcard-button" onClick={() => setShowDialog(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Create Job Card
+          </Button>
+        </div>
       </div>
 
       <Card>
