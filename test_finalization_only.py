@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 
 class FinalizationTester:
-    def __init__(self, base_url="https://invalid-child-fix.preview.emergentagent.com"):
+    def __init__(self, base_url="https://unique-phone-check.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
