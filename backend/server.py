@@ -51,6 +51,61 @@ def float_to_decimal128(value):
         return None
     return Decimal128(Decimal(str(value)))
 
+# Status transition validation rules
+STATUS_TRANSITIONS = {
+    "jobcard": {
+        "created": ["in_progress", "cancelled"],
+        "in_progress": ["completed", "cancelled"],
+        "completed": ["delivered", "cancelled"],
+        "delivered": [],  # Terminal state
+        "cancelled": []  # Terminal state
+    },
+    "invoice": {
+        "draft": ["finalized"],
+        "finalized": []  # Terminal state
+    },
+    "purchase": {
+        "draft": ["finalized"],
+        "finalized": []  # Terminal state
+    }
+}
+
+def validate_status_transition(entity_type: str, current_status: str, new_status: str) -> tuple[bool, str]:
+    """
+    Validate if a status transition is allowed
+    
+    Args:
+        entity_type: Type of entity (jobcard, invoice, purchase)
+        current_status: Current status of the entity
+        new_status: New status to transition to
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # If status is not changing, allow it
+    if current_status == new_status:
+        return True, ""
+    
+    # Get allowed transitions for this entity type
+    transitions = STATUS_TRANSITIONS.get(entity_type, {})
+    
+    # Normalize status strings (handle variations like "in progress" vs "in_progress")
+    current_normalized = current_status.lower().replace(" ", "_")
+    new_normalized = new_status.lower().replace(" ", "_")
+    
+    # Get allowed next statuses
+    allowed_next = transitions.get(current_normalized, [])
+    
+    # Check if transition is allowed
+    if new_normalized in allowed_next:
+        return True, ""
+    
+    # If we reach here, transition is not allowed
+    allowed_str = ", ".join(allowed_next) if allowed_next else "none (terminal state)"
+    error_msg = f"Invalid status transition from '{current_status}' to '{new_status}'. Allowed transitions: {allowed_str}"
+    
+    return False, error_msg
+
 class PaginationMetadata(BaseModel):
     total_count: int
     page: int
