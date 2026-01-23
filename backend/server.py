@@ -590,17 +590,63 @@ async def get_stock_movements(header_id: Optional[str] = None, current_user: Use
 
 @api_router.post("/inventory/movements", response_model=StockMovement)
 async def create_stock_movement(movement_data: dict, current_user: User = Depends(get_current_user)):
+    """
+    Create manual stock movement for inventory adjustments.
+    
+    CRITICAL RESTRICTION - Production ERP Compliance:
+    - Stock OUT movements are PROHIBITED via manual entry
+    - Stock can only be reduced through Invoice Finalization (POST /api/invoices/{id}/finalize)
+    - This ensures proper audit trail, accounting accuracy, and GST compliance
+    
+    Allowed movement types:
+    - "Stock IN": Manual stock additions (returns, found items, corrections)
+    - "Adjustment": Inventory reconciliation adjustments (positive only)
+    
+    Prohibited:
+    - "Stock OUT": Must occur ONLY through invoice finalization to maintain:
+      * Complete audit trail (tied to invoice)
+      * Accurate accounting (revenue recorded)
+      * GST compliance (tax collected)
+    """
     header = await db.inventory_headers.find_one({"id": movement_data['header_id']}, {"_id": 0})
     if not header:
         raise HTTPException(status_code=404, detail="Header not found")
     
+    # CRITICAL VALIDATION: Prevent manual Stock OUT movements
+    movement_type = movement_data.get('movement_type', '').strip()
+    qty_delta = movement_data.get('qty_delta', 0)
+    weight_delta = movement_data.get('weight_delta', 0)
+    
+    # Block Stock OUT movement type entirely
+    if movement_type == "Stock OUT":
+        raise HTTPException(
+            status_code=403,
+            detail="Manual 'Stock OUT' movements are prohibited. Stock can only be reduced through Invoice Finalization (POST /api/invoices/{id}/finalize). This restriction ensures audit trail integrity, accounting accuracy, and GST compliance."
+        )
+    
+    # Block negative deltas for Stock IN and Adjustment (attempt to bypass via negative values)
+    if movement_type in ["Stock IN", "Adjustment"]:
+        if qty_delta < 0 or weight_delta < 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid {movement_type} movement: qty_delta and weight_delta must be positive (>= 0). To reduce stock, use Invoice Finalization instead."
+            )
+    
+    # Validate movement_type is one of the allowed types
+    allowed_types = ["Stock IN", "Adjustment"]
+    if movement_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid movement_type '{movement_type}'. Allowed types: {', '.join(allowed_types)}. Note: 'Stock OUT' is only created automatically through Invoice Finalization."
+        )
+    
     movement = StockMovement(
-        movement_type=movement_data['movement_type'],
+        movement_type=movement_type,
         header_id=movement_data['header_id'],
         header_name=header['name'],
         description=movement_data['description'],
-        qty_delta=movement_data['qty_delta'],
-        weight_delta=movement_data['weight_delta'],
+        qty_delta=qty_delta,
+        weight_delta=weight_delta,
         purity=movement_data['purity'],
         notes=movement_data.get('notes'),
         created_by=current_user.id
@@ -610,16 +656,16 @@ async def create_stock_movement(movement_data: dict, current_user: User = Depend
     await db.stock_movements.insert_one(movement.model_dump())
     
     # DIRECT UPDATE: Update header's current quantity and weight
-    new_qty = header.get('current_qty', 0) + movement_data['qty_delta']
-    new_weight = header.get('current_weight', 0) + movement_data['weight_delta']
+    new_qty = header.get('current_qty', 0) + qty_delta
+    new_weight = header.get('current_weight', 0) + weight_delta
     
-    # Validate stock doesn't go negative
+    # Validate stock doesn't go negative (safety check, should not happen with positive deltas)
     if new_qty < 0 or new_weight < 0:
         # Delete the movement we just created
         await db.stock_movements.delete_one({"id": movement.id})
         raise HTTPException(
             status_code=400, 
-            detail=f"Insufficient stock. Available: {header.get('current_qty', 0)} qty, {header.get('current_weight', 0)}g. Requested: {abs(movement_data['qty_delta'])} qty, {abs(movement_data['weight_delta'])}g"
+            detail=f"Insufficient stock. Available: {header.get('current_qty', 0)} qty, {header.get('current_weight', 0)}g. Requested: {abs(qty_delta)} qty, {abs(weight_delta)}g"
         )
     
     await db.inventory_headers.update_one(
@@ -627,7 +673,8 @@ async def create_stock_movement(movement_data: dict, current_user: User = Depend
         {"$set": {"current_qty": new_qty, "current_weight": new_weight}}
     )
     
-    await create_audit_log(current_user.id, current_user.full_name, "stock_movement", movement.id, "create")
+    await create_audit_log(current_user.id, current_user.full_name, "stock_movement", movement.id, "create", 
+                          details={"movement_type": movement_type, "qty_delta": qty_delta, "weight_delta": weight_delta})
     return movement
 
 @api_router.delete("/inventory/movements/{movement_id}")
