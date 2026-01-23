@@ -383,6 +383,15 @@ export default function InvoicesPage() {
                     <td className="px-4 py-3">{getPaymentStatusBadge(inv.payment_status)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
+                        <Button
+                          data-testid={`view-${inv.invoice_number}`}
+                          size="sm"
+                          variant="outline"
+                          className="text-indigo-600 hover:text-indigo-700"
+                          onClick={() => handleViewInvoice(inv)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" /> View
+                        </Button>
                         {(inv.status === 'draft' || !inv.status) && (
                           <Button
                             data-testid={`finalize-${inv.invoice_number}`}
