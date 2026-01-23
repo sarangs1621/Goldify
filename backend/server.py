@@ -2148,6 +2148,44 @@ async def delete_jobcard(jobcard_id: str, current_user: User = Depends(get_curre
     await create_audit_log(current_user.id, current_user.full_name, "jobcard", jobcard_id, "delete")
     return {"message": "Job card deleted successfully"}
 
+@api_router.get("/jobcards/{jobcard_id}/impact")
+async def get_jobcard_impact(jobcard_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Get impact summary for job card actions (status changes or deletion).
+    Shows decision-critical data: items count, total weight, estimated cost, linked data.
+    """
+    jobcard = await db.jobcards.find_one({"id": jobcard_id, "is_deleted": False}, {"_id": 0})
+    if not jobcard:
+        raise HTTPException(status_code=404, detail="Job card not found")
+    
+    # Calculate totals from items
+    items = jobcard.get("items", [])
+    total_items = len(items)
+    total_weight = sum(item.get("weight", 0) for item in items)
+    total_making_charges = sum(item.get("making_value", 0) for item in items)
+    
+    # Check if linked to invoice
+    linked_invoice = await db.invoices.find_one(
+        {"jobcard_id": jobcard_id, "is_deleted": False},
+        {"_id": 0, "id": 1, "invoice_number": 1, "status": 1, "grand_total": 1}
+    )
+    
+    # Build impact summary
+    impact = {
+        "jobcard_number": jobcard.get("job_card_number"),
+        "current_status": jobcard.get("status", "created"),
+        "is_locked": jobcard.get("locked", False),
+        "customer_name": jobcard.get("customer_name") or jobcard.get("walk_in_name"),
+        "worker_name": jobcard.get("worker_name"),
+        "total_items": total_items,
+        "total_weight_grams": round(total_weight, 3),
+        "total_making_charges": round(total_making_charges, 2),
+        "has_linked_invoice": linked_invoice is not None,
+        "linked_invoice": linked_invoice if linked_invoice else None
+    }
+    
+    return impact
+
 @api_router.post("/jobcards/{jobcard_id}/convert-to-invoice")
 async def convert_jobcard_to_invoice(jobcard_id: str, invoice_data: dict, current_user: User = Depends(get_current_user)):
     jobcard = await db.jobcards.find_one({"id": jobcard_id, "is_deleted": False}, {"_id": 0})
