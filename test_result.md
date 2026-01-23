@@ -297,9 +297,21 @@ test_plan:
     - "Purchase Creation Form"
     - "End-to-End Purchase Flow"
     - "Cross-Module Verification"
-  stuck_tasks: []
+  stuck_tasks:
+    - "Purchase Creation API"
+    - "Inventory Stock Update on Purchase"
+    - "Finance Transaction on Purchase Payment"
+    - "Vendor Outstanding Update"
+    - "Audit Log Creation"
+    - "Purchase Creation Form"
+    - "Purchase Records Display"
+    - "Inventory Display & Recent Movements"
+    - "Finance Accounts & Transactions Display"
+    - "Reports - Outstanding, Purchase History, Overview"
+    - "Daily Closing Impact"
+    - "Audit Logs Display"
   test_all: true
-  test_priority: "sequential"
+  test_priority: "manual_verification_required"
 
 agent_communication:
   - agent: "main"
