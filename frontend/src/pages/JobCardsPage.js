@@ -96,6 +96,11 @@ export default function JobCardsPage() {
 
   const handleCreateJobCard = async () => {
     try {
+      // Check if saving as template
+      if (saveAsTemplate) {
+        return await handleSaveTemplate();
+      }
+
       // Validate based on customer type
       if (formData.customer_type === 'saved') {
         if (!formData.customer_id) {
@@ -112,6 +117,7 @@ export default function JobCardsPage() {
       const data = {
         ...formData,
         gold_rate_at_jobcard: formData.gold_rate_at_jobcard ? parseFloat(formData.gold_rate_at_jobcard) : null,
+        delivery_days_offset: formData.delivery_days_offset ? parseInt(formData.delivery_days_offset) : null,
         items: formData.items.map(item => ({
           ...item,
           qty: parseInt(item.qty),
@@ -143,6 +149,112 @@ export default function JobCardsPage() {
       loadData();
     } catch (error) {
       const errorMsg = error.response?.data?.detail || `Failed to ${editingJobCard ? 'update' : 'create'} job card`;
+      toast.error(errorMsg);
+    }
+  };
+
+  // Template functions
+  const handleSaveTemplate = async () => {
+    try {
+      if (!formData.template_name || !formData.template_name.trim()) {
+        toast.error('Please enter a template name');
+        return;
+      }
+
+      const templateData = {
+        card_type: 'template',
+        template_name: formData.template_name.trim(),
+        worker_id: formData.worker_id || null,
+        notes: formData.notes || null,
+        gold_rate_at_jobcard: formData.gold_rate_at_jobcard ? parseFloat(formData.gold_rate_at_jobcard) : null,
+        delivery_days_offset: formData.delivery_days_offset ? parseInt(formData.delivery_days_offset) : null,
+        items: formData.items.map(item => ({
+          ...item,
+          qty: parseInt(item.qty),
+          weight_in: parseFloat(item.weight_in),
+          weight_out: item.weight_out ? parseFloat(item.weight_out) : null,
+          purity: parseInt(item.purity),
+          making_charge_value: item.making_charge_value ? parseFloat(item.making_charge_value) : null,
+          vat_percent: item.vat_percent ? parseFloat(item.vat_percent) : null
+        }))
+      };
+
+      if (editingTemplate) {
+        await axios.patch(`${API}/jobcard-templates/${editingTemplate.id}`, templateData);
+        toast.success('Template updated successfully');
+      } else {
+        await axios.post(`${API}/jobcard-templates`, templateData);
+        toast.success('Template saved successfully');
+      }
+      
+      handleCloseDialog();
+      loadTemplates();
+      setShowManageTemplatesDialog(false);
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || 'Failed to save template';
+      toast.error(errorMsg);
+    }
+  };
+
+  const handleLoadTemplate = (template) => {
+    // Calculate delivery date based on delivery_days_offset
+    let deliveryDate = '';
+    if (template.delivery_days_offset) {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + template.delivery_days_offset);
+      deliveryDate = futureDate.toISOString().split('T')[0];
+    }
+
+    setFormData({
+      ...formData,
+      card_type: 'individual', // Always create as individual job card
+      worker_id: template.worker_id || '',
+      notes: template.notes || '',
+      gold_rate_at_jobcard: template.gold_rate_at_jobcard || '',
+      delivery_date: deliveryDate,
+      items: template.items.map(item => ({...item})) // Deep copy items
+    });
+    
+    setShowTemplateDialog(false);
+    toast.success(`Template "${template.template_name}" loaded`);
+  };
+
+  const handleEditTemplate = (template) => {
+    setEditingTemplate(template);
+    setSaveAsTemplate(true);
+    
+    setFormData({
+      card_type: 'template',
+      customer_type: 'saved',
+      customer_id: '',
+      customer_name: '',
+      walk_in_name: '',
+      walk_in_phone: '',
+      worker_id: template.worker_id || '',
+      delivery_date: '',
+      notes: template.notes || '',
+      gold_rate_at_jobcard: template.gold_rate_at_jobcard || '',
+      status: 'created',
+      template_name: template.template_name || '',
+      delivery_days_offset: template.delivery_days_offset || '',
+      items: template.items.map(item => ({...item}))
+    });
+    
+    setShowManageTemplatesDialog(false);
+    setShowDialog(true);
+  };
+
+  const handleDeleteTemplate = async (templateId, templateName) => {
+    if (!window.confirm(`Are you sure you want to delete template "${templateName}"?`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API}/jobcard-templates/${templateId}`);
+      toast.success('Template deleted successfully');
+      loadTemplates();
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || 'Failed to delete template';
       toast.error(errorMsg);
     }
   };
