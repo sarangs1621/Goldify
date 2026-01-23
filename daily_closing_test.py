@@ -481,7 +481,7 @@ class DailyClosingTester:
 def main():
     """Main execution function"""
     # Configuration
-    BASE_URL = "https://status-validator-2.preview.emergentagent.com"
+    BASE_URL = "https://confirm-flow.preview.emergentagent.com"
     USERNAME = "admin"
     PASSWORD = "admin123"
     
