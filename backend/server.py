@@ -1802,6 +1802,14 @@ async def finalize_purchase(purchase_id: str, current_user: User = Depends(get_c
         )
         await db.transactions.insert_one(payment_transaction.model_dump())
         created_ids["payment_transaction_id"] = payment_transaction.id
+        
+        # CRITICAL FIX: Update account balance when payment is made to vendor
+        # Debit transaction decreases the account balance (money going out)
+        delta = -payment_transaction.amount  # Negative for debit (money out)
+        await db.accounts.update_one(
+            {"id": purchase["account_id"]}, 
+            {"$inc": {"current_balance": delta}}
+        )
     
     # === MODULE 4 OPERATION 4: Create GoldLedgerEntry OUT if advance_in_gold_grams > 0 ===
     advance_gold = purchase.get("advance_in_gold_grams")
