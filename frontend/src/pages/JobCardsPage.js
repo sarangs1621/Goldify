@@ -1405,6 +1405,19 @@ export default function JobCardsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Enhanced Confirmation Dialog */}
+      <ConfirmationDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+        onConfirm={confirmDialog.action}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        impact={confirmDialog.impact}
+        actionLabel={confirmDialog.type === 'delete' ? 'Delete' : 'Confirm'}
+        actionType={confirmDialog.type === 'delete' ? 'danger' : 'warning'}
+        loading={confirmDialog.loading}
+      />
     </div>
   );
 }
