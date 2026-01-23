@@ -102,11 +102,14 @@ def create_inventory_categories(user_id):
     """Create inventory headers/categories"""
     print("\n📦 Creating Inventory Categories...")
     categories = [
-        {'name': 'Gold 24K', 'purity': 999, 'current_qty': 50, 'current_weight': 1250.500},
-        {'name': 'Gold 22K', 'purity': 916, 'current_qty': 100, 'current_weight': 2500.750},
-        {'name': 'Gold 18K', 'purity': 750, 'current_qty': 75, 'current_weight': 1800.250},
-        {'name': 'Silver 925', 'purity': 925, 'current_qty': 200, 'current_weight': 5000.000},
-        {'name': 'Diamond', 'purity': 0, 'current_qty': 30, 'current_weight': 150.000},
+        {'name': 'Chain', 'current_qty': 50.0, 'current_weight': 1250.500},
+        {'name': 'Ring', 'current_qty': 100.0, 'current_weight': 2500.750},
+        {'name': 'Bangle', 'current_qty': 75.0, 'current_weight': 1800.250},
+        {'name': 'Necklace', 'current_qty': 45.0, 'current_weight': 3200.000},
+        {'name': 'Bracelet', 'current_qty': 60.0, 'current_weight': 1500.500},
+        {'name': 'Coin', 'current_qty': 200.0, 'current_weight': 500.000},
+        {'name': 'Biscuit', 'current_qty': 30.0, 'current_weight': 7500.000},
+        {'name': 'Others', 'current_qty': 85.0, 'current_weight': 2100.250},
     ]
     
     created_categories = []
@@ -114,11 +117,12 @@ def create_inventory_categories(user_id):
         category = {
             'id': generate_uuid(),
             'name': cat['name'],
-            'purity': cat['purity'],
             'current_qty': cat['current_qty'],
             'current_weight': cat['current_weight'],
-            'created_at': datetime.utcnow(),
-            'created_by': user_id
+            'is_active': True,
+            'created_at': datetime.now(timezone.utc),
+            'created_by': user_id,
+            'is_deleted': False
         }
         db.inventory_headers.insert_one(category)
         created_categories.append(category)
