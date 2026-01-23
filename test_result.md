@@ -1379,6 +1379,53 @@ agent_communication:
 user_problem_statement: "TEST INVOICE PAYMENT TO ACCOUNTS INTEGRATION - Verify that the amount paid while finalizing an invoice is correctly reflected in the Finance → Accounts module. Pre-Conditions: At least one Cash and one Bank account exists in Finance, Opening balances are noted. Test Steps: 1) Create a new invoice with at least one item with weight, rate, tax. 2) Assign a customer/party. 3) Enter Payment Details during invoice finalization: Payment amount (partial or full), Payment mode (Cash/Bank), Select the corresponding Finance account. 4) Finalize the invoice and note the Paid Amount on the invoice. 5) Navigate to Finance → Accounts, Open the selected account used for payment. 6) Check Account Balance and Transactions list. Expected Results: Account balance increases by the exact invoice paid amount. A new transaction entry is created with correct date, type, category, and reference to invoice number. Invoice shows updated Paid and Balance Due correctly. CRITICAL BUG IDENTIFIED: The add_payment_to_invoice endpoint does NOT update the account's current_balance when payment is added, only creates transaction record."
 
 backend:
+  - task: "Fix Invoice Payment to Account Integration - Update account balance when payment is added"
+    implemented: false
+    working: false
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "main"
+        comment: |
+          CRITICAL BUG IDENTIFIED in /api/invoices/{invoice_id}/add-payment endpoint:
+          
+          ROOT CAUSE:
+          The add_payment_to_invoice function (lines 2504-2870) creates transaction records but
+          DOES NOT update the account's current_balance field. This breaks accounting integrity.
+          
+          COMPARISON:
+          - Standalone transaction creation (lines 3090-3094) CORRECTLY updates account balance:
+            ```
+            delta = transaction.amount if transaction.transaction_type == "credit" else -transaction.amount
+            await db.accounts.update_one({"id": transaction.account_id}, {"$inc": {"current_balance": delta}})
+            ```
+          - Invoice payment (add_payment_to_invoice) MISSING this update entirely
+          
+          IMPACT:
+          - Transaction records created ✅
+          - Invoice paid_amount updated ✅
+          - Account current_balance NOT updated ❌ (CRITICAL BUG)
+          - Finance → Accounts page shows incorrect balances
+          - Breaks accounting reconciliation
+          
+          FIX REQUIRED:
+          Add account balance update in add_payment_to_invoice for BOTH payment modes:
+          1. Standard payment modes (Cash, Bank Transfer, etc.) - around line 2835
+          2. GOLD_EXCHANGE payment mode - around line 2697
+          
+          Both sections need to add after transaction insert:
+          ```python
+          # Update account balance
+          delta = transaction.amount if transaction.transaction_type == "credit" else -transaction.amount
+          await db.accounts.update_one(
+              {"id": transaction.account_id},
+              {"$inc": {"current_balance": delta}}
+          )
+          ```
+  
   - task: "Party CRUD Operations - Verify 'Failed to update parties' and 'Failed to load party details'"
     implemented: true
     working: true
