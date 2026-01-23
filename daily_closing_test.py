@@ -481,7 +481,7 @@ class DailyClosingTester:
 def main():
     """Main execution function"""
     # Configuration
-    BASE_URL = "https://unique-phone-check.preview.emergentagent.com"
+    BASE_URL = "https://inventory-repair-3.preview.emergentagent.com"
     USERNAME = "admin"
     PASSWORD = "admin123"
     
