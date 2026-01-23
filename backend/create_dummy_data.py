@@ -44,22 +44,26 @@ def clear_existing_data():
 
 def create_admin_user():
     """Create admin user if not exists"""
-    existing = db.users.find_one({'email': 'admin@example.com'})
+    existing = db.users.find_one({'username': 'admin'})
     if not existing:
         from passlib.context import CryptContext
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         
         admin_user = {
             'id': generate_uuid(),
-            'email': 'admin@example.com',
-            'name': 'Admin User',
-            'hashed_password': pwd_context.hash('admin123'),
+            'username': 'admin',
+            'email': 'admin@goldshop.com',
+            'full_name': 'Admin User',
             'role': 'admin',
             'is_active': True,
-            'created_at': datetime.utcnow()
+            'created_at': datetime.now(timezone.utc),
+            'is_deleted': False,
+            'deleted_at': None,
+            'deleted_by': None,
+            'hashed_password': pwd_context.hash('admin123')
         }
         db.users.insert_one(admin_user)
-        print("✅ Admin user created (admin@example.com / admin123)")
+        print("✅ Admin user created (username: admin, password: admin123)")
         return admin_user['id']
     else:
         print("ℹ️  Admin user already exists")
