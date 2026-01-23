@@ -274,7 +274,7 @@ class InvoiceFinalizationTester:
             self.log_test("Step 3 - Finalize Invoice", False, "No test invoice available")
             return False
         
-        response = self.session.patch(f"{BASE_URL}/invoices/{self.test_invoice_id}/finalize")
+        response = self.session.post(f"{BASE_URL}/invoices/{self.test_invoice_id}/finalize")
         
         if response.status_code == 200:
             finalized_invoice = response.json()
