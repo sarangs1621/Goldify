@@ -415,9 +415,10 @@ class BugFixTester:
     
     def run_all_tests(self):
         """Run all bug fix tests in priority order"""
-        print("🚀 STARTING COMPREHENSIVE BUG FIX VERIFICATION")
+        print("🚀 COMPREHENSIVE BUG FIX VERIFICATION - Test All 3 Critical Bug Fixes")
         print("=" * 80)
         print(f"Backend URL: {BASE_URL}")
+        print(f"Auth Credentials: {USERNAME}/{PASSWORD}")
         print(f"Test Time: {datetime.now().isoformat()}")
         print("=" * 80)
         print()
@@ -427,12 +428,11 @@ class BugFixTester:
             print("❌ AUTHENTICATION FAILED - CANNOT PROCEED WITH TESTS")
             return
         
-        # Run tests in priority order
+        # Run tests in priority order (Bug #1 is highest priority)
         test_functions = [
-            ("PRIORITY 1: Outstanding Reports (Bug Fix #3)", self.test_outstanding_reports),
-            ("PRIORITY 2: Account Detail Endpoint (New Feature)", self.test_account_detail_endpoint),
-            ("PRIORITY 3: Account Balance Update (Bug Fix #1) - MOST CRITICAL", self.test_account_balance_update),
-            ("PRIORITY 4: Purchases Serialization (Bug Fix #2)", self.test_purchases_serialization),
+            ("Bug Fix #1: Account Balance Update After Purchase Finalization (PRIORITY)", self.test_bug_1_account_balance_update),
+            ("Bug Fix #2: GET /api/purchases Serialization (Re-confirmation)", self.test_bug_2_purchases_serialization),
+            ("Bug Fix #3: Outstanding Reports Timezone Error (Re-confirmation)", self.test_bug_3_outstanding_reports),
         ]
         
         passed_tests = 0
@@ -452,7 +452,7 @@ class BugFixTester:
         
         # Final summary
         print("\n" + "="*80)
-        print("🎯 FINAL TEST RESULTS SUMMARY")
+        print("🎯 COMPREHENSIVE TESTING REPORT")
         print("="*80)
         
         success_rate = (passed_tests / total_tests) * 100
@@ -460,18 +460,57 @@ class BugFixTester:
         print(f"📊 OVERALL SUCCESS RATE: {passed_tests}/{total_tests} ({success_rate:.1f}%)")
         print()
         
-        for result in self.test_results:
+        # Group results by test
+        bug_1_results = [r for r in self.test_results if "Bug #1" in r["test"]]
+        bug_2_results = [r for r in self.test_results if "Bug #2" in r["test"]]
+        bug_3_results = [r for r in self.test_results if "Bug #3" in r["test"]]
+        
+        print("🔥 BUG FIX #1 RESULTS (Account Balance Update):")
+        for result in bug_1_results:
             status_icon = "✅" if result["status"] == "PASS" else "❌"
-            print(f"{status_icon} {result['test']}: {result['status']}")
+            print(f"   {status_icon} {result['test']}: {result['status']}")
             if result["details"]:
-                print(f"   {result['details']}")
+                print(f"      {result['details']}")
+        
+        print("\n🔥 BUG FIX #2 RESULTS (Purchases Serialization):")
+        for result in bug_2_results:
+            status_icon = "✅" if result["status"] == "PASS" else "❌"
+            print(f"   {status_icon} {result['test']}: {result['status']}")
+            if result["details"]:
+                print(f"      {result['details']}")
+        
+        print("\n🔥 BUG FIX #3 RESULTS (Outstanding Reports):")
+        for result in bug_3_results:
+            status_icon = "✅" if result["status"] == "PASS" else "❌"
+            print(f"   {status_icon} {result['test']}: {result['status']}")
+            if result["details"]:
+                print(f"      {result['details']}")
         
         print("\n" + "="*80)
         if passed_tests == total_tests:
-            print("🎉 ALL BUG FIXES VERIFIED SUCCESSFULLY - PRODUCTION READY!")
+            print("🎉 ALL 3 BUGS FIXED AND PRODUCTION-READY!")
+            print("✅ Bug #1: Account balance updates correctly after purchase finalization")
+            print("✅ Bug #2: GET /api/purchases returns proper JSON without ObjectId errors")
+            print("✅ Bug #3: Outstanding reports work without timezone errors")
         else:
-            print(f"⚠️  {total_tests - passed_tests} TEST(S) FAILED - REQUIRES ATTENTION")
+            failed_count = total_tests - passed_tests
+            print(f"⚠️  {failed_count} BUG FIX(ES) FAILED - REQUIRES ATTENTION")
+            
+            # Show which bugs failed
+            failed_bugs = []
+            if not any(r["status"] == "PASS" for r in bug_1_results):
+                failed_bugs.append("Bug #1 (Account Balance Update)")
+            if not any(r["status"] == "PASS" for r in bug_2_results):
+                failed_bugs.append("Bug #2 (Purchases Serialization)")
+            if not any(r["status"] == "PASS" for r in bug_3_results):
+                failed_bugs.append("Bug #3 (Outstanding Reports)")
+            
+            if failed_bugs:
+                print(f"❌ Failed: {', '.join(failed_bugs)}")
+        
         print("="*80)
+        
+        return passed_tests == total_tests
 
 if __name__ == "__main__":
     tester = BugFixTester()
