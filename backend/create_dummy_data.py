@@ -192,7 +192,13 @@ def create_parties(user_id):
         {'name': 'Silver Wholesalers', 'phone': '+968-2445-6789', 'address': 'Al Khuwair, Muscat', 'party_type': 'vendor'},
     ]
     
-    all_parties = customers + vendors
+    workers = [
+        {'name': 'Rajesh Kumar', 'phone': '+968-9111-2222', 'address': 'Muscat', 'party_type': 'worker'},
+        {'name': 'Sanjay Patel', 'phone': '+968-9222-3333', 'address': 'Muscat', 'party_type': 'worker'},
+        {'name': 'Vijay Singh', 'phone': '+968-9333-4444', 'address': 'Muscat', 'party_type': 'worker'},
+    ]
+    
+    all_parties = customers + vendors + workers
     created_parties = []
     
     for party_data in all_parties:
@@ -203,17 +209,19 @@ def create_parties(user_id):
             'address': party_data['address'],
             'party_type': party_data['party_type'],
             'notes': f'Test {party_data["party_type"]}',
-            'created_at': datetime.utcnow(),
-            'created_by': user_id
+            'created_at': datetime.now(timezone.utc),
+            'created_by': user_id,
+            'is_deleted': False
         }
         db.parties.insert_one(party)
         created_parties.append(party)
     
     customers_list = [p for p in created_parties if p['party_type'] == 'customer']
     vendors_list = [p for p in created_parties if p['party_type'] == 'vendor']
+    workers_list = [p for p in created_parties if p['party_type'] == 'worker']
     
-    print(f"✅ Created {len(customers_list)} customers and {len(vendors_list)} vendors")
-    return customers_list, vendors_list
+    print(f"✅ Created {len(customers_list)} customers, {len(vendors_list)} vendors, {len(workers_list)} workers")
+    return customers_list, vendors_list, workers_list
 
 def create_gold_ledger_entries(parties, user_id):
     """Create gold ledger entries for parties"""
