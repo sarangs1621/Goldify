@@ -454,20 +454,36 @@ export default function InvoicesPage() {
                           <Eye className="w-4 h-4 mr-1" /> View
                         </Button>
                         {(inv.status === 'draft' || !inv.status) && (
-                          <Button
-                            data-testid={`finalize-${inv.invoice_number}`}
-                            size="sm"
-                            variant="default"
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                            onClick={() => handleFinalizeInvoice(inv.id, inv.invoice_number)}
-                            disabled={finalizing === inv.id}
-                          >
-                            {finalizing === inv.id ? (
-                              <>Processing...</>
-                            ) : (
-                              <><CheckCircle className="w-4 h-4 mr-1" /> Finalize</>
-                            )}
-                          </Button>
+                          <>
+                            <Button
+                              data-testid={`finalize-${inv.invoice_number}`}
+                              size="sm"
+                              variant="default"
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                              onClick={() => handleFinalizeInvoice(inv)}
+                              disabled={finalizing === inv.id}
+                            >
+                              {finalizing === inv.id ? (
+                                <>Processing...</>
+                              ) : (
+                                <><CheckCircle className="w-4 h-4 mr-1" /> Finalize</>
+                              )}
+                            </Button>
+                            <Button
+                              data-testid={`delete-${inv.invoice_number}`}
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => handleDeleteInvoice(inv)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" /> Delete
+                            </Button>
+                          </>
+                        )}
+                        {inv.status === 'finalized' && (
+                          <Badge className="bg-gray-100 text-gray-700">
+                            <Lock className="w-3 h-3 mr-1" /> Locked
+                          </Badge>
                         )}
                         {inv.balance_due > 0 && (
                           <Button
