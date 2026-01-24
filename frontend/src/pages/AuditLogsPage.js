@@ -19,10 +19,11 @@ export default function AuditLogsPage() {
       const response = await axios.get(`${API}/audit-logs`, {
         params: { page: currentPage, page_size: 10 }
       });
-      setLogs(response.data.items || []);
+      setLogs(Array.isArray(response.data.items) ? response.data.items : []);
       setPagination(response.data.pagination);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
+      setLogs([]);
     }
   };
 
