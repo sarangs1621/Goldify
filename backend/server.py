@@ -78,6 +78,81 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)  # auto_error=False makes it optional
 
 # ============================================================================
+# SECURITY HEADERS MIDDLEWARE
+# ============================================================================
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to add comprehensive security headers to all HTTP responses.
+    
+    Security Headers Implemented:
+    - Content-Security-Policy (CSP): Restricts resource loading to prevent XSS
+    - X-Frame-Options: Prevents clickjacking attacks
+    - X-Content-Type-Options: Prevents MIME type sniffing
+    - Strict-Transport-Security (HSTS): Enforces HTTPS connections
+    - X-XSS-Protection: Enables browser XSS filtering
+    - Referrer-Policy: Controls referrer information
+    - Permissions-Policy: Controls browser features/APIs
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Content Security Policy (CSP)
+        # Note: 'unsafe-inline' and 'unsafe-eval' are required for React apps
+        # In production with build optimization, these can be replaced with nonces/hashes
+        csp_directives = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "img-src 'self' data: https: blob:",
+            "font-src 'self' data: https://fonts.gstatic.com",
+            "connect-src 'self'",
+            "frame-ancestors 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "object-src 'none'",
+            "upgrade-insecure-requests"
+        ]
+        response.headers['Content-Security-Policy'] = "; ".join(csp_directives)
+        
+        # X-Frame-Options: Prevent clickjacking by denying iframe embedding
+        response.headers['X-Frame-Options'] = 'DENY'
+        
+        # X-Content-Type-Options: Prevent MIME type sniffing
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        
+        # Strict-Transport-Security (HSTS): Force HTTPS for 1 year including subdomains
+        # preload: Allows inclusion in browser HSTS preload lists
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload'
+        
+        # X-XSS-Protection: Enable browser XSS filtering
+        # mode=block: Block page rendering if XSS detected
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        
+        # Referrer-Policy: Control referrer information sent with requests
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        
+        # Permissions-Policy: Disable unnecessary browser features
+        # Restricts access to geolocation, camera, microphone, etc.
+        permissions_policy = [
+            "geolocation=()",
+            "camera=()",
+            "microphone=()",
+            "payment=()",
+            "usb=()",
+            "magnetometer=()",
+            "gyroscope=()",
+            "accelerometer=()"
+        ]
+        response.headers['Permissions-Policy'] = ", ".join(permissions_policy)
+        
+        return response
+
+# ============================================================================
 # PERMISSION SYSTEM - RBAC Configuration
 # ============================================================================
 
