@@ -151,7 +151,7 @@ class DuplicateCategoryTester:
             self.log_result("Setup - Get Existing Categories", "ERROR", f"Error: {str(e)}")
             return False
     
-    def test_create_duplicate_exact_match(self):
+    def setup_test_data(self):
         """
         TEST 1: Create duplicate category (exact match)
         Try to create a category with a name that already exists
