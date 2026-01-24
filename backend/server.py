@@ -704,12 +704,22 @@ async def register(user_data: UserCreate):
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
     
+    # Validate password complexity
+    is_valid, error_msg = validate_password_complexity(user_data.password)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+    
     hashed_password = pwd_context.hash(user_data.password)
+    
+    # Assign permissions based on role
+    permissions = get_user_permissions(user_data.role)
+    
     user = User(
         username=user_data.username,
         email=user_data.email,
         full_name=user_data.full_name,
-        role=user_data.role
+        role=user_data.role,
+        permissions=permissions
     )
     
     user_dict = user.model_dump()
@@ -717,6 +727,15 @@ async def register(user_data: UserCreate):
     user_dict['created_at'] = user_dict['created_at'].isoformat()
     
     await db.users.insert_one(user_dict)
+    
+    # Log registration
+    await create_auth_audit_log(
+        username=user.username,
+        action="register",
+        success=True,
+        user_id=user.id
+    )
+    
     return user
 
 @api_router.post("/auth/login", response_model=TokenResponse)
