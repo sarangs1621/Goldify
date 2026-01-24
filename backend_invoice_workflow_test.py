@@ -70,7 +70,7 @@ class InvoiceWorkflowTester:
     def authenticate(self):
         """Authenticate with admin credentials"""
         try:
-            response = self.session.post(f"{BACKEND_URL}/login", json={
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json={
                 "username": USERNAME,
                 "password": PASSWORD
             })
