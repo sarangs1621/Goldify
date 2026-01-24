@@ -3513,7 +3513,7 @@ async def delete_jobcard_template(template_id: str, current_user: User = Depends
 async def get_invoices(
     request: Request,
     page: int = 1,
-    per_page: int = 50,
+    page_size: int = 10,
     current_user: User = Depends(require_permission('invoices.view'))
 ):
     """Get invoices with pagination support"""
@@ -3523,15 +3523,15 @@ async def get_invoices(
     query = {"is_deleted": False}
     
     # Calculate skip value
-    skip = (page - 1) * per_page
+    skip = (page - 1) * page_size
     
     # Get total count for pagination
     total_count = await db.invoices.count_documents(query)
     
     # Get paginated results
-    invoices = await db.invoices.find(query, {"_id": 0}).sort("date", -1).skip(skip).limit(per_page).to_list(per_page)
+    invoices = await db.invoices.find(query, {"_id": 0}).sort("date", -1).skip(skip).limit(page_size).to_list(page_size)
     
-    return create_pagination_response(invoices, total_count, page, per_page)
+    return create_pagination_response(invoices, total_count, page, page_size)
 
 @api_router.get("/invoices/{invoice_id}", response_model=Invoice)
 async def get_invoice(invoice_id: str, current_user: User = Depends(require_permission('invoices.view'))):
