@@ -2043,7 +2043,7 @@ async def get_parties(
     request: Request,
     party_type: Optional[str] = None,
     page: int = 1,
-    per_page: int = 50,
+    page_size: int = 10,
     current_user: User = Depends(require_permission('parties.view'))
 ):
     """Get parties with pagination support"""
@@ -2052,15 +2052,15 @@ async def get_parties(
         query['party_type'] = party_type
     
     # Calculate skip value
-    skip = (page - 1) * per_page
+    skip = (page - 1) * page_size
     
     # Get total count for pagination
     total_count = await db.parties.count_documents(query)
     
     # Get paginated results
-    parties = await db.parties.find(query, {"_id": 0}).skip(skip).limit(per_page).to_list(per_page)
+    parties = await db.parties.find(query, {"_id": 0}).skip(skip).limit(page_size).to_list(page_size)
     
-    return create_pagination_response(parties, total_count, page, per_page)
+    return create_pagination_response(parties, total_count, page, page_size)
 
 @api_router.post("/parties", response_model=Party)
 @limiter.limit("1000/hour")  # General authenticated rate limit: 1000 requests per hour
