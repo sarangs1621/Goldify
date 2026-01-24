@@ -3410,8 +3410,9 @@ async def create_invoice(invoice_data: dict, current_user: User = Depends(get_cu
     count = await db.invoices.count_documents({"invoice_number": {"$regex": f"^INV-{year}"}})
     invoice_number = f"INV-{year}-{str(count + 1).zfill(4)}"
     
-    # Create invoice in draft status - NO stock deduction happens here
-    invoice = Invoice(**invoice_data, invoice_number=invoice_number, created_by=current_user.id)
+    # Remove conflicting keys and add required fields
+    invoice_data_clean = {k: v for k, v in invoice_data.items() if k not in ['invoice_number', 'created_by']}
+    invoice = Invoice(**invoice_data_clean, invoice_number=invoice_number, created_by=current_user.id)
     await db.invoices.insert_one(invoice.model_dump())
     
     # Stock movements will ONLY happen when invoice is finalized via /invoices/{id}/finalize endpoint
