@@ -68,9 +68,13 @@ class PartyOutstandingBalanceTester:
     def create_test_party(self):
         """Create a test customer party for testing"""
         try:
+            # Generate unique phone number using timestamp and random component
+            import random
+            unique_suffix = f"{datetime.now().strftime('%H%M%S')}{random.randint(100, 999)}"
+            
             party_data = {
-                "name": f"Test Customer Outstanding Balance {datetime.now().strftime('%H%M%S')}",
-                "phone": f"9876{datetime.now().strftime('%H%M%S')}",
+                "name": f"Test Customer Outstanding Balance {unique_suffix}",
+                "phone": f"9876{unique_suffix}",
                 "address": "Test Address for Outstanding Balance Testing",
                 "party_type": "customer",
                 "notes": "Created for testing party summary outstanding balance calculation fix"
