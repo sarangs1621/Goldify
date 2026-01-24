@@ -5,50 +5,51 @@ const AuthContext = createContext(null);
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Configure axios to send cookies with requests
+axios.defaults.withCredentials = true;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const fetchCurrentUser = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/auth/me`);
       setUser(response.data);
+      setIsAuthenticated(true);
     } catch (error) {
       console.error('Failed to fetch user:', error);
-      // Note: logout is defined below, this creates a safe dependency
-      localStorage.removeItem('token');
-      setToken(null);
       setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      fetchCurrentUser();
-    } else {
-      setLoading(false);
-    }
-  }, [token, fetchCurrentUser]);
+    // Try to fetch user on mount (will use cookie if exists)
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
 
   const login = async (username, password) => {
     const response = await axios.post(`${API}/auth/login`, { username, password });
-    const { access_token, user: userData } = response.data;
-    setToken(access_token);
+    const { user: userData } = response.data;
     setUser(userData);
-    localStorage.setItem('token', access_token);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    setIsAuthenticated(true);
     return userData;
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
+  const logout = async () => {
+    try {
+      // Call backend logout to clear cookie
+      await axios.post(`${API}/auth/logout`);
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   const register = async (userData) => {
@@ -79,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ 
       user, 
-      token, 
+      isAuthenticated,
       login, 
       logout, 
       register, 
