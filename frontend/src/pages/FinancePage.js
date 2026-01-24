@@ -463,7 +463,7 @@ export default function FinancePageEnhanced() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.slice(0, 50).map((txn) => (
+                  {transactions.map((txn) => (
                     <tr key={txn.id} className="border-t hover:bg-muted/30">
                       <td className="px-4 py-3 font-mono text-sm">{txn.transaction_number}</td>
                       <td className="px-4 py-3 text-sm">{new Date(txn.date).toLocaleDateString()}</td>
