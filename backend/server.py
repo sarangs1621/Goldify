@@ -154,6 +154,74 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 # ============================================================================
+# CSRF PROTECTION MIDDLEWARE
+# ============================================================================
+
+def generate_csrf_token() -> str:
+    """
+    Generate a cryptographically secure CSRF token.
+    Uses secrets module for secure random generation (128-bit token).
+    """
+    return secrets.token_urlsafe(32)
+
+class CSRFProtectionMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to validate CSRF tokens on state-changing HTTP methods.
+    
+    Implementation: Double-Submit Cookie Pattern
+    - CSRF token is stored in a readable cookie (not httponly)
+    - Client must send the token in X-CSRF-Token header
+    - Server validates that cookie value matches header value
+    
+    Protected Methods: POST, PUT, PATCH, DELETE
+    Exempt Endpoints: /api/auth/login, /api/auth/register, /api/auth/request-password-reset,
+                      /api/auth/reset-password, /api/health
+    
+    Security Benefits:
+    - CSRF attacks can't read cookies (same-origin policy)
+    - Requires both cookie AND custom header to match
+    - Only state-changing operations are protected
+    """
+    
+    # Endpoints that are exempt from CSRF validation
+    EXEMPT_PATHS = {
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/auth/request-password-reset',
+        '/api/auth/reset-password',
+        '/api/health'
+    }
+    
+    async def dispatch(self, request: Request, call_next):
+        # Only validate CSRF on state-changing methods
+        if request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            # Skip CSRF validation for exempt endpoints
+            if request.url.path not in self.EXEMPT_PATHS:
+                # Get CSRF token from cookie
+                csrf_cookie = request.cookies.get('csrf_token')
+                
+                # Get CSRF token from header
+                csrf_header = request.headers.get('X-CSRF-Token')
+                
+                # Validate that both exist and match
+                if not csrf_cookie or not csrf_header:
+                    return StarletteResponse(
+                        content='{"detail": "CSRF token missing"}',
+                        status_code=403,
+                        media_type='application/json'
+                    )
+                
+                if csrf_cookie != csrf_header:
+                    return StarletteResponse(
+                        content='{"detail": "CSRF token validation failed"}',
+                        status_code=403,
+                        media_type='application/json'
+                    )
+        
+        response = await call_next(request)
+        return response
+
+# ============================================================================
 # PERMISSION SYSTEM - RBAC Configuration
 # ============================================================================
 
