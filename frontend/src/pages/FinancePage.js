@@ -83,13 +83,33 @@ export default function FinancePageEnhanced() {
         axios.get(`${API}/transactions/summary`, { params })
       ]);
       
-      setAccounts(accountsRes.data);
+      setAccounts(Array.isArray(accountsRes.data) ? accountsRes.data : []);
       setTransactions(transactionsRes.data.items || []);
       setPagination(transactionsRes.data.pagination);
-      setSummary(summaryRes.data);
+      setSummary(summaryRes.data || {
+        total_credit: 0,
+        total_debit: 0,
+        net_flow: 0,
+        transaction_count: 0,
+        cash_summary: { credit: 0, debit: 0, net: 0 },
+        bank_summary: { credit: 0, debit: 0, net: 0 },
+        account_breakdown: []
+      });
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load financial data');
+      // Set safe defaults
+      setAccounts([]);
+      setTransactions([]);
+      setSummary({
+        total_credit: 0,
+        total_debit: 0,
+        net_flow: 0,
+        transaction_count: 0,
+        cash_summary: { credit: 0, debit: 0, net: 0 },
+        bank_summary: { credit: 0, debit: 0, net: 0 },
+        account_breakdown: []
+      });
     }
   }, [filters, currentPage, setPagination]);
 
