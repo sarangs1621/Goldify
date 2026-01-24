@@ -266,6 +266,89 @@ agent_communication:
       Use test credentials or create a user to test. All pages require authentication.
 
 user_problem_statement: |
+  Prevent duplicate category names in the inventory system.
+  - Backend: Add validation to prevent creating or updating categories with duplicate names (case-insensitive)
+  - Both create and update endpoints should check for duplicates
+
+backend:
+  - task: "Prevent duplicate category names on create"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Added case-insensitive duplicate check in create_inventory_header endpoint. Returns 400 error if category name already exists (excluding deleted categories). Also strips whitespace from category name."
+  
+  - task: "Prevent duplicate category names on update"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Added case-insensitive duplicate check in update_inventory_header endpoint. Returns 400 error if new category name already exists (excluding current header and deleted categories). Also strips whitespace from category name."
+
+frontend:
+  - task: "No frontend changes needed"
+    implemented: true
+    working: "NA"
+    file: "NA"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Backend validation handles duplicate prevention. Frontend will receive proper error messages."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 2
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Prevent duplicate category names on create"
+    - "Prevent duplicate category names on update"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      IMPLEMENTED: Duplicate category name prevention
+      
+      BACKEND CHANGES:
+      1. POST /api/inventory/headers - Added case-insensitive duplicate check
+         - Checks if category name already exists (excluding deleted)
+         - Returns 400 error with message: "Category '{name}' already exists. Please use a different name."
+         - Strips whitespace from category name before validation
+      
+      2. PATCH /api/inventory/headers/{header_id} - Added case-insensitive duplicate check
+         - Checks if new name conflicts with any other category (excluding current header and deleted)
+         - Returns 400 error with message: "Category '{name}' already exists. Please use a different name."
+         - Strips whitespace from category name before validation
+      
+      TESTING SCENARIOS:
+      1. Create category with duplicate name (exact match) - should fail with 400
+      2. Create category with duplicate name (different case) - should fail with 400
+      3. Create category with duplicate name (extra spaces) - should fail with 400
+      4. Update category to duplicate name - should fail with 400
+      5. Update category to same name (case change only) - should succeed
+      6. Create/update with unique name - should succeed
+      
+      Backend has been restarted and is running successfully.
+
+user_problem_statement: |
   Add pagination to all module pages (InvoicesPage, PurchasesPage, PartiesPage, JobCardsPage, FinancePage, AuditLogsPage, InventoryPage)
   - Backend: Add pagination to /api/inventory endpoint with default page_size=10 ✓ Already implemented
   - Frontend: Create reusable Pagination component with Previous/Next buttons, page numbers, URL synchronization
