@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 class GoldShopERPTester:
-    def __init__(self, base_url="https://param-naming-fix.preview.emergentagent.com"):
+    def __init__(self, base_url="https://ux-gap-hunter.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
