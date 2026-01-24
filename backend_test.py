@@ -1040,6 +1040,6 @@ class PartyOutstandingBalanceTester:
         return failed_tests == 0 and error_tests == 0
 
 if __name__ == "__main__":
-    tester = InvoiceWorkflowTester()
+    tester = PartyOutstandingBalanceTester()
     success = tester.run_all_tests()
     sys.exit(0 if success else 1)
