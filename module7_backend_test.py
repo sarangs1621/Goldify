@@ -21,7 +21,7 @@ from typing import Dict, Any, List, Optional
 import sys
 
 # Configuration
-BACKEND_URL = "https://smart-pagination.preview.emergentagent.com"
+BACKEND_URL = "https://populated-checker.preview.emergentagent.com"
 USERNAME = "admin"
 PASSWORD = "admin123"
 

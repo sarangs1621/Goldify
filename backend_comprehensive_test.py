@@ -28,7 +28,7 @@ import uuid
 import traceback
 
 # Configuration
-BASE_URL = "https://smart-pagination.preview.emergentagent.com/api"
+BASE_URL = "https://populated-checker.preview.emergentagent.com/api"
 USERNAME = "admin"
 PASSWORD = "admin123"
 
