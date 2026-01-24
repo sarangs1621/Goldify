@@ -847,59 +847,136 @@ export default function InvoicesPage() {
                 </div>
               </div>
 
-              {/* Enhanced Cost Components Breakdown */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200 mb-4">
-                <h3 className="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  Cost Components Breakdown
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-md p-3 border border-blue-100">
-                    <div className="text-xs text-gray-600 mb-1">Total Metal Value</div>
-                    <div className="font-mono font-bold text-amber-700">
-                      {(viewInvoice.items || []).reduce((sum, item) => sum + (item.gold_value || 0), 0).toFixed(3)} OMR
+              {/* ENHANCED Cost Components Breakdown - Option A Improvements */}
+              <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-300 shadow-lg mb-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Cost Components Breakdown
+                  </h3>
+                  <Badge className="bg-blue-100 text-blue-800 px-3 py-1">Audit View</Badge>
+                </div>
+
+                {/* Primary Components - More Prominent Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                  {/* Metal Value */}
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 border-2 border-amber-300 shadow-md">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Metal Value</div>
+                      <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">Weight × Rate</div>
-                  </div>
-                  
-                  <div className="bg-white rounded-md p-3 border border-blue-100">
-                    <div className="text-xs text-gray-600 mb-1">Total Making Charges</div>
-                    <div className="font-mono font-bold text-green-700">
-                      {(viewInvoice.items || []).reduce((sum, item) => sum + (item.making_value || 0), 0).toFixed(3)} OMR
+                    <div className="font-mono font-bold text-2xl text-amber-900 mb-1">
+                      {(viewInvoice.items || []).reduce((sum, item) => sum + (item.gold_value || 0), 0).toFixed(2)} OMR
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">Labor & Craftsmanship</div>
-                  </div>
-                  
-                  <div className="bg-white rounded-md p-3 border border-blue-100">
-                    <div className="text-xs text-gray-600 mb-1">Total VAT</div>
-                    <div className="font-mono font-bold text-blue-700">
-                      {(viewInvoice.vat_total || 0).toFixed(3)} OMR
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {viewInvoice.items && viewInvoice.items.length > 0 
-                        ? `@ ${viewInvoice.items[0].vat_percent || 5}%` 
-                        : '@ 5%'}
+                    <div className="text-xs text-amber-700 font-medium">Weight × Gold Rate</div>
+                    <div className="mt-2 pt-2 border-t border-amber-200">
+                      <div className="text-xs text-amber-600">
+                        Total: {(viewInvoice.items || []).reduce((sum, item) => sum + (item.weight || 0), 0).toFixed(3)}g
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-md p-3">
-                    <div className="text-xs text-blue-100 mb-1">Grand Total</div>
-                    <div className="font-mono font-bold text-xl">
-                      {(viewInvoice.grand_total || 0).toFixed(2)} OMR
+                  {/* Making Charges */}
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-lg p-4 border-2 border-green-300 shadow-md">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="text-xs font-semibold text-green-700 uppercase tracking-wide">Making Charges</div>
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
                     </div>
-                    <div className="text-xs text-blue-200 mt-1">Inc. All Charges</div>
+                    <div className="font-mono font-bold text-2xl text-green-900 mb-1">
+                      {(viewInvoice.items || []).reduce((sum, item) => sum + (item.making_value || 0), 0).toFixed(2)} OMR
+                    </div>
+                    <div className="text-xs text-green-700 font-medium">Labor & Craftsmanship</div>
+                    <div className="mt-2 pt-2 border-t border-green-200">
+                      <div className="text-xs text-green-600">
+                        {viewInvoice.items?.length || 0} item(s)
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* VAT */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-lg p-4 border-2 border-blue-300 shadow-md">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide">VAT (Tax)</div>
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="font-mono font-bold text-2xl text-blue-900 mb-1">
+                      {(viewInvoice.vat_total || 0).toFixed(2)} OMR
+                    </div>
+                    <div className="text-xs text-blue-700 font-medium">Government Tax</div>
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <div className="text-xs text-blue-600">
+                        @ {viewInvoice.items && viewInvoice.items.length > 0 ? `${viewInvoice.items[0].vat_percent || 5}%` : '5%'}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                
-                {/* Weight Summary */}
-                <div className="mt-3 pt-3 border-t border-blue-200">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-blue-800 font-medium">Total Weight:</span>
-                    <span className="font-mono font-semibold text-blue-900">
-                      {(viewInvoice.items || []).reduce((sum, item) => sum + (item.weight || 0), 0).toFixed(3)}g
-                    </span>
+
+                {/* Discount Section (if applicable) */}
+                {viewInvoice.discount_amount > 0 && (
+                  <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-red-800">Discount Applied:</span>
+                      <span className="font-mono font-bold text-lg text-red-700">
+                        - {(viewInvoice.discount_amount || 0).toFixed(2)} OMR
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Grand Total - Most Prominent */}
+                <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 rounded-xl p-5 shadow-xl border-2 border-indigo-400">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-indigo-100 text-sm font-medium uppercase tracking-wide mb-1">Invoice Total</div>
+                      <div className="font-mono font-black text-4xl text-white">
+                        {(viewInvoice.grand_total || 0).toFixed(2)} <span className="text-xl text-indigo-200">OMR</span>
+                      </div>
+                      <div className="text-xs text-indigo-200 mt-1">Includes all charges and taxes</div>
+                    </div>
+                    <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4">
+                      <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Calculation Summary for Audit */}
+                <div className="mt-4 p-4 bg-white/60 rounded-lg border border-slate-200">
+                  <div className="text-xs font-semibold text-slate-700 mb-2 uppercase">Calculation Verification:</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-600">Metal:</span>
+                      <span className="ml-1 font-mono text-slate-800">
+                        {(viewInvoice.items || []).reduce((sum, item) => sum + (item.gold_value || 0), 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Making:</span>
+                      <span className="ml-1 font-mono text-slate-800">
+                        {(viewInvoice.items || []).reduce((sum, item) => sum + (item.making_value || 0), 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">VAT:</span>
+                      <span className="ml-1 font-mono text-slate-800">
+                        {(viewInvoice.vat_total || 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Total:</span>
+                      <span className="ml-1 font-mono font-semibold text-slate-900">
+                        {(viewInvoice.grand_total || 0).toFixed(2)} OMR
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
