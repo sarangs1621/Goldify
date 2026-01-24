@@ -3975,7 +3975,7 @@ async def get_accounts(current_user: User = Depends(require_permission('finance.
     return accounts
 
 @api_router.get("/accounts/{account_id}", response_model=Account)
-async def get_account(account_id: str, current_user: User = Depends(get_current_user)):
+async def get_account(account_id: str, current_user: User = Depends(require_permission('finance.view'))):
     """Get a single account by ID"""
     account = await db.accounts.find_one({"id": account_id, "is_deleted": False}, {"_id": 0})
     if not account:
