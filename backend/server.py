@@ -2685,6 +2685,9 @@ async def get_jobcards(
     current_user: User = Depends(get_current_user)
 ):
     """Get job cards with pagination support"""
+    if not user_has_permission(current_user, 'jobcards.view'):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to view job cards")
+    
     query = {"is_deleted": False}
     
     # Calculate skip value
