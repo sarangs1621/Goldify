@@ -5860,7 +5860,7 @@ async def get_sales_history_report(
     date_to: Optional[str] = None,
     party_id: Optional[str] = None,
     search: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission('reports.view'))
 ):
     """
     Get sales history report showing ONLY finalized invoices.
