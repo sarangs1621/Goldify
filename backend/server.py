@@ -4565,7 +4565,7 @@ async def get_transactions(
     total_count = await db.transactions.count_documents(query)
     
     # Get paginated results sorted by date (newest first)
-    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).skip(skip).limit(per_page).to_list(per_page)
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).skip(skip).limit(page_size).to_list(page_size)
     
     # Enhance each transaction with account type and running balance
     account_cache = {}
