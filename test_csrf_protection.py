@@ -203,8 +203,6 @@ def test_csrf_protection():
                 response.status_code == 200,
                 f"DELETE request successful with status {response.status_code} (expected 200)"
             )
-                f"DELETE request successful with status {response.status_code} (expected 200)"
-            )
     
     # Test 8: Verify logout clears CSRF cookie
     print_test_header("Test 8: Logout Clears CSRF Cookie")
