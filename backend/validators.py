@@ -191,6 +191,14 @@ class AccountValidator(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     account_type: str = Field(..., pattern="^(cash|bank|credit_card|mobile_wallet)$")
     opening_balance: float = Field(default=0, ge=-1000000, le=1000000)
+    
+    @validator('name')
+    def sanitize_name(cls, v):
+        return sanitize_text_field(v, max_length=100)
+    
+    @validator('opening_balance')
+    def validate_balance(cls, v):
+        return validate_amount(v)
 
 class TransactionValidator(BaseModel):
     transaction_type: str = Field(..., pattern="^(credit|debit)$")
