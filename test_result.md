@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "COMPREHENSIVE STRESS TESTING FOR GOLD SHOP ERP - IDENTIFY PRODUCTION-READINESS BLOCKERS. Execute ALL stress test scenarios including authentication stress tests, purchases module edge cases, job cards status transitions, invoices payment edge cases, inventory stock movements, party management CRUD operations, navigation state persistence, and concurrent operations testing. Surface UX gaps, missing confirmations, ambiguous copy, broken expectations, silent failures, data loss, double submission, inconsistent state, validation gaps, navigation breaks, stale data, and race conditions."
+user_problem_statement: "IMPLEMENT COMPREHENSIVE ROLE-BASED PERMISSION SYSTEM WITH RBAC (Role-Based Access Control). Create 5-phase implementation: (1) Backend permission constants and role mappings for admin/manager/staff roles, (2) Security features including account lockout, password complexity, token-based password reset, and auth audit logs, (3) Permission enforcement on all API endpoints, (4) Frontend permission components and hooks, (5) Frontend UI permission application with filtered navigation and route protection."
 
 backend:
   - task: "Purchases API - Model Validation Fix"
