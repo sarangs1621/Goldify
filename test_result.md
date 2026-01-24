@@ -3396,6 +3396,125 @@ frontend:
         agent: "main"
         comment: "Test filter behavior in reports: apply filters, navigate away, return to page. Verify: filters reset or persist appropriately, clear filters button works, filter state clear to user, no confusing default states"
 
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Edge Cases and Stability Testing - Rapid interactions, partial inputs, refreshes"
+    - "UX Gaps Testing - Loading states, confirmations, error messages, empty states"
+    - "Stress Testing - Repeated actions, concurrent operations, edge values"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "critical_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      🎯 STARTING MODULE 8 - EDGE CASES, STABILITY & UX GAPS COMPREHENSIVE TESTING
+      
+      TESTING OBJECTIVE:
+      Stress test the Gold Shop ERP application to identify critical stability issues, UX gaps, and edge cases
+      that would prevent production readiness. Focus on scenarios that break user confidence and system reliability.
+      
+      TESTING CATEGORIES (16 Total Tasks):
+      
+      📋 BACKEND STABILITY (5 tasks):
+      1. Rapid Interactions - Test rapid form submissions (no duplicate records)
+      2. Repeated Actions - Test idempotency of critical operations
+      3. Partial Inputs - Test validation with missing/invalid data
+      4. Refresh During Flows - Test data consistency during interruptions
+      5. Unexpected Navigation - Test state handling with browser controls
+      
+      📋 FRONTEND UX & FEEDBACK (11 tasks):
+      6. Loading States - Verify clear operation feedback
+      7. Delete Confirmations - Test destructive action warnings
+      8. Finalization Confirmations - Test irreversible operation dialogs
+      9. Error Message Quality - Verify actionable error messages
+      10. Form Validation Timing - Test inline vs submit validation
+      11. Zero/Negative Values - Test numeric edge cases
+      12. Very Large Numbers - Test upper bounds handling
+      13. Special Characters - Test text input edge cases
+      14. Empty States - Test UI with no data
+      15. Date Picker Edge Cases - Test date validation
+      16. Filter Persistence - Test filter state management
+      
+      CRITICAL FOCUS AREAS:
+      
+      🔥 STABILITY BREAKERS:
+      - Duplicate record creation from rapid clicks
+      - Data corruption from page refreshes mid-operation
+      - Silent failures without error feedback
+      - Race conditions in concurrent operations
+      - Broken states from unexpected navigation
+      
+      🔥 UX CONFIDENCE BREAKERS:
+      - Missing confirmations for destructive actions (delete, finalize)
+      - No loading indicators during operations
+      - Unclear or technical error messages
+      - No warnings for irreversible operations
+      - Blank pages or missing empty states
+      
+      🔥 DATA INTEGRITY RISKS:
+      - Operations that aren't idempotent
+      - Missing validation for edge values
+      - No recovery from interruptions
+      - Inconsistent state after errors
+      
+      TESTING METHODOLOGY:
+      
+      For EACH critical workflow (invoice creation, purchase finalization, payment addition):
+      1. ⚡ Rapid Clicks - Submit button clicked 3-5 times rapidly
+      2. 🔄 Refresh Test - Browser refresh during operation
+      3. ⬅️ Back Button - Browser back during form fill
+      4. ❌ Partial Data - Submit with missing required fields
+      5. 🔢 Edge Values - Test with 0, negative, very large numbers
+      6. ✅ Success Feedback - Verify loading states and success messages
+      7. ⚠️ Error Feedback - Verify clear error messages
+      8. 🛡️ Confirmations - Verify confirmation dialogs for critical actions
+      
+      KEY MODULES TO STRESS TEST:
+      1. Job Cards (create, edit, convert to invoice, delete)
+      2. Invoices (create, finalize, add payment, delete)
+      3. Purchases (create, finalize, add payment, delete)
+      4. Parties (create, edit, delete, view ledger)
+      5. Inventory (stock movements, adjustments)
+      6. Finance (transactions, account operations)
+      7. Reports (filters, exports, calculations)
+      8. Daily Closing (create, lock, calculations)
+      
+      AUTHENTICATION:
+      Username: admin
+      Password: admin123
+      
+      BACKEND URL:
+      Available in /app/frontend/.env as REACT_APP_BACKEND_URL
+      
+      SUCCESS CRITERIA:
+      - No duplicate records from rapid interactions
+      - All critical operations have confirmation dialogs
+      - All errors show clear, actionable messages
+      - Loading states present for all async operations
+      - No data corruption from interruptions
+      - Empty states have helpful guidance
+      - Form validation provides clear feedback
+      - System recovers gracefully from errors
+      
+      FAILURE INDICATORS:
+      - Duplicate records created
+      - Silent failures (no error message)
+      - Orphaned data from interruptions
+      - Missing confirmations for deletes/finalizations
+      - Blank pages with no guidance
+      - Technical error messages shown to users
+      - Operations hanging without feedback
+      - System crashes or unrecoverable errors
+      
+      Ready to begin comprehensive edge case and stability testing!
+
 backend:
   - task: "Fix Invoice Payment to Account Integration - Update account balance when payment is added"
     implemented: true
