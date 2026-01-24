@@ -692,14 +692,24 @@ class InvoiceItem(BaseModel):
     category: Optional[str] = None  # Inventory category for stock tracking
     description: str
     qty: int
-    weight: float
+    # Gold-specific weight breakdown (3 decimal precision)
+    gross_weight: float = 0.0  # Total weight including stones
+    stone_weight: float = 0.0  # Weight of stones/gems
+    net_gold_weight: float = 0.0  # Calculated: gross_weight - stone_weight
+    weight: float  # Legacy field, maps to net_gold_weight for compatibility
     purity: int
-    metal_rate: float
-    gold_value: float
-    making_value: float
+    metal_rate: float  # Gold rate per gram
+    gold_value: float  # net_gold_weight * metal_rate
+    # Charges breakdown
+    making_charge_type: Optional[str] = None  # 'per_gram' or 'flat'
+    making_value: float  # Making charges
+    stone_charges: float = 0.0  # Stone/gem charges
+    wastage_charges: float = 0.0  # Wastage charges
+    item_discount: float = 0.0  # Item-level discount
+    # Tax
     vat_percent: float
     vat_amount: float
-    line_total: float
+    line_total: float  # gold_value + making_value + stone_charges + wastage_charges + vat_amount - item_discount
 
 class Invoice(BaseModel):
     model_config = ConfigDict(extra="ignore")
