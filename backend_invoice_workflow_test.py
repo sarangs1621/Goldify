@@ -162,8 +162,22 @@ class InvoiceWorkflowTester:
                     self.created_entities['accounts'].append(cash_account['id'])
                     self.log_result("SETUP", "Cash Account Found", "PASS", f"Balance: {cash_account.get('current_balance')} OMR")
                 else:
-                    self.log_result("SETUP", "Cash Account", "FAIL", "No account with positive balance found")
-                    return False
+                    # Create cash account with initial balance
+                    account_data = {
+                        "name": "Test Cash Account",
+                        "account_type": "cash",
+                        "opening_balance": 5000.0,
+                        "current_balance": 5000.0,
+                        "description": "Test cash account for invoice testing"
+                    }
+                    account_response = self.session.post(f"{BACKEND_URL}/accounts", json=account_data)
+                    if account_response.status_code == 200:
+                        account = account_response.json()
+                        self.created_entities['accounts'].append(account['id'])
+                        self.log_result("SETUP", "Create Cash Account", "PASS", f"Account ID: {account['id']}, Balance: 5000 OMR")
+                    else:
+                        self.log_result("SETUP", "Create Cash Account", "FAIL", account_response.text)
+                        return False
             
             # Create job card with items for invoice conversion
             job_card_data = {
