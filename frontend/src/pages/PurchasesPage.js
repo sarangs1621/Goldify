@@ -547,7 +547,7 @@ export default function PurchasesPage() {
                   <TableEmptyState
                     colSpan={11}
                     icon="cart"
-                    title="No Purchases Found"
+                    title="No purchases recorded"
                     message="Start by creating your first purchase to track gold inventory and vendor transactions."
                     action={{
                       label: "Create Purchase",
