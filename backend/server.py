@@ -250,11 +250,37 @@ class User(BaseModel):
     email: str
     full_name: str
     role: str
+    permissions: List[str] = Field(default_factory=list)
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_deleted: bool = False
     deleted_at: Optional[datetime] = None
     deleted_by: Optional[str] = None
+    failed_login_attempts: int = 0
+    locked_until: Optional[datetime] = None
+    last_login: Optional[datetime] = None
+
+class PasswordResetToken(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    token: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime
+    used: bool = False
+    used_at: Optional[datetime] = None
+
+class AuthAuditLog(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: Optional[str] = None
+    username: str
+    action: str  # login, logout, login_failed, password_change, password_reset
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    success: bool
+    failure_reason: Optional[str] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserCreate(BaseModel):
     username: str
