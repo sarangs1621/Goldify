@@ -4530,7 +4530,7 @@ async def export_inventory(
     end_date: Optional[str] = None,
     movement_type: Optional[str] = None,
     category: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission('reports.view'))
 ):
     from fastapi.responses import StreamingResponse
     from io import BytesIO
