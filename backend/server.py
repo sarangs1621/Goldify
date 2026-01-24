@@ -983,15 +983,9 @@ async def delete_user(user_id: str, current_user: User = Depends(require_permiss
 async def get_auth_audit_logs(
     limit: int = 100,
     skip: int = 0,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission('audit.view'))
 ):
     """Get authentication audit logs - admin only"""
-    if not user_has_permission(current_user, 'audit.view'):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to view audit logs"
-        )
-    
     logs = await db.auth_audit_logs.find({}, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
     total_count = await db.auth_audit_logs.count_documents({})
     
