@@ -12,6 +12,17 @@ import { toast } from 'sonner';
 import { Package, CheckCircle, Lock, Edit, ShoppingCart, Calendar, Trash2, Eye, AlertTriangle } from 'lucide-react';
 import { extractErrorMessage } from '../utils/errorHandler';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
+import { 
+  validateWeight, 
+  validateRate, 
+  validateAmount, 
+  validatePaidAmount, 
+  validatePurity,
+  validateSelection 
+} from '../utils/validation';
+import { FormErrorMessage } from '../components/FormErrorMessage';
+import { PageLoadingSpinner, TableLoadingSpinner, ButtonLoadingSpinner } from '../components/LoadingSpinner';
+import { TableEmptyState } from '../components/EmptyState';
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState([]);
