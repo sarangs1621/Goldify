@@ -174,6 +174,18 @@ class JobCardValidator(BaseModel):
     worker_name: Optional[str] = Field(None, max_length=100)
     delivery_date: Optional[str] = None
     notes: Optional[str] = Field(None, max_length=1000)
+    
+    @validator('customer_name')
+    def sanitize_customer_name(cls, v):
+        return sanitize_text_field(v, max_length=100)
+    
+    @validator('worker_name')
+    def sanitize_worker_name(cls, v):
+        return sanitize_text_field(v, max_length=100)
+    
+    @validator('notes')
+    def sanitize_notes(cls, v):
+        return sanitize_text_field(v, max_length=1000)
 
 class AccountValidator(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
