@@ -239,14 +239,29 @@ export default function InventoryPage() {
                     type="number"
                     value={movementForm.purity}
                     onChange={(e) => setMovementForm({...movementForm, purity: e.target.value})}
+                    placeholder="e.g., 916, 999"
                   />
                 </div>
                 <div>
-                  <Label>Notes</Label>
+                  <Label>Notes (Optional)</Label>
                   <Input
                     value={movementForm.notes}
                     onChange={(e) => setMovementForm({...movementForm, notes: e.target.value})}
+                    placeholder="Additional notes"
                   />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-red-600">Confirmation Reason *</Label>
+                  <Input
+                    data-testid="confirmation-reason-input"
+                    value={movementForm.confirmation_reason}
+                    onChange={(e) => setMovementForm({...movementForm, confirmation_reason: e.target.value})}
+                    placeholder="Required: Reason for this manual inventory adjustment (e.g., stock return, found items, physical count)"
+                    className="border-red-200"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Required for audit trail and regulatory compliance
+                  </p>
                 </div>
               </div>
               <Button data-testid="save-movement-button" onClick={handleAddMovement} className="w-full mt-4">Save Movement</Button>
