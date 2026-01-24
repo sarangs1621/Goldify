@@ -760,8 +760,15 @@ export default function JobCardsPage() {
                 ))}
               </tbody>
             </table>
+            {jobcards.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No job cards found</p>
+              </div>
+            )}
           </div>
         </CardContent>
+        {pagination && <Pagination pagination={pagination} onPageChange={setPage} />}
       </Card>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
