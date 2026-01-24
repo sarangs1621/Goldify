@@ -109,24 +109,17 @@ async def seed_comprehensive_dashboard_data():
     header_totals = {hid: {'qty': 0.0, 'weight': 0.0} for hid in header_ids}
     
     for header_id in header_ids[:8]:  # First 8 headers get stock
-        # Create 5-15 movements per header
-        num_movements = random.randint(5, 15)
-        for _ in range(num_movements):
+        # Start with initial stock (IN movements)
+        num_in_movements = random.randint(8, 12)  # More IN movements first
+        for _ in range(num_in_movements):
             movement_id = generate_id()
             purity = random.choice(purities)
-            qty = random.randint(1, 10)
-            weight = round(random.uniform(5.0, 150.0), 3)
+            qty = random.randint(5, 15)  # Larger quantities for IN
+            weight = round(random.uniform(10.0, 200.0), 3)  # Larger weights for IN
             
-            # Random IN or OUT movement
-            movement_type = random.choice(["IN", "OUT"])
-            
-            # Calculate deltas based on movement type
-            if movement_type == "IN":
-                qty_delta = qty
-                weight_delta = weight
-            else:
-                qty_delta = -qty
-                weight_delta = -weight
+            # IN movement
+            qty_delta = qty
+            weight_delta = weight
             
             # Update running totals
             header_totals[header_id]['qty'] += qty_delta
@@ -135,10 +128,48 @@ async def seed_comprehensive_dashboard_data():
             movement = {
                 "id": movement_id,
                 "date": get_random_date(60),
-                "movement_type": movement_type,
+                "movement_type": "IN",
                 "header_id": header_id,
                 "header_name": header_names[header_id],
-                "description": f"Stock movement for {random.choice(['purchase', 'sale', 'adjustment', 'return'])}",
+                "description": f"Stock IN - {random.choice(['Purchase', 'Return', 'Opening Stock', 'Transfer In'])}",
+                "qty_delta": qty_delta,
+                "weight_delta": round(weight_delta, 3),
+                "purity": purity,
+                "created_by": admin_id,
+                "notes": f"Test stock data - purity {purity}",
+                "is_deleted": False
+            }
+            await db.stock_movements.insert_one(movement)
+            movement_count += 1
+        
+        # Then add some OUT movements (less than IN to maintain positive stock)
+        num_out_movements = random.randint(2, 5)  # Fewer OUT movements
+        for _ in range(num_out_movements):
+            movement_id = generate_id()
+            purity = random.choice(purities)
+            
+            # Calculate max we can take out (leave at least 50% stock)
+            max_qty_out = max(1, int(header_totals[header_id]['qty'] * 0.3))
+            max_weight_out = max(10.0, header_totals[header_id]['weight'] * 0.3)
+            
+            qty = random.randint(1, max_qty_out)
+            weight = round(random.uniform(5.0, min(50.0, max_weight_out)), 3)
+            
+            # OUT movement (negative deltas)
+            qty_delta = -qty
+            weight_delta = -weight
+            
+            # Update running totals
+            header_totals[header_id]['qty'] += qty_delta
+            header_totals[header_id]['weight'] += weight_delta
+            
+            movement = {
+                "id": movement_id,
+                "date": get_random_date(60),
+                "movement_type": "OUT",
+                "header_id": header_id,
+                "header_name": header_names[header_id],
+                "description": f"Stock OUT - {random.choice(['Sale', 'Job Card', 'Transfer Out', 'Adjustment'])}",
                 "qty_delta": qty_delta,
                 "weight_delta": round(weight_delta, 3),
                 "purity": purity,
@@ -159,7 +190,7 @@ async def seed_comprehensive_dashboard_data():
                 {"id": header_id},
                 {
                     "$set": {
-                        "current_qty": max(0, totals['qty']),  # Ensure non-negative
+                        "current_qty": max(0, round(totals['qty'], 2)),  # Ensure non-negative
                         "current_weight": max(0, round(totals['weight'], 3))  # Ensure non-negative
                     }
                 }
