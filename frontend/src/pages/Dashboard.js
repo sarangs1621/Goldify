@@ -71,7 +71,7 @@ export default function Dashboard() {
             <TrendingUp className="w-5 h-5 text-accent" strokeWidth={1.5} />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-mono font-semibold text-gray-900">{(stats.totalStock || 0).toFixed(3)}<span className="text-sm ml-1">g</span></div>
+            <div className="text-3xl font-mono font-semibold text-gray-900">{formatWeight(stats.totalStock)}<span className="text-sm ml-1">g</span></div>
           </CardContent>
         </Card>
 
