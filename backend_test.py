@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
-Backend Testing Script for Invoice Workflow Critical Issues
-Testing 4 specific issues identified in the review request:
-1. Making Charges Calculation Bug in Job Card to Invoice Conversion
-2. Invoice Field Naming Consistency
-3. Stock OUT Movement Verification
-4. Customer Outstanding Balance Calculation
+Backend Testing Script for Party Summary Outstanding Balance Calculation Fix (ISSUE #4)
+
+CRITICAL BUG FIX TO VERIFY:
+Fixed party summary endpoint (GET /api/parties/{party_id}/summary) to only include FINALIZED invoices 
+in outstanding balance calculations, not draft invoices.
+
+TEST OBJECTIVES:
+1. Verify that party summary outstanding balance ONLY includes finalized invoices
+2. Confirm that draft invoices are excluded from the calculation
+3. Validate that the outstanding balance matches the sum of finalized invoice balance_due fields
+4. Test with parties that have both draft and finalized invoices
 """
 
 import requests
