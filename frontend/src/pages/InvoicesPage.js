@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useSearchParams } from 'react-router-dom';
 import { API } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -12,9 +13,12 @@ import { toast } from 'sonner';
 import { FileText, Printer, CheckCircle, Lock, DollarSign, AlertTriangle, Eye, Trash2 } from 'lucide-react';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import { downloadProfessionalInvoicePDF } from '../utils/professionalInvoicePDF';
+import Pagination from '../components/Pagination';
 
 export default function InvoicesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState([]);
+  const [pagination, setPagination] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [finalizing, setFinalizing] = useState(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -39,18 +43,28 @@ export default function InvoicesPage() {
   const [impactData, setImpactData] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
+  // Get current page from URL, default to 1
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
   useEffect(() => {
     loadInvoices();
     loadAccounts();
-  }, []);
+  }, [currentPage]);
 
   const loadInvoices = async () => {
     try {
-      const response = await axios.get(`${API}/invoices`);
+      const response = await axios.get(`${API}/invoices`, {
+        params: { page: currentPage, page_size: 10 }
+      });
       setInvoices(response.data.items || []);
+      setPagination(response.data.pagination);
     } catch (error) {
       toast.error('Failed to load invoices');
     }
+  };
+
+  const handlePageChange = (newPage) => {
+    setSearchParams({ page: newPage.toString() });
   };
 
   const loadAccounts = async () => {
