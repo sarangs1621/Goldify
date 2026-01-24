@@ -6333,7 +6333,7 @@ async def get_jobcard_deliver_impact(jobcard_id: str, current_user: User = Depen
     }
 
 @api_router.get("/jobcards/{jobcard_id}/delete-impact")
-async def get_jobcard_delete_impact(jobcard_id: str, current_user: User = Depends(get_current_user)):
+async def get_jobcard_delete_impact(jobcard_id: str, current_user: User = Depends(require_permission('jobcards.view'))):
     """Get impact summary before deleting a job card"""
     jobcard = await db.jobcards.find_one({"id": jobcard_id, "is_deleted": False})
     if not jobcard:
@@ -6364,7 +6364,7 @@ async def get_jobcard_delete_impact(jobcard_id: str, current_user: User = Depend
     }
 
 @api_router.get("/invoices/{invoice_id}/finalize-impact")
-async def get_invoice_finalize_impact(invoice_id: str, current_user: User = Depends(get_current_user)):
+async def get_invoice_finalize_impact(invoice_id: str, current_user: User = Depends(require_permission('invoices.view'))):
     """Get impact summary before finalizing an invoice"""
     invoice = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
     if not invoice:
@@ -6387,7 +6387,7 @@ async def get_invoice_finalize_impact(invoice_id: str, current_user: User = Depe
     }
 
 @api_router.get("/invoices/{invoice_id}/delete-impact")
-async def get_invoice_delete_impact(invoice_id: str, current_user: User = Depends(get_current_user)):
+async def get_invoice_delete_impact(invoice_id: str, current_user: User = Depends(require_permission('invoices.view'))):
     """Get impact summary before deleting an invoice"""
     invoice = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
     if not invoice:
@@ -6425,7 +6425,7 @@ async def get_invoice_delete_impact(invoice_id: str, current_user: User = Depend
     }
 
 @api_router.get("/purchases/{purchase_id}/finalize-impact")
-async def get_purchase_finalize_impact(purchase_id: str, current_user: User = Depends(get_current_user)):
+async def get_purchase_finalize_impact(purchase_id: str, current_user: User = Depends(require_permission('purchases.view'))):
     """Get impact summary before finalizing a purchase"""
     purchase = await db.purchases.find_one({"id": purchase_id, "is_deleted": False})
     if not purchase:
@@ -6449,7 +6449,7 @@ async def get_purchase_finalize_impact(purchase_id: str, current_user: User = De
     }
 
 @api_router.get("/purchases/{purchase_id}/delete-impact")
-async def get_purchase_delete_impact(purchase_id: str, current_user: User = Depends(get_current_user)):
+async def get_purchase_delete_impact(purchase_id: str, current_user: User = Depends(require_permission('purchases.view'))):
     """Get impact summary before deleting a purchase"""
     purchase = await db.purchases.find_one({"id": purchase_id, "is_deleted": False})
     if not purchase:
@@ -6561,7 +6561,7 @@ async def get_party_delete_impact(party_id: str, current_user: User = Depends(re
     }
 
 @api_router.get("/transactions/{transaction_id}/delete-impact")
-async def get_transaction_delete_impact(transaction_id: str, current_user: User = Depends(get_current_user)):
+async def get_transaction_delete_impact(transaction_id: str, current_user: User = Depends(require_permission('finance.view'))):
     """Get impact summary before deleting a transaction"""
     transaction = await db.transactions.find_one({"id": transaction_id, "is_deleted": False})
     if not transaction:
