@@ -481,7 +481,7 @@ class DailyClosingTester:
 def main():
     """Main execution function"""
     # Configuration
-    BASE_URL = "https://rbac-shield-2.preview.emergentagent.com"
+    BASE_URL = "https://auth-shield-core.preview.emergentagent.com"
     USERNAME = "admin"
     PASSWORD = "admin123"
     
