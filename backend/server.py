@@ -848,8 +848,15 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 @api_router.post("/auth/logout")
-async def logout(current_user: User = Depends(get_current_user)):
-    """Logout endpoint - creates audit log for logout action"""
+async def logout(response: Response, current_user: User = Depends(get_current_user)):
+    """Logout endpoint - clears authentication cookie and creates audit log"""
+    # Clear the authentication cookie
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        samesite="lax"
+    )
+    
     await create_auth_audit_log(
         username=current_user.username,
         action="logout",
