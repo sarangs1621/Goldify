@@ -562,13 +562,13 @@ export default function PurchasesPage() {
                       <td className="p-3">{new Date(purchase.date).toLocaleDateString()}</td>
                       <td className="p-3">{getVendorName(purchase.vendor_party_id)}</td>
                       <td className="p-3">{purchase.description}</td>
-                      <td className="p-3 text-right font-mono">{purchase.weight_grams.toFixed(3)}</td>
+                      <td className="p-3 text-right font-mono">{safeToFixed(purchase.weight_grams, 3)}</td>
                       <td className="p-3 text-right">{purchase.entered_purity}K</td>
-                      <td className="p-3 text-right font-mono">{purchase.rate_per_gram.toFixed(2)}</td>
-                      <td className="p-3 text-right font-mono">{purchase.amount_total.toFixed(2)}</td>
-                      <td className="p-3 text-right font-mono">{purchase.paid_amount_money.toFixed(2)}</td>
+                      <td className="p-3 text-right font-mono">{safeToFixed(purchase.rate_per_gram, 2)}</td>
+                      <td className="p-3 text-right font-mono">{safeToFixed(purchase.amount_total, 2)}</td>
+                      <td className="p-3 text-right font-mono">{safeToFixed(purchase.paid_amount_money, 2)}</td>
                       <td className="p-3 text-right font-mono font-semibold text-red-600">
-                        {purchase.balance_due_money.toFixed(2)}
+                        {safeToFixed(purchase.balance_due_money, 2)}
                       </td>
                       <td className="p-3 text-center">{getStatusBadge(purchase.status)}</td>
                       <td className="p-3">
