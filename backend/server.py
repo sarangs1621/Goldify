@@ -4987,7 +4987,7 @@ async def get_inventory_stock_report(
     header_id: str,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission('reports.view'))
 ):
     """Get detailed stock report for a specific inventory category"""
     header = await db.inventory_headers.find_one({"id": header_id, "is_deleted": False}, {"_id": 0})
