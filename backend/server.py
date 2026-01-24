@@ -5346,7 +5346,7 @@ async def export_outstanding_pdf(
     party_type: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission('reports.view'))
 ):
     """Export outstanding report as PDF"""
     from reportlab.lib.pagesizes import A4
