@@ -3,6 +3,7 @@ import axios from 'axios';
 import { API } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Package, AlertTriangle, Users, TrendingUp } from 'lucide-react';
+import { formatWeight, formatCurrency } from '../utils/numberFormat';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
