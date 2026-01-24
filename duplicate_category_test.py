@@ -481,8 +481,10 @@ class DuplicateCategoryTester:
         
         # Get existing categories for testing
         if not self.get_existing_categories():
-            print("❌ Failed to get existing categories. Cannot proceed with tests.")
-            return False
+            print("⚠️ No existing categories found. Creating initial test data...")
+            if not self.setup_test_data():
+                print("❌ Failed to setup test data. Cannot proceed with tests.")
+                return False
         
         # Run all tests
         self.test_create_duplicate_exact_match()
