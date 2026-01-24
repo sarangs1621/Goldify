@@ -4713,7 +4713,7 @@ async def view_inventory_report(
     movement_type: Optional[str] = None,
     category: Optional[str] = None,
     sort_by: Optional[str] = None,  # NEW: "date_asc", "date_desc"
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission('reports.view'))
 ):
     """View inventory movements with filters - returns JSON for UI"""
     query = {"is_deleted": False}
