@@ -28,7 +28,7 @@ import uuid
 import traceback
 
 # Configuration
-BASE_URL = "https://page-validator-3.preview.emergentagent.com/api"
+BASE_URL = "https://cat-count-tracker.preview.emergentagent.com/api"
 USERNAME = "admin"
 PASSWORD = "admin123"
 
