@@ -891,7 +891,8 @@ async def login(request: Request, credentials: UserLogin, response: Response):
     return TokenResponse(access_token=token, user=user)
 
 @api_router.get("/auth/me", response_model=User)
-async def get_me(current_user: User = Depends(get_current_user)):
+@limiter.limit("1000/hour")  # General authenticated rate limit: 1000 requests per hour
+async def get_me(request: Request, current_user: User = Depends(get_current_user)):
     return current_user
 
 @api_router.post("/auth/logout")
