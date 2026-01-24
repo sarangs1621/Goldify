@@ -393,6 +393,11 @@ export default function PurchasesPage() {
   const totalWeight = purchases.reduce((sum, p) => sum + (p.weight_grams || 0), 0);
   const totalValue = purchases.reduce((sum, p) => sum + (p.amount_total || 0), 0);
 
+  // Show loading spinner while data is being fetched
+  if (isLoading) {
+    return <PageLoadingSpinner text="Loading purchases..." />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
