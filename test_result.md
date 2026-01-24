@@ -456,6 +456,106 @@ agent_communication:
 user_problem_statement: "Improve Cost Components Breakdown Visibility across Invoice Details, Job Card Details, and Purchase Details (Option D - All of the Above). Option A: Invoice details with clearer visual hierarchy showing metal value + making charges + VAT + discount. Option B: Job Card details with cost estimation in both view/detail dialog and create/edit preview. Option C: Purchase details with breakdown of weight × rate + purity adjustment + payment breakdown + additional charges."
 
 backend:
+  - task: "No backend changes required for this enhancement"
+    implemented: true
+    working: true
+    file: "N/A"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "All required data is already available through existing API endpoints. No backend changes needed for UI enhancements."
+
+frontend:
+  - task: "Option A: Invoice Details Enhancement"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/InvoicesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Invoice view dialog already has enhanced breakdown with clearer visual hierarchy. Metal value, making charges, and VAT shown in color-coded gradient cards. Grand total is most prominent. Calculation verification included. This option is already fully implemented and meets all requirements."
+
+  - task: "Option B: Job Card View Dialog with Cost Estimation"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/JobCardsPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Currently cost estimation is only shown in create/edit preview. Need to add a view dialog for existing job cards that shows: job card details, items table, and cost estimation breakdown (metal value, making charges, VAT, total). Will label all values as 'Estimates' based on gold rate at time of job card creation."
+
+  - task: "Option C: Purchase View Dialog with Breakdown"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Currently no view dialog exists for purchases. Need to add view dialog showing: purchase header, gold details (weight × rate = base amount, purity info), payment breakdown (total/paid/balance), gold settlement details if any, and timestamps. Main list will remain high-level."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Option B: Create Job Card View Dialog"
+    - "Option C: Create Purchase View Dialog"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      STARTING IMPLEMENTATION: Cost Components Breakdown Visibility Enhancement
+      
+      CURRENT STATE ASSESSMENT:
+      ✅ Option A (Invoice Details): Already fully implemented with enhanced visual hierarchy
+      ⚠️ Option B (Job Card Details): Cost estimation exists in create/edit, need to add view dialog
+      ⚠️ Option C (Purchase Details): No view dialog exists, need to create one
+      
+      IMPLEMENTATION PLAN:
+      
+      Phase 1: Job Card View Dialog (Option B)
+      - Add view dialog state and handler
+      - Create comprehensive view dialog with:
+        * Job card header (number, customer, worker, status, dates)
+        * Items table with all details
+        * Cost estimation breakdown (if gold rate available):
+          - Item-wise breakdown: Metal value, Making charges, VAT, Item total
+          - Summary cards: Total metal, Total making, Total VAT
+          - Grand Total with prominent display
+          - Disclaimer labels stating these are estimates
+      - Add "View" button in job cards table
+      
+      Phase 2: Purchase View Dialog (Option C)
+      - Add view dialog state and handler
+      - Create detailed view dialog with:
+        * Purchase header (date, vendor, status)
+        * Gold Details: Weight, Purity (entered & valuation), Rate, Base Amount
+        * Payment Breakdown: Total, Paid, Balance, Mode, Account
+        * Gold Settlement: Advance and Exchange if applicable
+        * Timestamps: Created and Finalized dates
+      - Add "View" button in purchases table
+      
+      Ready to implement both enhancements!
+
+backend:
   - task: "User Authentication & Authorization"
     implemented: true
     working: true
