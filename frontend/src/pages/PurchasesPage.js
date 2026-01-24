@@ -998,11 +998,27 @@ export default function PurchasesPage() {
 
             {/* Action Buttons */}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setShowDialog(false)} className="flex-1">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDialog(false)} 
+                className="flex-1"
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleSavePurchase} className="flex-1">
-                {editingPurchase ? 'Update Purchase' : 'Create Purchase'}
+              <Button 
+                onClick={handleSavePurchase} 
+                className="flex-1"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <ButtonLoadingSpinner className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  editingPurchase ? 'Update Purchase' : 'Create Purchase'
+                )}
               </Button>
             </div>
           </div>
