@@ -153,11 +153,16 @@ def test_csrf_protection():
     parties_response = session.get(f"{BASE_URL}/parties")
     if parties_response.status_code == 200:
         parties = parties_response.json()
-        # Handle both list and dict responses
-        if isinstance(parties, dict):
-            parties = list(parties.values()) if parties else []
+        # Debug: print what we got
+        print(f"   Debug: parties type: {type(parties)}, length: {len(parties) if parties else 0}")
+        if parties:
+            print(f"   Debug: first item type: {type(parties[0]) if isinstance(parties, list) and len(parties) > 0 else 'N/A'}")
+            if isinstance(parties, list) and len(parties) > 0:
+                print(f"   Debug: first item keys: {parties[0].keys() if isinstance(parties[0], dict) else 'not a dict'}")
+        
         if parties and len(parties) > 0:
-            party_id = parties[0]['id']
+            # parties is already a list of dictionaries
+            party_id = parties[0].get('id')
             
             response = session.put(
                 f"{BASE_URL}/parties/{party_id}",
