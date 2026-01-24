@@ -27,7 +27,7 @@ export default function Dashboard() {
       ]);
 
       setStats({
-        totalHeaders: headersRes.data?.length || 0,
+        totalHeaders: headersRes.data?.pagination?.total_count || 0,
         totalStock: stockRes.data?.reduce((sum, item) => sum + (item.total_weight || 0), 0) || 0,
         totalOutstanding: outstandingRes.data?.total_customer_due || 0,
         lowStockItems: stockRes.data?.filter(item => item.total_qty < 5).length || 0
