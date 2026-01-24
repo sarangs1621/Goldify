@@ -2156,7 +2156,9 @@ async def create_jobcard(jobcard_data: dict, current_user: User = Depends(get_cu
     count = await db.jobcards.count_documents({"job_card_number": {"$regex": f"^JC-{year}"}})
     job_card_number = f"JC-{year}-{str(count + 1).zfill(4)}"
     
-    jobcard = JobCard(**jobcard_data, job_card_number=job_card_number, created_by=current_user.id)
+    # Remove conflicting keys and add required fields
+    jobcard_data_clean = {k: v for k, v in jobcard_data.items() if k not in ['job_card_number', 'created_by']}
+    jobcard = JobCard(**jobcard_data_clean, job_card_number=job_card_number, created_by=current_user.id)
     await db.jobcards.insert_one(jobcard.model_dump())
     await create_audit_log(current_user.id, current_user.full_name, "jobcard", jobcard.id, "create")
     return jobcard
