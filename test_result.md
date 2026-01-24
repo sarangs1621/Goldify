@@ -1212,7 +1212,7 @@ agent_communication:
       
       Ready for comprehensive testing of all modules!
 
-user_problem_statement: "Fix error in Purchase page when new purchase is added. React runtime error: 'Objects are not valid as a React child (found: object with keys {type, loc, msg, input, url})'. This error occurs when trying to add a new purchase and validation errors are returned from the backend."
+user_problem_statement: "COMPREHENSIVE UX HARDENING TESTING FOR PURCHASES PAGE - Verify purchase creation form validation, confirmation dialogs, loading states, empty states, rapid click protection, button feedback, form error display, and complete workflow testing with UX hardening features including form validation, confirmation dialogs, loading states, empty states, and rapid click protection."
 
 frontend:
   - task: "Fix error handling for Pydantic validation errors in PurchasesPage"
