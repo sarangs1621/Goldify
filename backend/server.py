@@ -2226,7 +2226,8 @@ async def get_party_summary(party_id: str, current_user: User = Depends(require_
 # ===========================
 
 @api_router.post("/purchases", response_model=Purchase)
-async def create_purchase(purchase_data: dict, current_user: User = Depends(require_permission('purchases.create'))):
+@limiter.limit("1000/hour")  # General authenticated rate limit: 1000 requests per hour
+async def create_purchase(request: Request, purchase_data: dict, current_user: User = Depends(require_permission('purchases.create'))):
     """Create a new purchase in draft status"""
     if not user_has_permission(current_user, 'purchases.create'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to create purchases")
