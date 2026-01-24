@@ -24,7 +24,7 @@ import uuid
 import time
 
 # Configuration
-BASE_URL = "https://cat-count-tracker.preview.emergentagent.com/api"
+BASE_URL = "https://inventory-cat-bug.preview.emergentagent.com/api"
 USERNAME = "admin"
 PASSWORD = "admin123"
 

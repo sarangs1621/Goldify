@@ -481,7 +481,7 @@ class DailyClosingTester:
 def main():
     """Main execution function"""
     # Configuration
-    BASE_URL = "https://cat-count-tracker.preview.emergentagent.com"
+    BASE_URL = "https://inventory-cat-bug.preview.emergentagent.com"
     USERNAME = "admin"
     PASSWORD = "admin123"
     
