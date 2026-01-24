@@ -1983,10 +1983,12 @@ async def get_reports_list(current_user: User = Depends(require_permission('repo
 async def get_inventory(
     category: Optional[str] = None,
     min_qty: Optional[float] = None,
+    page: int = 1,
+    page_size: int = 10,
     current_user: User = Depends(require_permission('inventory.view'))
 ):
     """
-    Basic inventory listing endpoint - Wrapper around inventory headers
+    Basic inventory listing endpoint with pagination support
     Provides a simple interface for inventory data retrieval
     """
     try:
@@ -1995,40 +1997,61 @@ async def get_inventory(
         if category:
             query['name'] = {"$regex": category, "$options": "i"}
         
-        # Get inventory headers
-        headers = await db.inventory_headers.find(query, {"_id": 0}).to_list(1000)
-        
-        # Apply quantity filter if specified
+        # Get all headers for filtering (if min_qty is used)
         if min_qty is not None:
+            # When filtering by quantity, we need to get all items first
+            headers = await db.inventory_headers.find(query, {"_id": 0}).to_list(1000)
             headers = [h for h in headers if h.get('current_qty', 0) >= min_qty]
+            
+            # Format response with additional computed fields
+            inventory_items = []
+            for header in headers:
+                item = {
+                    "id": header.get('id'),
+                    "category": header.get('name'),
+                    "quantity": round(header.get('current_qty', 0), 2),
+                    "weight_grams": round(header.get('current_weight', 0), 3),
+                    "is_active": header.get('is_active', True),
+                    "created_at": header.get('created_at'),
+                    "created_by": header.get('created_by'),
+                    "status": "low_stock" if header.get('current_qty', 0) < 5 else "in_stock"
+                }
+                inventory_items.append(item)
+            
+            # Sort by weight descending
+            inventory_items.sort(key=lambda x: x['weight_grams'], reverse=True)
+            
+            # Apply pagination to filtered results
+            total_count = len(inventory_items)
+            skip = (page - 1) * page_size
+            inventory_items = inventory_items[skip:skip + page_size]
+        else:
+            # Efficient pagination without min_qty filter
+            # Calculate skip value
+            skip = (page - 1) * page_size
+            
+            # Get total count for pagination
+            total_count = await db.inventory_headers.count_documents(query)
+            
+            # Get paginated results sorted by current_weight descending
+            headers = await db.inventory_headers.find(query, {"_id": 0}).sort("current_weight", -1).skip(skip).limit(page_size).to_list(page_size)
+            
+            # Format response with additional computed fields
+            inventory_items = []
+            for header in headers:
+                item = {
+                    "id": header.get('id'),
+                    "category": header.get('name'),
+                    "quantity": round(header.get('current_qty', 0), 2),
+                    "weight_grams": round(header.get('current_weight', 0), 3),
+                    "is_active": header.get('is_active', True),
+                    "created_at": header.get('created_at'),
+                    "created_by": header.get('created_by'),
+                    "status": "low_stock" if header.get('current_qty', 0) < 5 else "in_stock"
+                }
+                inventory_items.append(item)
         
-        # Format response with additional computed fields
-        inventory_items = []
-        for header in headers:
-            item = {
-                "id": header.get('id'),
-                "category": header.get('name'),
-                "quantity": round(header.get('current_qty', 0), 2),
-                "weight_grams": round(header.get('current_weight', 0), 3),
-                "is_active": header.get('is_active', True),
-                "created_at": header.get('created_at'),
-                "created_by": header.get('created_by'),
-                "status": "low_stock" if header.get('current_qty', 0) < 5 else "in_stock"
-            }
-            inventory_items.append(item)
-        
-        # Sort by weight descending
-        inventory_items.sort(key=lambda x: x['weight_grams'], reverse=True)
-        
-        return {
-            "items": inventory_items,
-            "total_count": len(inventory_items),
-            "total_weight_grams": round(sum(item['weight_grams'] for item in inventory_items), 3),
-            "total_quantity": round(sum(item['quantity'] for item in inventory_items), 2),
-            "low_stock_count": len([item for item in inventory_items if item['status'] == 'low_stock']),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "note": "For detailed operations use /api/inventory/headers and /api/inventory/movements"
-        }
+        return create_pagination_response(inventory_items, total_count, page, page_size)
     except Exception as e:
         logging.error(f"Inventory listing error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to load inventory: {str(e)}")
