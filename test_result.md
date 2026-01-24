@@ -5010,3 +5010,99 @@ agent_communication:
       7. Add field validation before submission
       
       NEXT STEP: Implement frontend fixes to align with backend requirements
+
+  - agent: "main"
+    message: |
+      ✅ INVENTORY MOVEMENT FIX COMPLETED - READY FOR TESTING
+      
+      FIX STATUS: ALL FRONTEND CHANGES IMPLEMENTED SUCCESSFULLY
+      
+      CHANGES APPLIED TO InventoryPage.js:
+      ================================================================================
+      
+      1. ✅ ADDED confirmation_reason FIELD TO STATE (Line 33)
+         - Updated movementForm state to include confirmation_reason: ''
+         - Field is now tracked in component state
+      
+      2. ✅ ADDED VALIDATION IN handleAddMovement (Lines 92-94)
+         - Added validation check: if (!movementForm.confirmation_reason.trim())
+         - Shows error toast: "Confirmation reason is required for all manual inventory adjustments"
+         - Prevents submission if field is empty
+      
+      3. ✅ UPDATED POST REQUEST DATA (Line 110)
+         - Added confirmation_reason to data object sent to backend
+         - Backend will now receive all required fields
+      
+      4. ✅ UPDATED MOVEMENT TYPE DROPDOWN (Lines 186-189)
+         - REMOVED: "Stock OUT" and "Adjustment OUT" options
+         - NOW SHOWS: "Stock IN (Add Stock)" and "Adjustment (Reconciliation)"
+         - Aligned with backend allowed types
+      
+      5. ✅ ADDED confirmation_reason INPUT FIELD (Lines 253-265)
+         - Added full-width input field with red label (indicates required)
+         - Placeholder text explains purpose and examples
+         - Helper text: "Required for audit trail and regulatory compliance"
+         - data-testid="confirmation-reason-input" for testing
+      
+      6. ✅ ADDED INFORMATIONAL NOTE (Lines 175-177)
+         - Added explanation at top of dialog
+         - Informs users why Stock OUT is prohibited
+         - Explains audit compliance requirement
+      
+      7. ✅ ENHANCED ERROR HANDLING (Lines 127-129)
+         - Now displays specific backend error messages
+         - Uses error.response?.data?.detail for detailed errors
+         - Fallback to generic message if no detail provided
+      
+      8. ✅ IMPROVED VALIDATION (Lines 84-99)
+         - Validates category selection
+         - Validates description is not empty
+         - Validates confirmation_reason is not empty
+         - Validates quantity and weight are positive values
+         - All validations show user-friendly error messages
+      
+      ALIGNMENT WITH BACKEND REQUIREMENTS:
+      ================================================================================
+      
+      Backend Requirement (server.py line 1606-1610):
+      ✅ confirmation_reason field is now sent in POST request
+      
+      Backend Requirement (server.py line 1612-1617):
+      ✅ "Stock OUT" removed from frontend dropdown
+      
+      Backend Requirement (server.py line 1628-1633):
+      ✅ Only "Stock IN" and "Adjustment" shown in dropdown
+      
+      Backend Requirement (server.py line 1619-1625):
+      ✅ qty_delta and weight_delta sent as positive values using Math.abs()
+      
+      TESTING READY:
+      ================================================================================
+      
+      The fix is complete and ready for testing. Please test the following scenarios:
+      
+      POSITIVE TEST CASES:
+      1. Add Stock IN movement with all required fields filled
+         - Should succeed and show success toast
+      2. Add Adjustment movement with all required fields filled
+         - Should succeed and show success toast
+      3. Verify inventory quantity/weight updates correctly
+      4. Verify movement appears in movements list
+      
+      VALIDATION TEST CASES:
+      5. Try to submit without selecting category
+         - Should show error: "Please select a category"
+      6. Try to submit without description
+         - Should show error: "Please enter a description"
+      7. Try to submit without confirmation reason
+         - Should show error: "Confirmation reason is required for all manual inventory adjustments"
+      8. Try to submit with zero or negative quantity/weight
+         - Should show error: "Quantity and weight must be positive values"
+      
+      UI TEST CASES:
+      9. Verify dropdown only shows "Stock IN" and "Adjustment"
+      10. Verify "Stock OUT" and "Adjustment OUT" are NOT in dropdown
+      11. Verify confirmation_reason field is visible and highlighted
+      12. Verify informational note about Stock OUT prohibition is visible
+      
+      NEXT STEP: Call testing agent to verify fix
