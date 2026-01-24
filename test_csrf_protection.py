@@ -153,6 +153,9 @@ def test_csrf_protection():
     parties_response = session.get(f"{BASE_URL}/parties")
     if parties_response.status_code == 200:
         parties = parties_response.json()
+        # Handle both list and dict responses
+        if isinstance(parties, dict):
+            parties = list(parties.values()) if parties else []
         if parties and len(parties) > 0:
             party_id = parties[0]['id']
             
