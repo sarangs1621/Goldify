@@ -943,16 +943,30 @@ async def reset_password(reset_data: dict):
 
 @api_router.get("/users", response_model=List[User])
 async def get_users(current_user: User = Depends(get_current_user)):
+    # Check permission
+    if not user_has_permission(current_user, 'users.view'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view users"
+        )
+    
     users = await db.users.find({"is_deleted": False}, {"_id": 0, "hashed_password": 0}).to_list(1000)
     for user in users:
         if isinstance(user.get('created_at'), str):
             user['created_at'] = datetime.fromisoformat(user['created_at'])
+        # Populate permissions if not set
+        if 'permissions' not in user or not user['permissions']:
+            user['permissions'] = get_user_permissions(user.get('role', 'staff'))
     return users
 
 @api_router.patch("/users/{user_id}")
 async def update_user(user_id: str, update_data: dict, current_user: User = Depends(get_current_user)):
-    if current_user.role not in ['admin', 'manager']:
-        raise HTTPException(status_code=403, detail="Not authorized to update users")
+    # Check permission
+    if not user_has_permission(current_user, 'users.update'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to update users"
+        )
     
     existing = await db.users.find_one({"id": user_id, "is_deleted": False})
     if not existing:
@@ -964,14 +978,22 @@ async def update_user(user_id: str, update_data: dict, current_user: User = Depe
     if 'hashed_password' in update_data:
         del update_data['hashed_password']
     
+    # If role is being updated, update permissions accordingly
+    if 'role' in update_data:
+        update_data['permissions'] = get_user_permissions(update_data['role'])
+    
     await db.users.update_one({"id": user_id}, {"$set": update_data})
     await create_audit_log(current_user.id, current_user.full_name, "user", user_id, "update", update_data)
     return {"message": "User updated successfully"}
 
 @api_router.delete("/users/{user_id}")
 async def delete_user(user_id: str, current_user: User = Depends(get_current_user)):
-    if current_user.role != 'admin':
-        raise HTTPException(status_code=403, detail="Only admins can delete users")
+    # Check permission
+    if not user_has_permission(current_user, 'users.delete'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to delete users"
+        )
     
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
@@ -986,6 +1008,43 @@ async def delete_user(user_id: str, current_user: User = Depends(get_current_use
     )
     await create_audit_log(current_user.id, current_user.full_name, "user", user_id, "delete")
     return {"message": "User deleted successfully"}
+
+@api_router.get("/auth/audit-logs")
+async def get_auth_audit_logs(
+    limit: int = 100,
+    skip: int = 0,
+    current_user: User = Depends(get_current_user)
+):
+    """Get authentication audit logs - admin only"""
+    if not user_has_permission(current_user, 'audit.view'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view audit logs"
+        )
+    
+    logs = await db.auth_audit_logs.find({}, {"_id": 0}).sort("timestamp", -1).skip(skip).limit(limit).to_list(limit)
+    total_count = await db.auth_audit_logs.count_documents({})
+    
+    return {
+        "logs": logs,
+        "total": total_count,
+        "limit": limit,
+        "skip": skip
+    }
+
+@api_router.get("/permissions")
+async def get_available_permissions(current_user: User = Depends(get_current_user)):
+    """Get all available permissions in the system - admin only"""
+    if current_user.role != 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can view available permissions"
+        )
+    
+    return {
+        "permissions": PERMISSIONS,
+        "role_mappings": ROLE_PERMISSIONS
+    }
 
 @api_router.post("/users/{user_id}/change-password")
 async def change_password(user_id: str, password_data: dict, current_user: User = Depends(get_current_user)):
