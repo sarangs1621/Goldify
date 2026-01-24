@@ -6314,7 +6314,7 @@ async def get_jobcard_complete_impact(jobcard_id: str, current_user: User = Depe
     }
 
 @api_router.get("/jobcards/{jobcard_id}/deliver-impact")
-async def get_jobcard_deliver_impact(jobcard_id: str, current_user: User = Depends(get_current_user)):
+async def get_jobcard_deliver_impact(jobcard_id: str, current_user: User = Depends(require_permission('jobcards.view'))):
     """Get impact summary before delivering a job card"""
     jobcard = await db.jobcards.find_one({"id": jobcard_id, "is_deleted": False})
     if not jobcard:
