@@ -168,9 +168,10 @@ export default function ReportsPageEnhanced() {
   const loadCategories = async () => {
     try {
       const response = await axios.get(`${API}/inventory/headers`);
-      setCategories(response.data);
+      setCategories(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Failed to load categories');
+      setCategories([]);
     }
   };
 
