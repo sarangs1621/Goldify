@@ -4800,7 +4800,7 @@ async def view_invoices_report(
     payment_status: Optional[str] = None,
     party_id: Optional[str] = None,  # NEW: Filter by specific party
     sort_by: Optional[str] = None,  # NEW: "date_asc", "date_desc", "amount_desc", "outstanding_desc"
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission('reports.view'))
 ):
     """View invoices with filters - returns JSON for UI"""
     query = {"is_deleted": False}
