@@ -228,7 +228,7 @@ class TransactionValidator(BaseModel):
 
 class UserUpdateValidator(BaseModel):
     username: Optional[str] = Field(None, min_length=3, max_length=50)
-    email: Optional[str] = Field(None, regex=r'^[\w\.-]+@[\w\.-]+\.\w+$')
+    email: Optional[str] = Field(None, pattern=r'^[\w\.-]+@[\w\.-]+\.\w+$')
     full_name: Optional[str] = Field(None, min_length=1, max_length=100)
     role: Optional[str] = Field(None, pattern="^(admin|manager|staff)$")
     is_active: Optional[bool] = None
