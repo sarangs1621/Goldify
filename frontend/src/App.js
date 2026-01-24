@@ -3,6 +3,7 @@ import '@/index.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { PermissionProtectedRoute } from './components/PermissionProtectedRoute';
 import { DashboardLayout } from './components/DashboardLayout';
 import { Toaster } from './components/ui/sonner';
 import LoginPage from './pages/LoginPage';
@@ -38,9 +39,11 @@ function App() {
             path="/inventory"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <InventoryPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="inventory.view">
+                  <DashboardLayout>
+                    <InventoryPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -48,9 +51,11 @@ function App() {
             path="/jobcards"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <JobCardsPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="jobcards.view">
+                  <DashboardLayout>
+                    <JobCardsPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -58,9 +63,11 @@ function App() {
             path="/invoices"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <InvoicesPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="invoices.view">
+                  <DashboardLayout>
+                    <InvoicesPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -68,9 +75,11 @@ function App() {
             path="/parties"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <PartiesPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="parties.view">
+                  <DashboardLayout>
+                    <PartiesPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -78,9 +87,11 @@ function App() {
             path="/purchases"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <PurchasesPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="purchases.view">
+                  <DashboardLayout>
+                    <PurchasesPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -88,9 +99,11 @@ function App() {
             path="/finance"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <FinancePage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="finance.view">
+                  <DashboardLayout>
+                    <FinancePage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -98,9 +111,11 @@ function App() {
             path="/daily-closing"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <DailyClosingPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="finance.view">
+                  <DashboardLayout>
+                    <DailyClosingPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -108,9 +123,11 @@ function App() {
             path="/reports"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <ReportsPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="reports.view">
+                  <DashboardLayout>
+                    <ReportsPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -118,9 +135,11 @@ function App() {
             path="/audit-logs"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <AuditLogsPage />
-                </DashboardLayout>
+                <PermissionProtectedRoute permission="audit.view">
+                  <DashboardLayout>
+                    <AuditLogsPage />
+                  </DashboardLayout>
+                </PermissionProtectedRoute>
               </ProtectedRoute>
             }
           />
