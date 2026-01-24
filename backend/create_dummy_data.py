@@ -381,7 +381,7 @@ def create_job_cards(customers, categories, user_id):
             'category': category['name'],
             'qty': random.randint(1, 3),
             'weight': round(random.uniform(10.0, 40.0), 3),
-            'purity': category['purity'],
+            'purity': random.choice([999, 916, 750, 585]),
             'rate': round(random.uniform(40.0, 70.0), 2),
             'amount': round(random.uniform(500.0, 2000.0), 2),
             'making_charge_type': 'flat',
