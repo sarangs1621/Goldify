@@ -3469,10 +3469,52 @@ async def delete_account(account_id: str, current_user: User = Depends(get_curre
 async def get_transactions(
     page: int = 1,
     per_page: int = 50,
+    account_id: Optional[str] = None,
+    account_type: Optional[str] = None,  # "cash" or "bank"
+    transaction_type: Optional[str] = None,  # "credit" or "debit"
+    reference_type: Optional[str] = None,  # "invoice", "purchase", "manual"
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
-    """Get transactions with pagination support"""
+    """
+    Get transactions with pagination and filtering support.
+    Includes running balance calculation for each transaction.
+    """
     query = {"is_deleted": False}
+    
+    # Apply filters
+    if account_id:
+        query["account_id"] = account_id
+    
+    if transaction_type:
+        query["transaction_type"] = transaction_type
+    
+    if reference_type:
+        if reference_type == "manual":
+            query["reference_type"] = None
+        else:
+            query["reference_type"] = reference_type
+    
+    # Date range filter
+    if start_date or end_date:
+        date_query = {}
+        if start_date:
+            date_query["$gte"] = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        if end_date:
+            date_query["$lte"] = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        if date_query:
+            query["date"] = date_query
+    
+    # Account type filter (cash vs bank)
+    if account_type:
+        accounts = await db.accounts.find({"account_type": account_type, "is_deleted": False}, {"_id": 0}).to_list(1000)
+        account_ids = [acc['id'] for acc in accounts]
+        if account_ids:
+            query["account_id"] = {"$in": account_ids}
+        else:
+            # No accounts of this type exist, return empty
+            return create_pagination_response([], 0, page, per_page)
     
     # Calculate skip value
     skip = (page - 1) * per_page
@@ -3480,8 +3522,72 @@ async def get_transactions(
     # Get total count for pagination
     total_count = await db.transactions.count_documents(query)
     
-    # Get paginated results
+    # Get paginated results sorted by date (newest first)
     transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).skip(skip).limit(per_page).to_list(per_page)
+    
+    # Enhance each transaction with account type and running balance
+    account_cache = {}
+    for txn in transactions:
+        # Get account details
+        if txn['account_id'] not in account_cache:
+            account = await db.accounts.find_one({"id": txn['account_id']}, {"_id": 0})
+            if account:
+                account_cache[txn['account_id']] = account
+        
+        if txn['account_id'] in account_cache:
+            account = account_cache[txn['account_id']]
+            txn['account_type'] = account['account_type']
+            txn['account_current_balance'] = account['current_balance']
+        else:
+            txn['account_type'] = 'unknown'
+            txn['account_current_balance'] = 0.0
+        
+        # Set transaction source
+        if txn.get('reference_type') == 'invoice':
+            txn['transaction_source'] = 'Invoice Payment'
+        elif txn.get('reference_type') == 'purchase':
+            txn['transaction_source'] = 'Purchase Payment'
+        elif txn.get('reference_type') == 'jobcard':
+            txn['transaction_source'] = 'Job Card'
+        else:
+            txn['transaction_source'] = 'Manual Entry'
+    
+    # Calculate running balance for display
+    # For simplicity, we'll calculate the balance at the time of transaction
+    # by getting all transactions for that account up to that date
+    for txn in transactions:
+        # Get all transactions for this account up to and including this transaction date
+        prior_txns = await db.transactions.find({
+            "account_id": txn['account_id'],
+            "is_deleted": False,
+            "date": {"$lte": txn['date']}
+        }, {"_id": 0}).sort("date", 1).to_list(10000)
+        
+        # Get the account's opening balance
+        account = account_cache.get(txn['account_id'])
+        if account:
+            running_balance = account['opening_balance']
+        else:
+            running_balance = 0.0
+        
+        # Calculate running balance up to current transaction
+        balance_before = running_balance
+        for pt in prior_txns:
+            if pt['transaction_type'] == 'credit':
+                running_balance += pt['amount']
+            else:
+                running_balance -= pt['amount']
+            
+            # If this is the current transaction, capture before and after
+            if pt['id'] == txn['id']:
+                if txn['transaction_type'] == 'credit':
+                    balance_before = running_balance - txn['amount']
+                else:
+                    balance_before = running_balance + txn['amount']
+                break
+        
+        txn['balance_before'] = round(balance_before, 3)
+        txn['balance_after'] = round(running_balance, 3)
     
     return create_pagination_response(transactions, total_count, page, per_page)
 
