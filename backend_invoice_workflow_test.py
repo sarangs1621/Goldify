@@ -31,7 +31,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 
 # Backend URL from frontend/.env
-BACKEND_URL = "https://populated-checker.preview.emergentagent.com/api"
+BACKEND_URL = "https://mapfix-critical.preview.emergentagent.com/api"
 
 # Test credentials
 USERNAME = "admin"
