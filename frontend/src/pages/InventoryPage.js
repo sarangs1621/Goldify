@@ -224,6 +224,52 @@ export default function InventoryPage() {
       </div>
 
       <div className="grid gap-6 mb-8">
+        {/* Main Inventory Items Table with Pagination */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl font-serif">Inventory Items</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full" data-testid="inventory-table">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Category</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Quantity</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase">Weight (g)</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Created At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventory.map((item) => (
+                    <tr key={item.id} className="border-t hover:bg-muted/30">
+                      <td className="px-4 py-3 font-medium">{item.category}</td>
+                      <td className="px-4 py-3 text-right font-mono">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right font-mono">{item.weight_grams.toFixed(3)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          item.status === 'low_stock' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {item.status === 'low_stock' ? 'Low Stock' : 'In Stock'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">{new Date(item.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {inventory.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No inventory items found</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+          {pagination && <Pagination pagination={pagination} onPageChange={setPage} />}
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-serif">Stock Totals by Category</CardTitle>
