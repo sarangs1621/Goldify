@@ -617,7 +617,7 @@ def main():
     accounts = create_accounts(user_id)
     categories = create_inventory_categories(user_id)
     movements = create_stock_movements(categories, user_id)
-    customers, vendors = create_parties(user_id)
+    customers, vendors, workers = create_parties(user_id)
     all_parties = customers + vendors
     gold_entries = create_gold_ledger_entries(all_parties, user_id)
     purchases = create_purchases(vendors, accounts, user_id)
