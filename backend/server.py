@@ -3179,7 +3179,9 @@ async def delete_jobcard_template(template_id: str, current_user: User = Depends
     return {"message": "Template deleted successfully"}
 
 @api_router.get("/invoices")
+@limiter.limit("1000/hour")  # General authenticated rate limit: 1000 requests per hour
 async def get_invoices(
+    request: Request,
     page: int = 1,
     per_page: int = 50,
     current_user: User = Depends(require_permission('invoices.view'))
