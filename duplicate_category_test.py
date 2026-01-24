@@ -35,6 +35,7 @@ class DuplicateCategoryTester:
     def __init__(self):
         self.session = requests.Session()
         self.token = None
+        self.csrf_token = None
         self.test_results = []
         self.test_categories = []
         self.existing_categories = []
