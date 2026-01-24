@@ -22,6 +22,7 @@ export default function InventoryPage() {
   const [showAddHeader, setShowAddHeader] = useState(false);
   const [showAddMovement, setShowAddMovement] = useState(false);
   const [newHeader, setNewHeader] = useState('');
+  const [categoryNameError, setCategoryNameError] = useState('');
   const [movementForm, setMovementForm] = useState({
     movement_type: 'Stock IN',
     header_id: '',
