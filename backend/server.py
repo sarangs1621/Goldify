@@ -25,8 +25,49 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# ============================================================================
+# RATE LIMITING CONFIGURATION
+# ============================================================================
+
+# Custom function to get user ID from request for rate limiting
+def get_user_identifier(request: Request) -> str:
+    """
+    Get user identifier for rate limiting.
+    Returns user_id for authenticated requests, IP address for unauthenticated.
+    """
+    try:
+        # Try to get token from cookie first
+        token = request.cookies.get('access_token')
+        
+        # Fallback to Authorization header
+        if not token:
+            auth_header = request.headers.get('Authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+        
+        if token:
+            try:
+                payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+                user_id = payload.get('user_id')
+                if user_id:
+                    return f"user:{user_id}"
+            except:
+                pass
+    except:
+        pass
+    
+    # Fallback to IP address for unauthenticated requests
+    return f"ip:{get_remote_address(request)}"
+
+# Initialize rate limiter with custom key function
+limiter = Limiter(key_func=get_user_identifier)
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer(auto_error=False)  # auto_error=False makes it optional
