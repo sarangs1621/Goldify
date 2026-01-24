@@ -5328,3 +5328,140 @@ agent_communication:
       12. Verify informational note about Stock OUT prohibition is visible
       
       NEXT STEP: Call testing agent to verify fix
+
+user_problem_statement: |
+  Show inline error "Category name already exists" instead of generic toast.
+  - Internally use category ID (already implemented with UUID)
+  - Keep name unique for humans (already validated in backend)
+  - Same name category should not exist (already validated)
+
+frontend:
+  - task: "Add inline error for duplicate category names"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/frontend/src/pages/InventoryPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ IMPLEMENTED - Added inline error display for duplicate category names in Add Category dialog. Changes: (1) Added categoryNameError state for tracking inline errors, (2) Updated handleAddHeader to capture backend error message (error.response.data.detail) and display inline for duplicate names, (3) Added error clearing when user types or closes dialog, (4) Added red border to input field when error exists, (5) Error message displays below input field in red text. Backend already validates duplicate names (case-insensitive) and returns detailed error message. System already uses UUID-based category IDs internally."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.4"
+  test_sequence: 6
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Add inline error for duplicate category names"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ INLINE ERROR FOR DUPLICATE CATEGORY NAMES - IMPLEMENTATION COMPLETE
+      
+      REQUIREMENT ANALYSIS:
+      ================================================================================
+      ✅ Show inline error: "Category name already exists" - IMPLEMENTED
+      ✅ Internally use category ID - ALREADY IMPLEMENTED (UUID)
+      ✅ Keep name unique for humans - ALREADY IMPLEMENTED (backend validation)
+      ✅ Same name category should not exist - ALREADY IMPLEMENTED (backend validation)
+      
+      CHANGES MADE:
+      ================================================================================
+      
+      FILE: /app/frontend/src/pages/InventoryPage.js
+      
+      1. Added Error State Management:
+         - New state: categoryNameError for tracking inline error messages
+         - Initialized as empty string
+      
+      2. Enhanced Error Handling in handleAddHeader:
+         - Added validation for empty category name with inline error
+         - Captures backend error message from error.response.data.detail
+         - Shows inline error for duplicate names (backend returns detailed message)
+         - Keeps toast for other unexpected errors
+         - Clears previous errors before new submission
+      
+      3. Input Field Error Display:
+         - Added error clearing when user types (onChange handler)
+         - Added red border class when error exists (border-red-500)
+         - Error message displays below input in red text (text-sm text-red-500)
+      
+      4. Dialog State Management:
+         - Enhanced onOpenChange handler to clear form and errors on close
+         - Ensures clean state when dialog is opened again
+      
+      BACKEND VALIDATION (ALREADY IMPLEMENTED):
+      ================================================================================
+      - POST /api/inventory/headers validates duplicate names (case-insensitive)
+      - Returns 400 error with message: "Category '{name}' already exists. Please use a different name."
+      - PATCH /api/inventory/headers/{header_id} also validates duplicates
+      - System uses UUID-based category IDs internally (not name-based)
+      - Names are kept unique for humans through backend validation
+      
+      USER EXPERIENCE:
+      ================================================================================
+      BEFORE:
+      - Generic toast: "Failed to add category"
+      - User doesn't know why it failed
+      - Error disappears after timeout
+      
+      AFTER:
+      - Inline error: "Category 'Chain' already exists. Please use a different name."
+      - Error stays visible until user fixes it
+      - Error clears automatically when user starts typing
+      - Input field has red border to highlight the issue
+      - Clear visual feedback
+      
+      TESTING SCENARIOS:
+      ================================================================================
+      
+      1. Try to create category with duplicate name (exact match):
+         - Enter "Chain" when "Chain" already exists
+         - Expected: Inline error "Category 'Chain' already exists..."
+         - Expected: Input field has red border
+      
+      2. Try to create category with duplicate name (different case):
+         - Enter "chain" when "Chain" already exists
+         - Expected: Inline error "Category 'chain' already exists..."
+         - Expected: Backend validates case-insensitively
+      
+      3. Try to create category with duplicate name (extra spaces):
+         - Enter " Chain " when "Chain" already exists
+         - Expected: Backend trims and validates
+         - Expected: Inline error shown
+      
+      4. Try to create category with empty name:
+         - Click Save with empty input
+         - Expected: Inline error "Category name is required"
+      
+      5. Start typing after error:
+         - Error appears, then user types
+         - Expected: Error clears immediately
+         - Expected: Red border disappears
+      
+      6. Close and reopen dialog:
+         - Error appears, then close dialog
+         - Expected: Error cleared when reopened
+      
+      7. Create unique category:
+         - Enter unique name like "Bracelet"
+         - Expected: Success, dialog closes, category added
+      
+      FRONTEND COMPILATION:
+      ================================================================================
+      ✅ Frontend restarted successfully
+      ✅ Compiled with warnings (normal webpack deprecation warnings)
+      ✅ No errors
+      ✅ Application running
+      
+      READY FOR TESTING:
+      Please test the Add Category dialog with duplicate and unique names to verify
+      inline error display is working correctly.
