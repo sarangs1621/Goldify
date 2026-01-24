@@ -25,7 +25,7 @@ import { FormErrorMessage } from '../components/FormErrorMessage';
 import { PageLoadingSpinner, TableLoadingSpinner, ButtonLoadingSpinner } from '../components/LoadingSpinner';
 import { TableEmptyState } from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import { formatWeight, formatCurrency } from '../utils/numberFormat';
+import { formatWeight, formatCurrency, safeToFixed } from '../utils/numberFormat';
 
 export default function PurchasesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
