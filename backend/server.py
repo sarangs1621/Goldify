@@ -2435,6 +2435,9 @@ async def finalize_purchase(purchase_id: str, current_user: User = Depends(get_c
     
     All operations succeed together or fail together to maintain data consistency.
     """
+    if not user_has_permission(current_user, 'purchases.finalize'):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to finalize purchases")
+    
     # Get purchase
     purchase = await db.purchases.find_one({"id": purchase_id, "is_deleted": False})
     if not purchase:
