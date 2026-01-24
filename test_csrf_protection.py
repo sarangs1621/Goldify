@@ -143,8 +143,9 @@ def test_csrf_protection():
         f"GET request successful with status {response.status_code} (expected 200)"
     )
     if response.status_code == 200:
-        parties = response.json()
-        print(f"   Retrieved {len(parties)} parties")
+        parties_result = response.json()
+        parties_list = parties_result.get('items', []) if isinstance(parties_result, dict) else parties_result
+        print(f"   Retrieved {len(parties_list)} parties")
     
     # Test 6: PUT request with valid CSRF token
     print_test_header("Test 6: PUT Request With Valid CSRF Token (Should Succeed)")
