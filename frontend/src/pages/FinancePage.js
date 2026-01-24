@@ -538,6 +538,7 @@ export default function FinancePageEnhanced() {
               )}
             </div>
           </CardContent>
+          {pagination && <Pagination pagination={pagination} onPageChange={setPage} />}
         </Card>
       </div>
 
