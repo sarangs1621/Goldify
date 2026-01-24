@@ -6474,7 +6474,7 @@ async def get_purchase_delete_impact(purchase_id: str, current_user: User = Depe
     }
 
 @api_router.delete("/purchases/{purchase_id}")
-async def delete_purchase(purchase_id: str, current_user: User = Depends(get_current_user)):
+async def delete_purchase(purchase_id: str, current_user: User = Depends(require_permission('purchases.delete'))):
     """Delete a purchase (only draft purchases can be deleted)"""
     existing = await db.purchases.find_one({"id": purchase_id, "is_deleted": False})
     if not existing:
