@@ -1673,6 +1673,9 @@ async def get_parties(
 
 @api_router.post("/parties", response_model=Party)
 async def create_party(party_data: dict, current_user: User = Depends(get_current_user)):
+    if not user_has_permission(current_user, 'parties.create'):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to create parties")
+    
     # Validate duplicate phone number
     phone = party_data.get('phone')
     if phone and phone.strip():  # Only check if phone is provided and not empty
