@@ -9,11 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Package } from 'lucide-react';
+import Pagination from '../components/Pagination';
+import { useURLPagination } from '../hooks/useURLPagination';
 
 export default function InventoryPage() {
+  const { currentPage, setPage, pagination, setPagination } = useURLPagination();
   const [headers, setHeaders] = useState([]);
   const [movements, setMovements] = useState([]);
   const [stockTotals, setStockTotals] = useState([]);
+  const [inventory, setInventory] = useState([]);
   const [showAddHeader, setShowAddHeader] = useState(false);
   const [showAddMovement, setShowAddMovement] = useState(false);
   const [newHeader, setNewHeader] = useState('');
@@ -29,19 +33,24 @@ export default function InventoryPage() {
 
   useEffect(() => {
     loadInventoryData();
-  }, []);
+  }, [currentPage]);
 
   const loadInventoryData = async () => {
     try {
-      const [headersRes, movementsRes, totalsRes] = await Promise.all([
+      const [headersRes, movementsRes, totalsRes, inventoryRes] = await Promise.all([
         axios.get(`${API}/inventory/headers`),
         axios.get(`${API}/inventory/movements`),
-        axios.get(`${API}/inventory/stock-totals`)
+        axios.get(`${API}/inventory/stock-totals`),
+        axios.get(`${API}/inventory`, {
+          params: { page: currentPage, page_size: 10 }
+        })
       ]);
 
       setHeaders(headersRes.data);
       setMovements(movementsRes.data);
       setStockTotals(totalsRes.data);
+      setInventory(inventoryRes.data.items || []);
+      setPagination(inventoryRes.data.pagination);
     } catch (error) {
       console.error('Failed to load inventory:', error);
       toast.error('Failed to load inventory data');
