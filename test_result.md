@@ -111,7 +111,7 @@ backend:
     file: "backend/server.py"
     stuck_count: 0
     priority: "critical"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "user"
@@ -119,6 +119,9 @@ backend:
       - working: true
         agent: "main"
         comment: "✅ FIXED - Changed create_purchase endpoint from accepting Purchase model directly to accepting dictionary (purchase_data: dict). This matches the pattern used by other endpoints (create_invoice, create_transaction, create_account). The endpoint now properly accepts dictionary from frontend, validates and transforms the data, then constructs the Purchase model. Backend restarted successfully."
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TESTING COMPLETED - Purchases API dictionary payload fix VERIFIED WORKING. Tested 3 scenarios: (1) Purchase without payment - SUCCESS, (2) Purchase with payment (balance_due calculated correctly: 3563.88 OMR) - SUCCESS, (3) Purchase with gold settlement (proper 3-decimal precision for gold fields) - SUCCESS. Error handling verified: Invalid vendor returns 404, Payment without account returns 400. All numeric fields have correct precision (weights: 3 decimals, amounts: 2 decimals). API is production ready."
 
   - task: "Transactions API - Account Dependency"
     implemented: true
@@ -126,7 +129,7 @@ backend:
     file: "backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "user"
@@ -134,6 +137,9 @@ backend:
       - working: true
         agent: "main"
         comment: "✅ VALIDATED - Transactions API is working correctly. The issue is a test dependency - transactions require a valid account_id to exist in the database before creating transactions. This is by design for data integrity. The create_transaction endpoint properly validates account existence and returns clear error message if account not found. Testing workflow should create accounts first, then test transactions."
+      - working: true
+        agent: "testing"
+        comment: "✅ COMPREHENSIVE TESTING COMPLETED - Transactions API with proper account setup VERIFIED WORKING. Created test account with opening balance, then tested: (1) Credit transaction (+5000 OMR) - SUCCESS with correct balance update, (2) Debit transaction (-1500 OMR) - SUCCESS with correct balance update. Final account balance: 3500 OMR (0 + 5000 - 1500). Error handling verified: Invalid account_id returns 404 'Account not found'. Transaction list retrieval working (2 transactions found). API is production ready."
 
   - task: "Application Infrastructure & Service Management"
     implemented: true
