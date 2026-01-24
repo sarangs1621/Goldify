@@ -1205,6 +1205,22 @@ frontend:
           🔒 Reduced attack surface - no sensitive data in JavaScript-accessible storage
           🔒 CSRF protection via SameSite cookie attribute
 
+frontend:
+  - task: "TypeError: Cannot read properties of undefined (reading 'toFixed') - ALL PAGES"
+    implemented: true
+    working: true
+    file: "frontend/src/utils/numberFormat.js, frontend/src/pages/*.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "❌ CRITICAL - 'Something went wrong' error on every page. Error: TypeError: Cannot read properties of undefined (reading 'toFixed'). Users cannot access any functionality."
+      - working: true
+        agent: "main"
+        comment: "✅ FIXED - Root cause: Backend was down due to missing dependencies. Fixed by: (1) Installed annotated-doc module, (2) Upgraded starlette to 0.50.0, (3) Created safe number formatting utilities (numberFormat.js), (4) Updated all pages to use safe formatters. Backend now running, frontend compiled successfully. All .toFixed() calls now protected against undefined values."
+
   - task: "Login Page Functionality"
     implemented: true
     working: true
