@@ -4631,7 +4631,7 @@ async def get_transactions(
         txn['balance_before'] = round(balance_before, 3)
         txn['balance_after'] = round(running_balance, 3)
     
-    return create_pagination_response(transactions, total_count, page, per_page)
+    return create_pagination_response(transactions, total_count, page, page_size)
 
 @api_router.post("/transactions", response_model=Transaction)
 async def create_transaction(transaction_data: dict, current_user: User = Depends(require_permission('finance.create'))):
