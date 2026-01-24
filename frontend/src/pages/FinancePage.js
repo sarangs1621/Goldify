@@ -69,7 +69,7 @@ export default function FinancePageEnhanced() {
   const loadData = useCallback(async () => {
     try {
       // Build query params for filters
-      const params = {};
+      const params = { page: currentPage, page_size: 10 };
       if (filters.account_id) params.account_id = filters.account_id;
       if (filters.account_type) params.account_type = filters.account_type;
       if (filters.transaction_type) params.transaction_type = filters.transaction_type;
@@ -85,12 +85,13 @@ export default function FinancePageEnhanced() {
       
       setAccounts(accountsRes.data);
       setTransactions(transactionsRes.data.items || []);
+      setPagination(transactionsRes.data.pagination);
       setSummary(summaryRes.data);
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load financial data');
     }
-  }, [filters]);
+  }, [filters, currentPage, setPagination]);
 
   useEffect(() => {
     loadData();
