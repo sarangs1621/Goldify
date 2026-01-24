@@ -56,7 +56,3 @@ export const withPermission = (Component, permission, fallback = null) => {
     </PermissionGuard>
   );
 };
-
-// Need to import these hooks
-import { useAuth } from '../contexts/AuthContext';
-import { useAllPermissions } from '../hooks/usePermission';
