@@ -353,7 +353,9 @@ class InvoiceWorkflowTester:
                 self.log_result("Issue #3 - Get Updated Movements", "FAIL", f"Failed to get updated movements: {response.status_code}")
                 return
             
-            movements = response.json().get("items", [])
+            movements = response.json()
+            if isinstance(movements, dict) and "items" in movements:
+                movements = movements["items"]
             new_movement_count = len(movements)
             
             # Look for the Stock OUT movement for our invoice
