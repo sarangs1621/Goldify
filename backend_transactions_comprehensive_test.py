@@ -20,7 +20,7 @@ import uuid
 from decimal import Decimal
 
 # Configuration
-BASE_URL = "https://purchase-fix.preview.emergentagent.com/api"
+BASE_URL = "https://rbac-shield-2.preview.emergentagent.com/api"
 USERNAME = "admin"
 PASSWORD = "admin123"
 

@@ -18,7 +18,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import uuid
 
 # Configuration
-BASE_URL = "https://purchase-fix.preview.emergentagent.com/api"
+BASE_URL = "https://rbac-shield-2.preview.emergentagent.com/api"
 ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}
 
 class PurchasesBugFixTester:
