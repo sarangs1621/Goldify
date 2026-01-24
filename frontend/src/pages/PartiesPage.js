@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatWeight, formatCurrency, safeToFixed } from '../utils/numberFormat';
 import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { API } from '../contexts/AuthContext';
