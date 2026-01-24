@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import time
 
 # Configuration
-BASE_URL = "https://security-phase3.preview.emergentagent.com/api"
+BASE_URL = "https://auth-perimeter-1.preview.emergentagent.com/api"
 
 # Test credentials from review request
 TEST_CREDENTIALS = [
