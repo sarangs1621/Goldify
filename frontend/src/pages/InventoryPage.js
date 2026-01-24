@@ -166,9 +166,16 @@ export default function InventoryPage() {
                   <Input
                     data-testid="category-name-input"
                     value={newHeader}
-                    onChange={(e) => setNewHeader(e.target.value)}
+                    onChange={(e) => {
+                      setNewHeader(e.target.value);
+                      setCategoryNameError(''); // Clear error when user types
+                    }}
                     placeholder="e.g., Chain, Ring, Bangle"
+                    className={categoryNameError ? 'border-red-500' : ''}
                   />
+                  {categoryNameError && (
+                    <p className="text-sm text-red-500 mt-1">{categoryNameError}</p>
+                  )}
                 </div>
                 <Button data-testid="save-category-button" onClick={handleAddHeader} className="w-full">Save Category</Button>
               </div>
