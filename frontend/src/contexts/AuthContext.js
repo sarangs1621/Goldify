@@ -4,9 +4,9 @@ import axios from 'axios';
 const AuthContext = createContext(null);
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 
-// Create ONE axios instance with baseURL
+// Create ONE axios instance with baseURL (WITHOUT /api suffix)
 const API = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL: BACKEND_URL,
   withCredentials: true
 });
 
