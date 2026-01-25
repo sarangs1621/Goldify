@@ -21,7 +21,7 @@ from typing import Dict, Any, List, Optional
 import sys
 
 # Configuration
-BACKEND_URL = "https://timefix-gold.preview.emergentagent.com"
+BACKEND_URL = "https://api-axios-cleanup.preview.emergentagent.com"
 USERNAME = "admin"
 PASSWORD = "admin123"
 
