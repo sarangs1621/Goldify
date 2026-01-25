@@ -7,6 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
+import re
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
@@ -2418,6 +2419,42 @@ async def delete_party(party_id: str, current_user: User = Depends(require_permi
 # WORKER MANAGEMENT ENDPOINTS
 # ============================================================================
 
+# ============================================================================
+# WORKER NAME VALIDATION HELPER
+# ============================================================================
+
+def validate_worker_name(name: str) -> tuple[bool, str]:
+    """
+    Validate worker name according to strict data quality rules.
+    
+    Rules:
+    - Length: 3-50 characters
+    - Allowed: letters (A-Z, a-z) and spaces only
+    - No numbers or special characters
+    
+    Returns:
+        (is_valid, error_message)
+    """
+    if not name or not name.strip():
+        return False, "Worker name is required"
+    
+    # Trim the name
+    name = name.strip()
+    
+    # Check length (3-50 characters)
+    if len(name) < 3:
+        return False, "Worker name must be at least 3 characters long"
+    
+    if len(name) > 50:
+        return False, "Worker name cannot exceed 50 characters"
+    
+    # Check for only letters and spaces (no numbers or special characters)
+    if not re.match(r'^[A-Za-z\s]+$', name):
+        return False, "Worker name can only contain letters and spaces (no numbers or special characters)"
+    
+    return True, ""
+
+
 @api_router.get("/workers")
 @limiter.limit("1000/hour")
 async def get_workers(
@@ -2437,13 +2474,19 @@ async def get_workers(
 @limiter.limit("1000/hour")
 async def create_worker(request: Request, worker_data: dict, current_user: User = Depends(get_current_user)):
     """Create a new worker"""
-    # Validate duplicate name
-    name = worker_data.get('name')
-    if not name or not name.strip():
-        raise HTTPException(status_code=400, detail="Worker name is required")
+    # Validate worker name format
+    name = worker_data.get('name', '')
+    is_valid, error_msg = validate_worker_name(name)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
     
+    # Trim and normalize the name
+    name = name.strip()
+    worker_data['name'] = name
+    
+    # Check for duplicate name (case-insensitive)
     existing_name = await db.workers.find_one({
-        "name": name.strip(),
+        "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"},
         "is_deleted": False
     })
     if existing_name:
@@ -2485,14 +2528,20 @@ async def update_worker(worker_id: str, update_data: dict, current_user: User = 
     if not existing:
         raise HTTPException(status_code=404, detail="Worker not found")
     
-    # Validate duplicate name if name is being changed
+    # Validate worker name format if name is being changed
     if 'name' in update_data:
         name = update_data['name']
-        if not name or not name.strip():
-            raise HTTPException(status_code=400, detail="Worker name cannot be empty")
+        is_valid, error_msg = validate_worker_name(name)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error_msg)
         
+        # Trim and normalize the name
+        name = name.strip()
+        update_data['name'] = name
+        
+        # Check for duplicate name (case-insensitive, excluding current worker)
         existing_name = await db.workers.find_one({
-            "name": name.strip(),
+            "name": {"$regex": f"^{re.escape(name)}$", "$options": "i"},
             "is_deleted": False,
             "id": {"$ne": worker_id}
         })

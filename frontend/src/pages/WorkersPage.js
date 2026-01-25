@@ -20,6 +20,7 @@ export default function WorkersPage() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState('all'); // 'all', 'active', 'inactive'
+  const [nameError, setNameError] = useState(''); // Error message for name validation
   
   const [formData, setFormData] = useState({
     name: '',
@@ -32,7 +33,7 @@ export default function WorkersPage() {
     loadWorkers();
   }, []);
 
-  const loadWorkers = async () => {
+ const loadWorkers = async () => {
     try {
       setLoading(true);
       const response = await API.get(`/api/workers`);
@@ -45,23 +46,59 @@ export default function WorkersPage() {
     }
   };
 
+  // Validate worker name according to strict data quality rules
+  const validateWorkerName = (name) => {
+    if (!name || !name.trim()) {
+      return 'Worker name is required';
+    }
+    
+    const trimmedName = name.trim();
+    
+    // Check length (3-50 characters)
+    if (trimmedName.length < 3) {
+      return 'Worker name must be at least 3 characters long';
+    }
+    
+    if (trimmedName.length > 50) {
+      return 'Worker name cannot exceed 50 characters';
+    }
+    
+    // Check for only letters and spaces (no numbers or special characters)
+    const namePattern = /^[A-Za-z\s]+$/;
+    if (!namePattern.test(trimmedName)) {
+      return 'Worker name can only contain letters and spaces (no numbers or special characters)';
+    }
+    
+    return ''; // Valid
+  };
+
   const handleCreate = async () => {
-    if (!formData.name.trim()) {
-      toast.error('Name is required');
+    // Validate name before submission
+    const error = validateWorkerName(formData.name);
+    if (error) {
+      setNameError(error);
+      toast.error(error);
       return;
     }
 
     try {
+      // Trim name before sending
+      const dataToSend = {
+        ...formData,
+        name: formData.name.trim()
+      };
+      
       if (editingWorker) {
-        await API.patch(`/api/workers/${editingWorker.id}`, formData);
+        await API.patch(`/api/workers/${editingWorker.id}`, dataToSend);
         toast.success('Worker updated successfully');
       } else {
-        await API.post(`/api/workers`, formData);
+        await API.post(`/api/workers`, dataToSend);
         toast.success('Worker created successfully');
       }
       
       setShowDialog(false);
       setEditingWorker(null);
+      setNameError('');
       setFormData({
         name: '',
         phone: '',
@@ -78,6 +115,7 @@ export default function WorkersPage() {
 
   const handleEdit = (worker) => {
     setEditingWorker(worker);
+    setNameError(''); // Reset error
     setFormData({
       name: worker.name,
       phone: worker.phone || '',
@@ -106,8 +144,9 @@ export default function WorkersPage() {
     }
   };
 
-  const handleOpenCreateDialog = () => {
+   const handleOpenCreateDialog = () => {
     setEditingWorker(null);
+    setNameError(''); // Reset error
     setFormData({
       name: '',
       phone: '',
@@ -259,9 +298,21 @@ export default function WorkersPage() {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  // Real-time validation
+                  const error = validateWorkerName(e.target.value);
+                  setNameError(error);
+                }}
                 placeholder="Enter worker name"
+                className={nameError ? 'border-red-500' : ''}
               />
+              {nameError && (
+                <p className="text-sm text-red-500 mt-1">{nameError}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Must be 3-50 characters, letters and spaces only
+              </p>
             </div>
             <div>
               <Label htmlFor="phone">Phone</Label>
@@ -301,7 +352,10 @@ export default function WorkersPage() {
             <Button variant="outline" onClick={() => setShowDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate}>
+            <Button 
+              onClick={handleCreate}
+              disabled={!!nameError || !formData.name.trim()}
+            >
               {editingWorker ? 'Update' : 'Create'}
             </Button>
           </div>
