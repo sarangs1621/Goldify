@@ -3505,6 +3505,25 @@ async def update_jobcard(jobcard_id: str, update_data: dict, current_user: User 
     
     # Normal update for unlocked job cards
     await db.jobcards.update_one({"id": jobcard_id}, {"$set": update_data})
+    
+    # VALIDATION: Verify timestamp consistency after update (audit safety)
+    updated_jobcard = await db.jobcards.find_one({"id": jobcard_id})
+    is_valid, error_msg = validate_jobcard_timestamps(
+        updated_jobcard.get("status", "created"),
+        updated_jobcard.get("completed_at"),
+        updated_jobcard.get("delivered_at")
+    )
+    if not is_valid:
+        # This should never happen if logic is correct, but safety check
+        await create_audit_log(
+            current_user.id, 
+            current_user.full_name, 
+            "jobcard", 
+            jobcard_id, 
+            "validation_error", 
+            {"error": error_msg}
+        )
+    
     await create_audit_log(current_user.id, current_user.full_name, "jobcard", jobcard_id, "update", update_data)
     return {"message": "Updated successfully"}
 
