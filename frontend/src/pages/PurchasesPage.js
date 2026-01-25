@@ -560,7 +560,7 @@ export default function PurchasesPage() {
                 ) : (
                   purchases.map((purchase) => (
                     <tr key={purchase.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3">{new Date(purchase.date).toLocaleDateString()}</td>
+                      <td className="p-3">{formatDate(purchase.date)}</td>
                       <td className="p-3">{getVendorName(purchase.vendor_party_id)}</td>
                       <td className="p-3">{purchase.description}</td>
                       <td className="p-3 text-right font-mono">{safeToFixed(purchase.weight_grams, 3)}</td>
