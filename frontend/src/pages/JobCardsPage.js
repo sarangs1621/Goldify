@@ -426,8 +426,8 @@ export default function JobCardsPage() {
 
   const handleEditJobCard = (jobcard) => {
     setEditingJobCard(jobcard);
-    // Format delivery_date to YYYY-MM-DD for input
-    const deliveryDate = jobcard.delivery_date ? new Date(jobcard.delivery_date).toISOString().split('T')[0] : '';
+    // delivery_date is already in YYYY-MM-DD format (date-only field)
+    const deliveryDate = jobcard.delivery_date || '';
     setFormData({
       card_type: jobcard.card_type,
       customer_type: jobcard.customer_type || 'saved',
