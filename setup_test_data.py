@@ -8,7 +8,7 @@ import requests
 import json
 import sys
 
-BASE_URL = "https://chrono-gold.preview.emergentagent.com/api"
+BASE_URL = "https://timefix-gold.preview.emergentagent.com/api"
 ADMIN_CREDENTIALS = {"username": "admin", "password": "admin123"}
 
 def setup_test_data():

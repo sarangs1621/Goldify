@@ -481,7 +481,7 @@ class DailyClosingTester:
 def main():
     """Main execution function"""
     # Configuration
-    BASE_URL = "https://chrono-gold.preview.emergentagent.com"
+    BASE_URL = "https://timefix-gold.preview.emergentagent.com"
     USERNAME = "admin"
     PASSWORD = "admin123"
     
