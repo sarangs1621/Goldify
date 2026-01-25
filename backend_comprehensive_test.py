@@ -28,7 +28,7 @@ import uuid
 import traceback
 
 # Configuration
-BASE_URL = "https://worker-tracker-11.preview.emergentagent.com/api"
+BASE_URL = "https://worker-class-error.preview.emergentagent.com/api"
 USERNAME = "admin"
 PASSWORD = "admin123"
 

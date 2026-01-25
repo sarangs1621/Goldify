@@ -5,7 +5,7 @@ Simple test for invoice printing endpoints - focusing on GET endpoints only
 import requests
 import json
 
-BASE_URL = "https://worker-tracker-11.preview.emergentagent.com/api"
+BASE_URL = "https://worker-class-error.preview.emergentagent.com/api"
 
 def test_endpoints():
     session = requests.Session()
