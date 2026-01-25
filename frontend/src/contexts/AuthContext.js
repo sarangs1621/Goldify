@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (userData) => {
-    await API.post('/auth/register', userData);
+    await API.post('/api/auth/register', userData);
   };
 
   const hasPermission = (permission) => {
