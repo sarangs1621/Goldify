@@ -34,6 +34,44 @@ export default function InventoryPage() {
     confirmation_reason: ''
   });
 
+  // Validate category name
+  const validateCategoryName = (name) => {
+    const trimmedName = name.trim();
+    
+    // Check if empty
+    if (!trimmedName) {
+      return 'Category name is required';
+    }
+    
+    // Check minimum length (3 characters)
+    if (trimmedName.length < 3) {
+      return 'Category name must be at least 3 characters long';
+    }
+    
+    // Check maximum length (50 characters)
+    if (trimmedName.length > 50) {
+      return 'Category name must not exceed 50 characters';
+    }
+    
+    // Check for allowed characters only (letters, numbers, spaces)
+    const validPattern = /^[A-Za-z0-9 ]+$/;
+    if (!validPattern.test(trimmedName)) {
+      return 'Category name can only contain letters, numbers, and spaces. Special characters are not allowed';
+    }
+    
+    return ''; // No error
+  };
+
+  // Check if category name is valid for enabling save button
+  const isCategoryNameValid = () => {
+    const trimmedName = newHeader.trim();
+    if (!trimmedName || trimmedName.length < 3 || trimmedName.length > 50) {
+      return false;
+    }
+    const validPattern = /^[A-Za-z0-9 ]+$/;
+    return validPattern.test(trimmedName);
+  };
+
   useEffect(() => {
     loadInventoryData();
   }, [currentPage]);
@@ -67,8 +105,10 @@ export default function InventoryPage() {
   };
 
   const handleAddHeader = async () => {
-    if (!newHeader.trim()) {
-      setCategoryNameError('Category name is required');
+    // Validate category name
+    const validationError = validateCategoryName(newHeader);
+    if (validationError) {
+      setCategoryNameError(validationError);
       return;
     }
 
@@ -80,9 +120,9 @@ export default function InventoryPage() {
       setShowAddHeader(false);
       loadInventoryData();
     } catch (error) {
-      // Check if it's a duplicate name error
+      // Check if it's a validation error from backend
       if (error.response?.data?.detail) {
-        // Show inline error for duplicate names
+        // Show inline error for validation errors
         setCategoryNameError(error.response.data.detail);
       } else {
         // Show toast for other errors
@@ -174,17 +214,30 @@ export default function InventoryPage() {
                     data-testid="category-name-input"
                     value={newHeader}
                     onChange={(e) => {
-                      setNewHeader(e.target.value);
-                      setCategoryNameError(''); // Clear error when user types
+                      const value = e.target.value;
+                      setNewHeader(value);
+                      // Real-time validation as user types
+                      const error = validateCategoryName(value);
+                      setCategoryNameError(error);
                     }}
-                    placeholder="e.g., Chain, Ring, Bangle"
+                    placeholder="e.g., Gold Rings, Chain, Bangle"
                     className={categoryNameError ? 'border-red-500' : ''}
                   />
                   {categoryNameError && (
                     <p className="text-sm text-red-500 mt-1">{categoryNameError}</p>
                   )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Must be 3-50 characters. Only letters, numbers, and spaces allowed.
+                  </p>
                 </div>
-                <Button data-testid="save-category-button" onClick={handleAddHeader} className="w-full">Save Category</Button>
+                <Button 
+                  data-testid="save-category-button" 
+                  onClick={handleAddHeader} 
+                  className="w-full"
+                  disabled={!isCategoryNameValid()}
+                >
+                  Save Category
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

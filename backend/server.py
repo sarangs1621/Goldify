@@ -1584,8 +1584,31 @@ async def get_inventory_headers(
 
 @api_router.post("/inventory/headers", response_model=InventoryHeader)
 async def create_inventory_header(header_data: dict, current_user: User = Depends(require_permission('inventory.adjust'))):
-    # Check for duplicate category name (case-insensitive)
+    # Validate and sanitize category name
     category_name = header_data['name'].strip()
+    
+    # Length validation: 3-50 characters
+    if len(category_name) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Category name must be at least 3 characters long."
+        )
+    
+    if len(category_name) > 50:
+        raise HTTPException(
+            status_code=400,
+            detail="Category name must not exceed 50 characters."
+        )
+    
+    # Character validation: only letters, numbers, and spaces allowed
+    import re
+    if not re.match(r'^[A-Za-z0-9 ]+$', category_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Category name can only contain letters, numbers, and spaces. Special characters are not allowed."
+        )
+    
+    # Check for duplicate category name (case-insensitive)
     existing_category = await db.inventory_headers.find_one({
         "name": {"$regex": f"^{category_name}$", "$options": "i"},
         "is_deleted": False
@@ -1617,10 +1640,32 @@ async def update_inventory_header(
     if not existing_header:
         raise HTTPException(status_code=404, detail="Inventory header not found")
     
-    # Prepare update data - only allow updating name and is_active
+   # Prepare update data - only allow updating name and is_active
     update_data = {}
     if 'name' in header_data:
         new_name = header_data['name'].strip()
+        
+        # Length validation: 3-50 characters
+        if len(new_name) < 3:
+            raise HTTPException(
+                status_code=400,
+                detail="Category name must be at least 3 characters long."
+            )
+        
+        if len(new_name) > 50:
+            raise HTTPException(
+                status_code=400,
+                detail="Category name must not exceed 50 characters."
+            )
+        
+        # Character validation: only letters, numbers, and spaces allowed
+        import re
+        if not re.match(r'^[A-Za-z0-9 ]+$', new_name):
+            raise HTTPException(
+                status_code=400,
+                detail="Category name can only contain letters, numbers, and spaces. Special characters are not allowed."
+            )
+        
         # Check for duplicate category name (case-insensitive), excluding current header
         duplicate_category = await db.inventory_headers.find_one({
             "name": {"$regex": f"^{new_name}$", "$options": "i"},

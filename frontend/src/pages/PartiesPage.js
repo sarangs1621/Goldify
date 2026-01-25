@@ -367,7 +367,7 @@ export default function PartiesPage() {
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="customer">Customers</SelectItem>
                 <SelectItem value="vendor">Vendors</SelectItem>
-                <SelectItem value="worker">Workers</SelectItem>
+                {/* <SelectItem value="worker">Workers</SelectItem> */}
               </SelectContent>
             </Select>
           </div>
@@ -495,7 +495,7 @@ export default function PartiesPage() {
                 <SelectContent>
                   <SelectItem value="customer">Customer</SelectItem>
                   <SelectItem value="vendor">Vendor</SelectItem>
-                  <SelectItem value="worker">Worker</SelectItem>
+                  {/* <SelectItem value="worker">Worker</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>
