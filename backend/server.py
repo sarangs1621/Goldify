@@ -784,7 +784,8 @@ class Transaction(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     transaction_number: str
-    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # Alias for created_at
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # ISO 8601 UTC timestamp
     transaction_type: str
     mode: str
     account_id: str
