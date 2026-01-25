@@ -1040,7 +1040,7 @@ export default function JobCardsPage() {
                       <SelectValue placeholder="Select worker (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      {/* The empty "None" item is removed */}
                       {workers.map(w => (
                         <SelectItem key={w.id} value={w.id}>
                           {w.name}{w.role ? ` - ${w.role}` : ''}

@@ -7548,7 +7548,7 @@ app.include_router(api_router)
 
 
 # 1. HTTPS Redirect (Innermost)
-app.add_middleware(HTTPSRedirectMiddleware)
+# app.add_middleware(HTTPSRedirectMiddleware)  <-- Comment this out
 
 # 2. Security Headers
 app.add_middleware(SecurityHeadersMiddleware)
@@ -7563,13 +7563,20 @@ app.add_middleware(InputSanitizationMiddleware)
 # 5. CORS Middleware (MUST BE LAST/OUTERMOST)
 # This ensures CORS headers are added to ALL responses, even 403 errors.
 from fastapi.middleware.cors import CORSMiddleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    # Add your network IP here
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000", 
+        "http://192.168.1.21:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 logging.basicConfig(
     level=logging.INFO,

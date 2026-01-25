@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import axios from 'axios';
 
 const AuthContext = createContext(null);
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:5000';
+
 
 // Create ONE axios instance with baseURL (WITHOUT /api suffix)
 const API = axios.create({
