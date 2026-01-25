@@ -28,8 +28,8 @@ import uuid
 import time
 
 # Configuration
-BASE_URL = "https://category-id-system.preview.emergentagent.com/api"
-FRONTEND_URL = "https://category-id-system.preview.emergentagent.com"
+BASE_URL = "https://service-workflow-2.preview.emergentagent.com/api"
+FRONTEND_URL = "https://service-workflow-2.preview.emergentagent.com"
 USERNAME = "admin"
 PASSWORD = "admin123"
 
