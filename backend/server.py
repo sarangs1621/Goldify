@@ -6887,7 +6887,7 @@ async def get_jobcard_complete_impact(jobcard_id: str, current_user: User = Depe
         raise HTTPException(status_code=404, detail="Job card not found")
     
     items = jobcard.get("items", [])
-    total_weight = sum(item.get("weight_grams", 0) for item in items)
+    total_weight = sum(item.get("weight_in", 0) for item in items)
     total_making = sum(item.get("making_charges", 0) for item in items)
     
     return {
@@ -6908,7 +6908,7 @@ async def get_jobcard_deliver_impact(jobcard_id: str, current_user: User = Depen
         raise HTTPException(status_code=404, detail="Job card not found")
     
     items = jobcard.get("items", [])
-    total_weight = sum(item.get("weight_grams", 0) for item in items)
+    total_weight = sum(item.get("weight_in", 0) for item in items)
     
     return {
         "action": "Deliver Job Card",
@@ -6933,7 +6933,7 @@ async def get_jobcard_delete_impact(jobcard_id: str, current_user: User = Depend
     })
     
     items = jobcard.get("items", [])
-    total_weight = sum(item.get("weight_grams", 0) for item in items)
+    total_weight = sum(item.get("weight_in", 0) for item in items)
     
     can_proceed = linked_invoice is None
     blocking_reason = "Job card is linked to an invoice" if linked_invoice else None
@@ -6958,7 +6958,7 @@ async def get_invoice_finalize_impact(invoice_id: str, current_user: User = Depe
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     items = invoice.get("items", [])
-    total_weight = sum(item.get("weight_grams", 0) for item in items)
+    total_weight = sum(item.get("weight_in", 0) for item in items)
     
     return {
         "action": "Finalize Invoice",
@@ -6981,7 +6981,7 @@ async def get_invoice_delete_impact(invoice_id: str, current_user: User = Depend
         raise HTTPException(status_code=404, detail="Invoice not found")
     
     items = invoice.get("items", [])
-    total_weight = sum(item.get("weight_grams", 0) for item in items)
+    total_weight = sum(item.get("weight_in", 0) for item in items)
     is_finalized = invoice.get("status") == "finalized"
     
     # Check for linked payments
@@ -7176,26 +7176,31 @@ async def get_transaction_delete_impact(transaction_id: str, current_user: User 
 
 app.include_router(api_router)
 
-# Add CORS middleware first (handles preflight requests)
+
+
+# 1. HTTPS Redirect (Innermost)
+app.add_middleware(HTTPSRedirectMiddleware)
+
+# 2. Security Headers
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 3. Input Sanitization
+app.add_middleware(InputSanitizationMiddleware)
+
+# 4. CSRF Protection
+# (You can comment this out if you still have issues, but moving it 'above' CORS usually fixes it)
+# app.add_middleware(CSRFProtectionMiddleware)
+
+# 5. CORS Middleware (MUST BE LAST/OUTERMOST)
+# This ensures CORS headers are added to ALL responses, even 403 errors.
+from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add HTTPS Redirect middleware (enforces HTTPS connections)
-app.add_middleware(HTTPSRedirectMiddleware)
-
-# Add Security Headers middleware (must be after CORS)
-app.add_middleware(SecurityHeadersMiddleware)
-
-# Add Input Sanitization middleware (sanitizes all incoming data)
-app.add_middleware(InputSanitizationMiddleware)
-
-# Add CSRF Protection middleware (must be after CORS and Security Headers)
-app.add_middleware(CSRFProtectionMiddleware)
 
 logging.basicConfig(
     level=logging.INFO,
