@@ -5673,3 +5673,244 @@ agent_communication:
       • Job Card Creation: Fixed (missing default added)
       • Invoice Worker Integration: Verified working (code review confirmed)
 
+
+user_problem_statement: |
+  Review and fix all date and time handling across the Gold Shop ERP to ensure absolute correctness, consistency, and audit safety.
+  
+  Requirements:
+  1. Backend (Source of Truth) - All timestamps in UTC (ISO 8601 format)
+  2. Mandatory timestamps: JobCard (created_at, updated_at, completed_at, delivered_at), Invoice (created_at, finalized_at, paid_at), Payment (created_at), Inventory Movement (created_at), Audit Logs (created_at)
+  3. Status-driven timestamps (completed_at when status→completed, delivered_at when status→delivered, paid_at when balance→zero)
+  4. Frontend Display - Convert all UTC to Asia/Muscat timezone using format: DD-MMM-YYYY, hh:mm A
+  5. Date-only fields (delivery_date) stored as YYYY-MM-DD without time
+  6. Audit Safety - All timestamps immutable after creation
+  
+backend:
+  - task: "JobCard Model - Add missing timestamp fields (created_at, updated_at, completed_at, delivered_at)"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Added created_at, updated_at, completed_at, delivered_at fields to JobCard model. Changed delivery_date from datetime to Optional[str] for date-only storage (YYYY-MM-DD)."
+  
+  - task: "JobCard Update Endpoint - Status-driven timestamps"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Updated update_jobcard endpoint to: (1) Always set updated_at on every update, (2) Set completed_at when status changes to 'completed' (only if not already set), (3) Set delivered_at when status changes to 'delivered' (only if not already set), (4) Prevent modification of immutable timestamps (completed_at, delivered_at, created_at, date_created)."
+  
+  - task: "Invoice Model - Add missing timestamp fields (created_at, paid_at)"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Added created_at and paid_at fields to Invoice model. created_at for invoice creation timestamp, paid_at for first full payment timestamp."
+  
+  - task: "Invoice Payment Endpoint - Set paid_at timestamp"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Updated add_payment_to_invoice endpoint (both GOLD_EXCHANGE and standard payment modes) to set paid_at timestamp when invoice becomes fully paid (payment_status='paid'). Timestamp is set only once (immutability)."
+  
+  - task: "Transaction Model - Add created_at field"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Added created_at field to Transaction model as alias for date field. Both date and created_at default to UTC timestamp."
+  
+  - task: "StockMovement Model - Add created_at field"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Added created_at field to StockMovement model as alias for date field. Both date and created_at default to UTC timestamp."
+
+frontend:
+  - task: "Date/Time Utility Functions"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/frontend/src/utils/dateTimeUtils.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "Created comprehensive date/time utility module with functions: formatDateTime (UTC to Asia/Muscat with DD-MMM-YYYY, hh:mm A format), formatDate (date only), formatTime (time only), formatDateOnly (YYYY-MM-DD for date pickers), displayDateOnly (readable date display), validation functions for timestamp requirements. Installed date-fns-tz@3.2.0 package."
+  
+  - task: "JobCardsPage - Update date/time display"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/JobCardsPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to update JobCardsPage to use dateTimeUtils for displaying: date_created, delivery_date, completed_at, delivered_at, updated_at."
+  
+  - task: "InvoicesPage - Update date/time display"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/InvoicesPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to update InvoicesPage to use dateTimeUtils for displaying: date, created_at, finalized_at, paid_at."
+  
+  - task: "PurchasesPage - Update date/time display"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to update PurchasesPage to use dateTimeUtils for displaying: date, created_at, finalized_at."
+  
+  - task: "FinancePage - Update date/time display"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/FinancePage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to update FinancePage (Transactions) to use dateTimeUtils for displaying transaction dates and timestamps."
+  
+  - task: "AuditLogsPage - Update date/time display"
+    implemented: false
+    working: "NA"
+    file: "/app/frontend/src/pages/AuditLogsPage.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Need to update AuditLogsPage to use dateTimeUtils for displaying audit log timestamps."
+
+metadata:
+  created_by: "main_agent"
+  version: "2.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "JobCard Model - Add missing timestamp fields"
+    - "JobCard Update Endpoint - Status-driven timestamps"
+    - "Invoice Model - Add missing timestamp fields"
+    - "Invoice Payment Endpoint - Set paid_at timestamp"
+    - "Date/Time Utility Functions"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      🔧 DATE AND TIME HANDLING OVERHAUL IN PROGRESS
+      
+      PHASE 1: BACKEND MODELS - COMPLETED ✅
+      ================================================================================
+      1. JobCard Model Updates:
+         - Added: created_at (UTC timestamp)
+         - Added: updated_at (updated on every modification)
+         - Added: completed_at (set when status → completed)
+         - Added: delivered_at (set when status → delivered)
+         - Changed: delivery_date from datetime to Optional[str] for date-only (YYYY-MM-DD)
+      
+      2. Invoice Model Updates:
+         - Added: created_at (UTC timestamp)
+         - Added: paid_at (set when balance becomes zero - first full payment)
+      
+      3. Transaction Model Updates:
+         - Added: created_at (UTC timestamp, alias for date)
+      
+      4. StockMovement Model Updates:
+         - Added: created_at (UTC timestamp, alias for date)
+      
+      PHASE 2: BACKEND API LOGIC - COMPLETED ✅
+      ================================================================================
+      1. update_jobcard Endpoint:
+         - Always sets updated_at on every update (audit trail)
+         - Sets completed_at when status changes to 'completed' (only if not set - immutability)
+         - Sets delivered_at when status changes to 'delivered' (only if not set - immutability)
+         - Prevents modification of immutable timestamps (completed_at, delivered_at, created_at)
+         - All timestamps are backend-controlled (audit safety)
+      
+      2. add_payment_to_invoice Endpoint:
+         - Sets paid_at when invoice becomes fully paid (payment_status='paid')
+         - Timestamp set only once (immutability)
+         - Applied to both GOLD_EXCHANGE and standard payment modes
+      
+      PHASE 3: FRONTEND UTILITIES - COMPLETED ✅
+      ================================================================================
+      1. Created /app/frontend/src/utils/dateTimeUtils.js:
+         - formatDateTime(): Converts UTC to Asia/Muscat with format "DD-MMM-YYYY, hh:mm A"
+         - formatDate(): Date-only display "DD-MMM-YYYY"
+         - formatTime(): Time-only display "hh:mm A"
+         - formatDateOnly(): For date picker inputs (YYYY-MM-DD)
+         - displayDateOnly(): Readable date-only display
+         - Validation functions: validateCompletedTimestamp, validateDeliveredTimestamp, validateFinalizedTimestamp, validatePaidTimestamp
+      
+      2. Installed date-fns-tz@3.2.0 package for timezone conversion
+      
+      PHASE 4: FRONTEND UPDATES - IN PROGRESS 🚧
+      ================================================================================
+      Need to update all frontend pages to use new date utilities:
+      - JobCardsPage.js
+      - InvoicesPage.js
+      - PurchasesPage.js
+      - FinancePage.js
+      - AuditLogsPage.js
+      - Any other pages displaying dates/times
+      
+      NEXT STEPS:
+      1. Update frontend components to use dateTimeUtils
+      2. Test backend timestamp generation
+      3. Test status-driven timestamp updates
+      4. Verify timezone display in frontend
+      5. Validate audit safety (immutability)
