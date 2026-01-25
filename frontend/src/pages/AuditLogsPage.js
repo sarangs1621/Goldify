@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { History } from 'lucide-react';
 import Pagination from '../components/Pagination';
 import { useURLPagination } from '../hooks/useURLPagination';
+import { formatDateTime } from '../utils/dateTimeUtils';
 
 export default function AuditLogsPage() {
   const { currentPage, setPage, pagination, setPagination } = useURLPagination();
