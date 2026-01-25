@@ -4065,10 +4065,14 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(require
     - GST compliance (tax collected on all sales)
     - Financial integrity (no unauthorized stock removal)
     
+    🔧 INVOICE TYPE HANDLING:
+    - SALE invoices: Stock deduction REQUIRED, total weight must be > 0
+    - SERVICE invoices: Stock deduction SKIPPED, zero weight allowed (making charges, repair, polish)
+    
     Atomic operations performed:
     1. Update invoice status to "finalized"
-    2. Create Stock OUT movements for all items (ONLY authorized path)
-    3. Directly reduce inventory header current_qty and current_weight
+    2. Create Stock OUT movements (ONLY for SALE invoices)
+    3. Directly reduce inventory header (ONLY for SALE invoices)
     4. Lock linked job card (if exists)
     5. Create customer ledger entry
     6. Update customer outstanding balance
@@ -4094,16 +4098,21 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(require
     # Parse invoice data
     invoice = Invoice(**decimal_to_float(existing))
 
-    # VALIDATION: Calculate total weight and ensure it's valid
+    # BUSINESS RULE: Stock deduction only applies to SALE invoices
+    # SERVICE invoices (making charges, repair, polish) may have zero weight and should skip stock validation
+    is_sale_invoice = invoice.invoice_type == "sale"
+    
+    # VALIDATION: For SALE invoices only, calculate total weight and ensure it's valid
     # This prevents inventory integrity issues from deducting 0g stock
-    items = existing.get("items", [])
-    total_weight = sum(item.get("weight", 0) * item.get("qty", 1) for item in items)
+    if is_sale_invoice:
+        items = existing.get("items", [])
+        total_weight = sum(item.get("weight", 0) * item.get("qty", 1) for item in items)
 
-    if total_weight <= 0:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot finalize invoice with total weight {round(total_weight, 3)}g. Invoice must have valid item weights for stock deduction."
-        )
+        if total_weight <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot finalize sale invoice with total weight {round(total_weight, 3)}g. Sale invoice must have valid item weights for stock deduction."
+            )
 
     # ATOMIC OPERATION: Finalize invoice with all required operations
     finalized_at = datetime.now(timezone.utc)
@@ -4121,62 +4130,64 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(require
     )
     
     # Step 2: DIRECTLY REDUCE from inventory headers and create audit trail
+    # ONLY for SALE invoices - SERVICE invoices skip stock deduction entirely
     stock_errors = []
-    for item in invoice.items:
-        if item.weight > 0 and item.category:
-            # Find the inventory header by category name
-            header = await db.inventory_headers.find_one(
-                {"name": item.category, "is_deleted": False}, 
-                {"_id": 0}
-            )
-            
-            if header:
-                # Calculate new stock values
-                current_qty = header.get('current_qty', 0)
-                current_weight = header.get('current_weight', 0)
-                new_qty = current_qty - item.qty
-                new_weight = current_weight - item.weight
+    if is_sale_invoice:
+        for item in invoice.items:
+            if item.weight > 0 and item.category:
+                # Find the inventory header by category name
+                header = await db.inventory_headers.find_one(
+                    {"name": item.category, "is_deleted": False}, 
+                    {"_id": 0}
+                )
                 
-                # Check for insufficient stock
-                if new_qty < 0 or new_weight < 0:
-                    stock_errors.append(
-                        f"{item.category}: Need {item.qty} qty/{item.weight}g, but only {current_qty} qty/{current_weight}g available"
+                if header:
+                    # Calculate new stock values
+                    current_qty = header.get('current_qty', 0)
+                    current_weight = header.get('current_weight', 0)
+                    new_qty = current_qty - item.qty
+                    new_weight = current_weight - item.weight
+                    
+                    # Check for insufficient stock
+                    if new_qty < 0 or new_weight < 0:
+                        stock_errors.append(
+                            f"{item.category}: Need {item.qty} qty/{item.weight}g, but only {current_qty} qty/{current_weight}g available"
+                        )
+                        continue
+                    
+                    # DIRECT UPDATE: Reduce from inventory header
+                    await db.inventory_headers.update_one(
+                        {"id": header['id']},
+                        {"$set": {"current_qty": new_qty, "current_weight": new_weight}}
                     )
-                    continue
-                
-                # DIRECT UPDATE: Reduce from inventory header
-                await db.inventory_headers.update_one(
-                    {"id": header['id']},
-                    {"$set": {"current_qty": new_qty, "current_weight": new_weight}}
-                )
-                
-                # Create stock movement for audit trail
-                movement = StockMovement(
-                    movement_type="Stock OUT",
-                    header_id=header['id'],
-                    header_name=header['name'],
-                    description=f"Invoice {invoice.invoice_number} - Finalized",
-                    qty_delta=-item.qty,
-                    weight_delta=-item.weight,
-                    purity=item.purity,
-                    reference_type="invoice",
-                    reference_id=invoice.id,
-                    created_by=current_user.id
-                )
-                await db.stock_movements.insert_one(movement.model_dump())
-    
-    # If there were stock errors, rollback the invoice finalization
-    # CRITICAL: Status rollback must NOT delete timestamps (audit safety)
-    # Keep finalized_at timestamp for audit trail, only change status
-    if stock_errors:
-        await db.invoices.update_one(
-            {"id": invoice_id},
-            {"$set": {"status": "draft", "finalized_by": None}}
-        )
-        raise HTTPException(
-            status_code=400,
-            detail=f"Insufficient stock: {'; '.join(stock_errors)}"
-        )
+                    
+                    # Create stock movement for audit trail
+                    movement = StockMovement(
+                        movement_type="Stock OUT",
+                        header_id=header['id'],
+                        header_name=header['name'],
+                        description=f"Invoice {invoice.invoice_number} - Finalized",
+                        qty_delta=-item.qty,
+                        weight_delta=-item.weight,
+                        purity=item.purity,
+                        reference_type="invoice",
+                        reference_id=invoice.id,
+                        created_by=current_user.id
+                    )
+                    await db.stock_movements.insert_one(movement.model_dump())
+        
+        # If there were stock errors, rollback the invoice finalization
+        # CRITICAL: Status rollback must NOT delete timestamps (audit safety)
+        # Keep finalized_at timestamp for audit trail, only change status
+        if stock_errors:
+            await db.invoices.update_one(
+                {"id": invoice_id},
+                {"$set": {"status": "draft", "finalized_by": None}}
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock: {'; '.join(stock_errors)}"
+            )
     
     # Step 3: Lock the linked job card (make it read-only)
     if invoice.jobcard_id:
