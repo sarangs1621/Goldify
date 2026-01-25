@@ -121,8 +121,7 @@ export const AuthProvider = ({ children }) => {
       loading,
       hasPermission,
       hasAnyPermission,
-      hasAllPermissions,
-      csrfToken
+      hasAllPermissions
     }}>
       {children}
     </AuthContext.Provider>
