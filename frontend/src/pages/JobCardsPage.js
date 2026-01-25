@@ -1706,12 +1706,24 @@ export default function JobCardsPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Date Created</p>
-                    <p className="font-medium">{new Date(viewJobCard.date_created).toLocaleDateString()}</p>
+                    <p className="font-medium">{formatDateTime(viewJobCard.created_at || viewJobCard.date_created)}</p>
                   </div>
+                  {viewJobCard.completed_at && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Completed At</p>
+                      <p className="font-medium">{formatDateTime(viewJobCard.completed_at)}</p>
+                    </div>
+                  )}
+                  {viewJobCard.delivered_at && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Delivered At</p>
+                      <p className="font-medium">{formatDateTime(viewJobCard.delivered_at)}</p>
+                    </div>
+                  )}
                   {viewJobCard.delivery_date && (
                     <div>
-                      <p className="text-xs text-muted-foreground">Delivery Date</p>
-                      <p className="font-medium">{new Date(viewJobCard.delivery_date).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">Expected Delivery Date</p>
+                      <p className="font-medium">{displayDateOnly(viewJobCard.delivery_date)}</p>
                     </div>
                   )}
                   {viewJobCard.notes && (
