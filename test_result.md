@@ -6531,6 +6531,9 @@ backend:
       - working: "needs_testing"
         agent: "main"
         comment: "✅ FINALIZE ENDPOINT COMPLETE - Lines 8727-9041. Core business logic for processing returns. SALES RETURN workflow (lines 8760-8877): Creates stock movements (IN), creates transaction (Debit), creates gold ledger (OUT), updates invoice paid_amount and balance_due, updates customer outstanding. PURCHASE RETURN workflow (lines 8882-8991): Creates stock movements (OUT), creates transaction (Credit), creates gold ledger (IN), updates purchase balance_due_money, updates vendor payable. Updates return status to finalized with timestamps. Creates comprehensive audit log. All refund modes supported (money/gold/mixed)."
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ ATOMICITY ENHANCEMENT COMPLETE - Lines 9127-9225. Added comprehensive rollback mechanism for finalization failures. On error: (1) Resets return status to 'draft', (2) Deletes created stock movements, (3) Deletes transaction and reverts account balance, (4) Deletes gold ledger entry, (5) Reverts inventory header qty/weight changes, (6) Creates audit log for rollback. Ensures no partial completion - either all operations succeed or all are rolled back. Processing lock prevents concurrent finalization."
 
   - task: "DELETE /api/returns/{id} - Soft Delete Return"
     implemented: true
