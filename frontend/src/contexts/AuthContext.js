@@ -26,7 +26,7 @@ const API = axios.create({
   withCredentials: true
 });
 
-// Add request interceptor to attach JWT token
+// Add request interceptor to attach JWT token and CSRF token
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -37,6 +37,18 @@ API.interceptors.request.use(
     } else {
       console.warn('⚠️ No token found in localStorage');
     }
+    
+    // Add CSRF token for state-changing methods
+    if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
+        console.log('✅ CSRF token added');
+      } else {
+        console.warn('⚠️ No CSRF token found in cookies');
+      }
+    }
+    
     return config;
   },
   (error) => {
