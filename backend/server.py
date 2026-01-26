@@ -8350,6 +8350,734 @@ async def get_transaction_delete_impact(transaction_id: str, current_user: User 
     }
 
 
+
+# ============================================================================
+# RETURNS MANAGEMENT API ENDPOINTS
+# ============================================================================
+
+@api_router.post("/returns", status_code=201)
+@limiter.limit("1000/hour")
+async def create_return(
+    request: Request,
+    return_data: dict,
+    current_user: User = Depends(require_permission('returns.create'))
+):
+    """
+    Create a new return (draft status).
+    Supports both sales returns and purchase returns.
+    """
+    try:
+        # Validate return_type
+        return_type = return_data.get('return_type')
+        if return_type not in ['sale_return', 'purchase_return']:
+            raise HTTPException(status_code=400, detail="Invalid return_type. Must be 'sale_return' or 'purchase_return'")
+        
+        # Validate reference
+        reference_type = return_data.get('reference_type')
+        reference_id = return_data.get('reference_id')
+        
+        if not reference_type or not reference_id:
+            raise HTTPException(status_code=400, detail="reference_type and reference_id are required")
+        
+        # Fetch the reference document (invoice or purchase)
+        if reference_type == 'invoice':
+            reference_doc = await db.invoices.find_one({"id": reference_id, "is_deleted": False})
+            if not reference_doc:
+                raise HTTPException(status_code=404, detail="Invoice not found")
+            if reference_doc.get('status') != 'finalized':
+                raise HTTPException(status_code=400, detail="Can only create return for finalized invoices")
+            party_id = reference_doc.get('customer_id')
+            party_name = reference_doc.get('customer_name')
+            party_type = 'customer'
+            reference_number = reference_doc.get('invoice_number')
+        elif reference_type == 'purchase':
+            reference_doc = await db.purchases.find_one({"id": reference_id, "is_deleted": False})
+            if not reference_doc:
+                raise HTTPException(status_code=404, detail="Purchase not found")
+            if reference_doc.get('status') != 'finalized':
+                raise HTTPException(status_code=400, detail="Can only create return for finalized purchases")
+            party_id = reference_doc.get('vendor_party_id')
+            # Fetch vendor name
+            vendor = await db.parties.find_one({"id": party_id, "is_deleted": False})
+            party_name = vendor.get('name') if vendor else 'Unknown Vendor'
+            party_type = 'vendor'
+            reference_number = reference_id  # Purchases don't have human-readable numbers yet
+        else:
+            raise HTTPException(status_code=400, detail="Invalid reference_type. Must be 'invoice' or 'purchase'")
+        
+        # Validate refund_mode
+        refund_mode = return_data.get('refund_mode', 'money')
+        if refund_mode not in ['money', 'gold', 'mixed']:
+            raise HTTPException(status_code=400, detail="Invalid refund_mode. Must be 'money', 'gold', or 'mixed'")
+        
+        # Validate refund amounts
+        refund_money_amount = float(return_data.get('refund_money_amount', 0))
+        refund_gold_grams = float(return_data.get('refund_gold_grams', 0))
+        
+        if refund_mode == 'money' and refund_money_amount <= 0:
+            raise HTTPException(status_code=400, detail="refund_money_amount must be greater than 0 for money refund")
+        if refund_mode == 'gold' and refund_gold_grams <= 0:
+            raise HTTPException(status_code=400, detail="refund_gold_grams must be greater than 0 for gold refund")
+        if refund_mode == 'mixed' and (refund_money_amount <= 0 or refund_gold_grams <= 0):
+            raise HTTPException(status_code=400, detail="Both refund_money_amount and refund_gold_grams must be greater than 0 for mixed refund")
+        
+        # Validate account if money refund
+        if refund_mode in ['money', 'mixed']:
+            account_id = return_data.get('account_id')
+            if not account_id:
+                raise HTTPException(status_code=400, detail="account_id is required for money refund")
+            account = await db.accounts.find_one({"id": account_id, "is_deleted": False})
+            if not account:
+                raise HTTPException(status_code=404, detail="Account not found")
+            account_name = account.get('name')
+        else:
+            account_name = None
+        
+        # Generate return number
+        returns_count = await db.returns.count_documents({})
+        return_number = f"RET-{returns_count + 1:05d}"
+        
+        # Calculate total weight and amount from items
+        items = return_data.get('items', [])
+        if not items:
+            raise HTTPException(status_code=400, detail="At least one item is required")
+        
+        total_weight_grams = sum(float(item.get('weight_grams', 0)) for item in items)
+        total_amount = sum(float(item.get('amount', 0)) for item in items)
+        
+        # Create return object
+        return_obj = Return(
+            return_number=return_number,
+            return_type=return_type,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            reference_number=reference_number,
+            party_id=party_id,
+            party_name=party_name,
+            party_type=party_type,
+            items=[ReturnItem(**item) for item in items],
+            total_weight_grams=round(total_weight_grams, 3),
+            total_amount=round(total_amount, 2),
+            reason=return_data.get('reason'),
+            refund_mode=refund_mode,
+            refund_money_amount=round(refund_money_amount, 2),
+            refund_gold_grams=round(refund_gold_grams, 3),
+            refund_gold_purity=return_data.get('refund_gold_purity'),
+            payment_mode=return_data.get('payment_mode'),
+            account_id=return_data.get('account_id'),
+            account_name=account_name,
+            status='draft',
+            created_by=current_user.id,
+            notes=return_data.get('notes')
+        )
+        
+        # Insert into database
+        await db.returns.insert_one(return_obj.model_dump())
+        
+        # Create audit log
+        await create_audit_log(
+            user_id=current_user.id,
+            user_name=current_user.name,
+            module="returns",
+            record_id=return_obj.id,
+            action="create",
+            changes={"status": "draft", "return_type": return_type, "party": party_name}
+        )
+        
+        return {"message": "Return created successfully", "return": decimal_to_float(return_obj.model_dump())}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating return: {str(e)}")
+
+
+@api_router.get("/returns")
+@limiter.limit("1000/hour")
+async def get_returns(
+    request: Request,
+    page: int = 1,
+    page_size: int = 10,
+    return_type: Optional[str] = None,
+    party_id: Optional[str] = None,
+    status: Optional[str] = None,
+    refund_mode: Optional[str] = None,
+    search: Optional[str] = None,
+    current_user: User = Depends(require_permission('returns.view'))
+):
+    """
+    Get all returns with pagination and filters.
+    Filters: return_type, party_id, status, refund_mode, search
+    """
+    try:
+        # Build query
+        query = {"is_deleted": False}
+        
+        if return_type:
+            query["return_type"] = return_type
+        if party_id:
+            query["party_id"] = party_id
+        if status:
+            query["status"] = status
+        if refund_mode:
+            query["refund_mode"] = refund_mode
+        if search:
+            query["$or"] = [
+                {"return_number": {"$regex": search, "$options": "i"}},
+                {"party_name": {"$regex": search, "$options": "i"}},
+                {"reference_number": {"$regex": search, "$options": "i"}},
+                {"reason": {"$regex": search, "$options": "i"}}
+            ]
+        
+        # Count total
+        total_count = await db.returns.count_documents(query)
+        
+        # Calculate pagination
+        skip = (page - 1) * page_size
+        total_pages = (total_count + page_size - 1) // page_size
+        
+        # Fetch returns
+        cursor = db.returns.find(query).sort("created_at", -1).skip(skip).limit(page_size)
+        returns = await cursor.to_list(length=page_size)
+        
+        return {
+            "items": [decimal_to_float(ret) for ret in returns],
+            "pagination": {
+                "total_count": total_count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1
+            }
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching returns: {str(e)}")
+
+
+@api_router.get("/returns/{return_id}")
+@limiter.limit("1000/hour")
+async def get_return_by_id(
+    request: Request,
+    return_id: str,
+    current_user: User = Depends(require_permission('returns.view'))
+):
+    """Get a single return by ID"""
+    return_doc = await db.returns.find_one({"id": return_id, "is_deleted": False})
+    if not return_doc:
+        raise HTTPException(status_code=404, detail="Return not found")
+    
+    return decimal_to_float(return_doc)
+
+
+@api_router.patch("/returns/{return_id}")
+@limiter.limit("1000/hour")
+async def update_return(
+    request: Request,
+    return_id: str,
+    return_data: dict,
+    current_user: User = Depends(require_permission('returns.create'))
+):
+    """
+    Update a return (only allowed in draft status).
+    """
+    try:
+        # Fetch existing return
+        existing_return = await db.returns.find_one({"id": return_id, "is_deleted": False})
+        if not existing_return:
+            raise HTTPException(status_code=404, detail="Return not found")
+        
+        # Check if finalized
+        if existing_return.get('status') == 'finalized':
+            raise HTTPException(status_code=400, detail="Cannot update finalized return")
+        
+        # Prepare update data
+        update_fields = {}
+        
+        # Update items if provided
+        if 'items' in return_data:
+            items = [ReturnItem(**item) for item in return_data['items']]
+            update_fields['items'] = [item.model_dump() for item in items]
+            # Recalculate totals
+            total_weight = sum(item.weight_grams for item in items)
+            total_amount = sum(item.amount for item in items)
+            update_fields['total_weight_grams'] = round(total_weight, 3)
+            update_fields['total_amount'] = round(total_amount, 2)
+        
+        # Update other fields
+        if 'reason' in return_data:
+            update_fields['reason'] = return_data['reason']
+        if 'refund_mode' in return_data:
+            update_fields['refund_mode'] = return_data['refund_mode']
+        if 'refund_money_amount' in return_data:
+            update_fields['refund_money_amount'] = round(float(return_data['refund_money_amount']), 2)
+        if 'refund_gold_grams' in return_data:
+            update_fields['refund_gold_grams'] = round(float(return_data['refund_gold_grams']), 3)
+        if 'refund_gold_purity' in return_data:
+            update_fields['refund_gold_purity'] = return_data['refund_gold_purity']
+        if 'payment_mode' in return_data:
+            update_fields['payment_mode'] = return_data['payment_mode']
+        if 'account_id' in return_data:
+            account_id = return_data['account_id']
+            account = await db.accounts.find_one({"id": account_id, "is_deleted": False})
+            if account:
+                update_fields['account_id'] = account_id
+                update_fields['account_name'] = account.get('name')
+        if 'notes' in return_data:
+            update_fields['notes'] = return_data['notes']
+        
+        # Update database
+        await db.returns.update_one(
+            {"id": return_id},
+            {"$set": update_fields}
+        )
+        
+        # Create audit log
+        await create_audit_log(
+            user_id=current_user.id,
+            user_name=current_user.name,
+            module="returns",
+            record_id=return_id,
+            action="update",
+            changes=update_fields
+        )
+        
+        # Fetch updated return
+        updated_return = await db.returns.find_one({"id": return_id})
+        
+        return {"message": "Return updated successfully", "return": decimal_to_float(updated_return)}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating return: {str(e)}")
+
+
+@api_router.post("/returns/{return_id}/finalize")
+@limiter.limit("30/minute")
+async def finalize_return(
+    request: Request,
+    return_id: str,
+    current_user: User = Depends(require_permission('returns.finalize'))
+):
+    """
+    Finalize a return (apply stock movements, refunds, and update balances).
+    This is the core business logic for processing returns.
+    """
+    try:
+        # Fetch return
+        return_doc = await db.returns.find_one({"id": return_id, "is_deleted": False})
+        if not return_doc:
+            raise HTTPException(status_code=404, detail="Return not found")
+        
+        if return_doc.get('status') == 'finalized':
+            raise HTTPException(status_code=400, detail="Return is already finalized")
+        
+        return_type = return_doc.get('return_type')
+        reference_type = return_doc.get('reference_type')
+        reference_id = return_doc.get('reference_id')
+        party_id = return_doc.get('party_id')
+        refund_mode = return_doc.get('refund_mode')
+        refund_money_amount = return_doc.get('refund_money_amount', 0)
+        refund_gold_grams = return_doc.get('refund_gold_grams', 0)
+        
+        stock_movement_ids = []
+        transaction_id = None
+        gold_ledger_id = None
+        
+        # ========================================================================
+        # SALES RETURN WORKFLOW
+        # ========================================================================
+        if return_type == 'sale_return':
+            # 1. Create stock movements (Stock IN - returned goods back to inventory)
+            for item in return_doc.get('items', []):
+                if item.get('weight_grams', 0) > 0:
+                    movement_id = str(uuid.uuid4())
+                    stock_movement = StockMovement(
+                        id=movement_id,
+                        type="IN",
+                        category=item.get('description'),  # Using description as category
+                        weight=round(item.get('weight_grams'), 3),
+                        purity=item.get('purity'),
+                        date=datetime.now(timezone.utc),
+                        purpose=f"Sales Return - {return_doc.get('return_number')}",
+                        reference_type="return",
+                        reference_id=return_id,
+                        notes=return_doc.get('reason'),
+                        created_by=current_user.id
+                    )
+                    await db.stock_movements.insert_one(stock_movement.model_dump())
+                    stock_movement_ids.append(movement_id)
+                    
+                    # Update inventory header stock
+                    await db.inventory_headers.update_one(
+                        {"name": item.get('description')},
+                        {
+                            "$inc": {
+                                "current_qty": item.get('qty', 0),
+                                "current_weight": round(item.get('weight_grams'), 3)
+                            }
+                        }
+                    )
+            
+            # 2. Create money refund (Transaction - Debit)
+            if refund_mode in ['money', 'mixed'] and refund_money_amount > 0:
+                account_id = return_doc.get('account_id')
+                account = await db.accounts.find_one({"id": account_id})
+                if not account:
+                    raise HTTPException(status_code=400, detail="Account not found for money refund")
+                
+                # Generate transaction number
+                transactions_count = await db.transactions.count_documents({})
+                transaction_number = f"TXN-{transactions_count + 1:05d}"
+                
+                transaction_id = str(uuid.uuid4())
+                transaction = Transaction(
+                    id=transaction_id,
+                    transaction_number=transaction_number,
+                    date=datetime.now(timezone.utc),
+                    transaction_type="debit",  # Money going out to customer
+                    mode=return_doc.get('payment_mode', 'cash'),
+                    account_id=account_id,
+                    account_name=account.get('name'),
+                    party_id=party_id,
+                    party_name=return_doc.get('party_name'),
+                    amount=round(refund_money_amount, 2),
+                    category="sales_return",
+                    notes=f"Sales Return Refund - {return_doc.get('return_number')}",
+                    reference_type="return",
+                    reference_id=return_id,
+                    created_by=current_user.id
+                )
+                await db.transactions.insert_one(transaction.model_dump())
+                
+                # Update account balance (debit = decrease balance)
+                await db.accounts.update_one(
+                    {"id": account_id},
+                    {"$inc": {"current_balance": -round(refund_money_amount, 2)}}
+                )
+            
+            # 3. Create gold refund (GoldLedgerEntry - OUT)
+            if refund_mode in ['gold', 'mixed'] and refund_gold_grams > 0:
+                gold_ledger_id = str(uuid.uuid4())
+                gold_entry = GoldLedgerEntry(
+                    id=gold_ledger_id,
+                    party_id=party_id,
+                    date=datetime.now(timezone.utc),
+                    type="OUT",  # Shop gives gold to customer
+                    weight_grams=round(refund_gold_grams, 3),
+                    purity_entered=return_doc.get('refund_gold_purity', 916),
+                    purpose="sales_return",
+                    reference_type="return",
+                    reference_id=return_id,
+                    notes=f"Sales Return Gold Refund - {return_doc.get('return_number')}",
+                    created_by=current_user.id
+                )
+                await db.gold_ledger.insert_one(gold_entry.model_dump())
+            
+            # 4. Update invoice (adjust paid_amount and balance_due)
+            if reference_type == 'invoice':
+                invoice = await db.invoices.find_one({"id": reference_id})
+                if invoice:
+                    # Reduce paid amount by refund amount (as we're returning money)
+                    new_paid = invoice.get('paid_amount', 0) - refund_money_amount
+                    new_balance = invoice.get('grand_total', 0) - new_paid
+                    
+                    await db.invoices.update_one(
+                        {"id": reference_id},
+                        {
+                            "$set": {
+                                "paid_amount": round(max(0, new_paid), 2),
+                                "balance_due": round(max(0, new_balance), 2),
+                                "payment_status": "unpaid" if new_balance > 0 else "paid"
+                            }
+                        }
+                    )
+            
+            # 5. Update customer outstanding (if saved customer)
+            if party_id:
+                party = await db.parties.find_one({"id": party_id})
+                if party and party.get('party_type') == 'customer':
+                    # Increase outstanding (customer owes less due to refund)
+                    current_outstanding = party.get('outstanding_balance', 0)
+                    # For sales return, we're reducing what customer paid, so increase outstanding
+                    new_outstanding = current_outstanding + refund_money_amount
+                    await db.parties.update_one(
+                        {"id": party_id},
+                        {"$set": {"outstanding_balance": round(new_outstanding, 2)}}
+                    )
+        
+        # ========================================================================
+        # PURCHASE RETURN WORKFLOW
+        # ========================================================================
+        elif return_type == 'purchase_return':
+            # 1. Create stock movements (Stock OUT - returned to vendor)
+            for item in return_doc.get('items', []):
+                if item.get('weight_grams', 0) > 0:
+                    movement_id = str(uuid.uuid4())
+                    stock_movement = StockMovement(
+                        id=movement_id,
+                        type="OUT",
+                        category=item.get('description'),
+                        weight=round(item.get('weight_grams'), 3),
+                        purity=item.get('purity'),
+                        date=datetime.now(timezone.utc),
+                        purpose=f"Purchase Return - {return_doc.get('return_number')}",
+                        reference_type="return",
+                        reference_id=return_id,
+                        notes=return_doc.get('reason'),
+                        created_by=current_user.id
+                    )
+                    await db.stock_movements.insert_one(stock_movement.model_dump())
+                    stock_movement_ids.append(movement_id)
+                    
+                    # Update inventory header stock (decrease)
+                    await db.inventory_headers.update_one(
+                        {"name": item.get('description')},
+                        {
+                            "$inc": {
+                                "current_qty": -item.get('qty', 0),
+                                "current_weight": -round(item.get('weight_grams'), 3)
+                            }
+                        }
+                    )
+            
+            # 2. Create money refund (Transaction - Credit - vendor refunds us)
+            if refund_mode in ['money', 'mixed'] and refund_money_amount > 0:
+                account_id = return_doc.get('account_id')
+                account = await db.accounts.find_one({"id": account_id})
+                if not account:
+                    raise HTTPException(status_code=400, detail="Account not found for money refund")
+                
+                # Generate transaction number
+                transactions_count = await db.transactions.count_documents({})
+                transaction_number = f"TXN-{transactions_count + 1:05d}"
+                
+                transaction_id = str(uuid.uuid4())
+                transaction = Transaction(
+                    id=transaction_id,
+                    transaction_number=transaction_number,
+                    date=datetime.now(timezone.utc),
+                    transaction_type="credit",  # Money coming in from vendor
+                    mode=return_doc.get('payment_mode', 'cash'),
+                    account_id=account_id,
+                    account_name=account.get('name'),
+                    party_id=party_id,
+                    party_name=return_doc.get('party_name'),
+                    amount=round(refund_money_amount, 2),
+                    category="purchase_return",
+                    notes=f"Purchase Return Refund - {return_doc.get('return_number')}",
+                    reference_type="return",
+                    reference_id=return_id,
+                    created_by=current_user.id
+                )
+                await db.transactions.insert_one(transaction.model_dump())
+                
+                # Update account balance (credit = increase balance)
+                await db.accounts.update_one(
+                    {"id": account_id},
+                    {"$inc": {"current_balance": round(refund_money_amount, 2)}}
+                )
+            
+            # 3. Create gold refund (GoldLedgerEntry - IN - vendor returns gold to us)
+            if refund_mode in ['gold', 'mixed'] and refund_gold_grams > 0:
+                gold_ledger_id = str(uuid.uuid4())
+                gold_entry = GoldLedgerEntry(
+                    id=gold_ledger_id,
+                    party_id=party_id,
+                    date=datetime.now(timezone.utc),
+                    type="IN",  # Vendor gives gold back to shop
+                    weight_grams=round(refund_gold_grams, 3),
+                    purity_entered=return_doc.get('refund_gold_purity', 916),
+                    purpose="purchase_return",
+                    reference_type="return",
+                    reference_id=return_id,
+                    notes=f"Purchase Return Gold Refund - {return_doc.get('return_number')}",
+                    created_by=current_user.id
+                )
+                await db.gold_ledger.insert_one(gold_entry.model_dump())
+            
+            # 4. Update purchase (adjust balance_due_money)
+            if reference_type == 'purchase':
+                purchase = await db.purchases.find_one({"id": reference_id})
+                if purchase:
+                    # Reduce balance due by refund amount
+                    new_balance = purchase.get('balance_due_money', 0) - refund_money_amount
+                    
+                    await db.purchases.update_one(
+                        {"id": reference_id},
+                        {"$set": {"balance_due_money": round(max(0, new_balance), 2)}}
+                    )
+            
+            # 5. Update vendor payable
+            if party_id:
+                party = await db.parties.find_one({"id": party_id})
+                if party and party.get('party_type') == 'vendor':
+                    # Decrease outstanding (we owe vendor less due to return)
+                    current_outstanding = party.get('outstanding_balance', 0)
+                    new_outstanding = current_outstanding - refund_money_amount
+                    await db.parties.update_one(
+                        {"id": party_id},
+                        {"$set": {"outstanding_balance": round(new_outstanding, 2)}}
+                    )
+        
+        # ========================================================================
+        # UPDATE RETURN STATUS TO FINALIZED
+        # ========================================================================
+        await db.returns.update_one(
+            {"id": return_id},
+            {
+                "$set": {
+                    "status": "finalized",
+                    "finalized_at": datetime.now(timezone.utc),
+                    "finalized_by": current_user.id,
+                    "stock_movement_ids": stock_movement_ids,
+                    "transaction_id": transaction_id,
+                    "gold_ledger_id": gold_ledger_id
+                }
+            }
+        )
+        
+        # Create audit log
+        await create_audit_log(
+            user_id=current_user.id,
+            user_name=current_user.name,
+            module="returns",
+            record_id=return_id,
+            action="finalize",
+            changes={
+                "status": "finalized",
+                "stock_movements_created": len(stock_movement_ids),
+                "transaction_created": transaction_id is not None,
+                "gold_ledger_created": gold_ledger_id is not None
+            }
+        )
+        
+        # Fetch updated return
+        updated_return = await db.returns.find_one({"id": return_id})
+        
+        return {
+            "message": "Return finalized successfully",
+            "return": decimal_to_float(updated_return),
+            "details": {
+                "stock_movements_created": len(stock_movement_ids),
+                "transaction_created": transaction_id is not None,
+                "gold_ledger_created": gold_ledger_id is not None
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error finalizing return: {str(e)}")
+
+
+@api_router.delete("/returns/{return_id}")
+@limiter.limit("30/minute")
+async def delete_return(
+    request: Request,
+    return_id: str,
+    current_user: User = Depends(require_permission('returns.delete'))
+):
+    """
+    Soft delete a return (only allowed in draft status).
+    """
+    try:
+        # Fetch return
+        return_doc = await db.returns.find_one({"id": return_id, "is_deleted": False})
+        if not return_doc:
+            raise HTTPException(status_code=404, detail="Return not found")
+        
+        # Check if finalized
+        if return_doc.get('status') == 'finalized':
+            raise HTTPException(status_code=400, detail="Cannot delete finalized return. Finalized returns are immutable.")
+        
+        # Soft delete
+        await db.returns.update_one(
+            {"id": return_id},
+            {
+                "$set": {
+                    "is_deleted": True,
+                    "deleted_at": datetime.now(timezone.utc),
+                    "deleted_by": current_user.id
+                }
+            }
+        )
+        
+        # Create audit log
+        await create_audit_log(
+            user_id=current_user.id,
+            user_name=current_user.name,
+            module="returns",
+            record_id=return_id,
+            action="delete",
+            changes={"is_deleted": True}
+        )
+        
+        return {"message": "Return deleted successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting return: {str(e)}")
+
+
+@api_router.get("/returns/{return_id}/finalize-impact")
+@limiter.limit("1000/hour")
+async def get_return_finalize_impact(
+    request: Request,
+    return_id: str,
+    current_user: User = Depends(require_permission('returns.view'))
+):
+    """Get impact summary before finalizing a return"""
+    return_doc = await db.returns.find_one({"id": return_id, "is_deleted": False})
+    if not return_doc:
+        raise HTTPException(status_code=404, detail="Return not found")
+    
+    if return_doc.get('status') == 'finalized':
+        return {
+            "can_proceed": False,
+            "message": "Return is already finalized"
+        }
+    
+    return_type = return_doc.get('return_type')
+    refund_mode = return_doc.get('refund_mode')
+    
+    impact = {
+        "action": "Finalize Return",
+        "return_number": return_doc.get('return_number'),
+        "return_type": return_type,
+        "party_name": return_doc.get('party_name'),
+        "refund_mode": refund_mode,
+        "can_proceed": True
+    }
+    
+    # Add specific impacts based on return type
+    if return_type == 'sale_return':
+        impact["impacts"] = [
+            f"✅ Stock IN: {return_doc.get('total_weight_grams', 0):.3f}g returned to inventory",
+            f"💰 Customer Refund: {return_doc.get('refund_money_amount', 0):.2f} OMR" if refund_mode in ['money', 'mixed'] else None,
+            f"🪙 Gold Refund: {return_doc.get('refund_gold_grams', 0):.3f}g to customer" if refund_mode in ['gold', 'mixed'] else None,
+            "📊 Customer outstanding will be updated"
+        ]
+    else:  # purchase_return
+        impact["impacts"] = [
+            f"❌ Stock OUT: {return_doc.get('total_weight_grams', 0):.3f}g returned to vendor",
+            f"💰 Vendor Refund: {return_doc.get('refund_money_amount', 0):.2f} OMR received" if refund_mode in ['money', 'mixed'] else None,
+            f"🪙 Gold Refund: {return_doc.get('refund_gold_grams', 0):.3f}g from vendor" if refund_mode in ['gold', 'mixed'] else None,
+            "📊 Vendor payable will be updated"
+        ]
+    
+    # Filter out None values
+    impact["impacts"] = [i for i in impact["impacts"] if i]
+    
+    impact["warning"] = "This action cannot be undone. All stock movements, transactions, and ledger entries will be created."
+    
+    return impact
+
+
+
 app.include_router(api_router)
 
 
