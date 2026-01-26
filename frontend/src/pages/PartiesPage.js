@@ -46,6 +46,12 @@ export default function PartiesPage() {
     notes: ''
   });
   
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState({
+    name: '',
+    phone: ''
+  });
+  
   // MODULE 9: Gold deposit form data
   const [depositFormData, setDepositFormData] = useState({
     weight_grams: '',
@@ -57,6 +63,65 @@ export default function PartiesPage() {
   useEffect(() => {
     loadParties();
   }, [currentPage, perPage]);
+
+  // Validation function for name
+  const validateName = (name) => {
+    if (!name || !name.trim()) {
+      return 'Name is required';
+    }
+    
+    const trimmedName = name.trim();
+    
+    // Must start with letter, followed by 2-59 chars of letters, spaces, dots, apostrophes, hyphens
+    const namePattern = /^[A-Za-z][A-Za-z .'-]{2,59}$/;
+    if (!namePattern.test(trimmedName)) {
+      return 'Name must start with a letter and contain only letters, spaces, dots, apostrophes, and hyphens (3-60 characters)';
+    }
+    
+    return '';
+  };
+  
+  // Validation function for phone
+  const validatePhone = (phone) => {
+    if (!phone || !phone.trim()) {
+      return ''; // Phone is optional
+    }
+    
+    const trimmedPhone = phone.trim();
+    
+    // Must be exactly 10-15 digits only
+    const phonePattern = /^[0-9]{10,15}$/;
+    if (!phonePattern.test(trimmedPhone)) {
+      return 'Phone number must contain only digits and be 10-15 characters long';
+    }
+    
+    return '';
+  };
+  
+  // Handle name change with validation
+  const handleNameChange = (e) => {
+    const value = e.target.value;
+    setFormData({...formData, name: value});
+    
+    const error = validateName(value);
+    setValidationErrors({...validationErrors, name: error});
+  };
+  
+  // Handle phone change with validation
+  const handlePhoneChange = (e) => {
+    const value = e.target.value;
+    setFormData({...formData, phone: value});
+    
+    const error = validatePhone(value);
+    setValidationErrors({...validationErrors, phone: error});
+  };
+  
+  // Check if form is valid
+  const isFormValid = () => {
+    const nameError = validateName(formData.name);
+    const phoneError = validatePhone(formData.phone);
+    return !nameError && !phoneError;
+  };
 
   const loadParties = async () => {
     try {
@@ -86,8 +151,16 @@ export default function PartiesPage() {
   };
 
   const handleCreate = async () => {
-    if (!formData.name.trim()) {
-      toast.error('Name is required');
+    // Validate all fields before submission
+    const nameError = validateName(formData.name);
+    const phoneError = validatePhone(formData.phone);
+    
+    if (nameError || phoneError) {
+      setValidationErrors({
+        name: nameError,
+        phone: phoneError
+      });
+      toast.error('Please fix validation errors before submitting');
       return;
     }
 
@@ -109,9 +182,15 @@ export default function PartiesPage() {
         party_type: 'customer',
         notes: ''
       });
+      setValidationErrors({
+        name: '',
+        phone: ''
+      });
       loadParties();
     } catch (error) {
-      toast.error(editingParty ? 'Failed to update party' : 'Failed to create party');
+      // Display backend validation error message if available
+      const errorMessage = error.response?.data?.detail || (editingParty ? 'Failed to update party' : 'Failed to create party');
+      toast.error(errorMessage);
     }
   };
 
@@ -123,6 +202,10 @@ export default function PartiesPage() {
       address: party.address || '',
       party_type: party.party_type,
       notes: party.notes || ''
+    });
+    setValidationErrors({
+      name: '',
+      phone: ''
     });
     setShowDialog(true);
   };
@@ -343,6 +426,10 @@ export default function PartiesPage() {
             party_type: 'customer',
             notes: ''
           });
+          setValidationErrors({
+            name: '',
+            phone: ''
+          });
           setShowDialog(true);
         }}>
           <Plus className="w-4 h-4 mr-2" /> Add Party
@@ -474,20 +561,29 @@ export default function PartiesPage() {
               <Input
                 data-testid="party-name-input"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={handleNameChange}
                 required
+                className={validationErrors.name ? 'border-red-500' : ''}
               />
+              {validationErrors.name && (
+                <p className="text-sm text-red-600 mt-1">{validationErrors.name}</p>
+              )}
             </div>
             <div>
               <Label>Phone</Label>
               <Input
                 data-testid="party-phone-input"
                 value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                onChange={handlePhoneChange}
+                className={validationErrors.phone ? 'border-red-500' : ''}
+                placeholder="10-15 digits only"
               />
+              {validationErrors.phone && (
+                <p className="text-sm text-red-600 mt-1">{validationErrors.phone}</p>
+              )}
             </div>
             <div>
-              <Label>Type</Label>
+              <Label>Type *</Label>
               <Select value={formData.party_type} onValueChange={(val) => setFormData({...formData, party_type: val})}>
                 <SelectTrigger data-testid="party-type-select">
                   <SelectValue />
@@ -513,7 +609,12 @@ export default function PartiesPage() {
                 onChange={(e) => setFormData({...formData, notes: e.target.value})}
               />
             </div>
-            <Button data-testid="save-party-button" onClick={handleCreate} className="w-full">
+            <Button 
+              data-testid="save-party-button" 
+              onClick={handleCreate} 
+              className="w-full"
+              disabled={!isFormValid()}
+            >
               {editingParty ? 'Update Party' : 'Save Party'}
             </Button>
           </div>

@@ -159,7 +159,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 # INPUT SANITIZATION MIDDLEWARE
 # ============================================================================
 
-from validators import sanitize_html, sanitize_text_field
+from validators import sanitize_html, sanitize_text_field, PartyValidator
 import json
 
 class InputSanitizationMiddleware(BaseHTTPMiddleware):
@@ -2277,8 +2277,17 @@ async def create_party(request: Request, party_data: dict, current_user: User = 
     if not user_has_permission(current_user, 'parties.create'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to create parties")
     
+    # Validate input data using PartyValidator
+    try:
+        validated_data = PartyValidator(**party_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    
     # Validate duplicate phone number
-    phone = party_data.get('phone')
+    phone = validated_data.phone
     if phone and phone.strip():  # Only check if phone is provided and not empty
         existing_phone = await db.parties.find_one({
             "phone": phone.strip(),
@@ -2290,7 +2299,7 @@ async def create_party(request: Request, party_data: dict, current_user: User = 
                 detail=f"Phone number {phone} is already registered with another party: {existing_phone.get('name', 'Unknown')}"
             )
     
-    party = Party(**party_data, created_by=current_user.id)
+    party = Party(**validated_data.dict(), created_by=current_user.id)
     await db.parties.insert_one(party.model_dump())
     await create_audit_log(current_user.id, current_user.full_name, "party", party.id, "create")
     return party
@@ -2329,8 +2338,26 @@ async def update_party(party_id: str, party_data: dict, current_user: User = Dep
     if not existing:
         raise HTTPException(status_code=404, detail="Party not found")
     
+    # Validate input data using PartyValidator
+    # Create a copy with existing values as defaults for partial updates
+    update_data = {
+        'name': party_data.get('name', existing.get('name')),
+        'phone': party_data.get('phone', existing.get('phone')),
+        'address': party_data.get('address', existing.get('address')),
+        'party_type': party_data.get('party_type', existing.get('party_type')),
+        'notes': party_data.get('notes', existing.get('notes'))
+    }
+    
+    try:
+        validated_data = PartyValidator(**update_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    
     # Validate duplicate phone number if phone is being updated
-    phone = party_data.get('phone')
+    phone = validated_data.phone
     if phone and phone.strip():  # Only check if phone is provided and not empty
         existing_phone = await db.parties.find_one({
             "phone": phone.strip(),
@@ -2343,8 +2370,10 @@ async def update_party(party_id: str, party_data: dict, current_user: User = Dep
                 detail=f"Phone number {phone} is already registered with another party: {existing_phone.get('name', 'Unknown')}"
             )
     
-    await db.parties.update_one({"id": party_id}, {"$set": party_data})
-    await create_audit_log(current_user.id, current_user.full_name, "party", party_id, "update", party_data)
+    # Update with validated data
+    update_dict = validated_data.dict(exclude_unset=False)
+    await db.parties.update_one({"id": party_id}, {"$set": update_dict})
+    await create_audit_log(current_user.id, current_user.full_name, "party", party_id, "update", update_dict)
     
     updated = await db.parties.find_one({"id": party_id}, {"_id": 0})
     return Party(**updated)
