@@ -481,7 +481,7 @@ class DailyClosingTester:
 def main():
     """Main execution function"""
     # Configuration
-    BASE_URL = "https://refundmaster.preview.emergentagent.com"
+    BASE_URL = "https://return-tracker-12.preview.emergentagent.com"
     USERNAME = "admin"
     PASSWORD = "admin123"
     
