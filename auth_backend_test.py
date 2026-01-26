@@ -22,8 +22,8 @@ import uuid
 from datetime import datetime, timezone
 import jwt
 
-# Configuration - Use the correct backend URL from frontend/.env
-BASE_URL = "/api"  # This will be resolved by the Kubernetes ingress
+# Configuration - Use the correct backend URL
+BASE_URL = "http://localhost:8001/api"  # Backend running on port 8001
 HEADERS = {"Content-Type": "application/json"}
 
 class AuthenticationTester:
