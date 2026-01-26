@@ -4561,20 +4561,9 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(require
                 {"locked": True, "reason": f"Invoice {invoice.invoice_number} finalized"}
             )
     
-    # Step 4: Create customer ledger entry (Transaction)
-    # Create transaction for both saved customers AND walk-in customers
-    if invoice.grand_total > 0:
-        # Generate transaction number
-        year = datetime.now(timezone.utc).year
-        count = await db.transactions.count_documents({"transaction_number": {"$regex": f"^TXN-{year}"}})
-        transaction_number = f"TXN-{year}-{str(count + 1).zfill(4)}"
-        
-        # REMOVED: Invoice finalization should NOT create finance transactions
-        # Transactions are only created when PAYMENT is received
-        # This section has been removed to fix accounting model
-        
-        # REMOVED: Invoice finalization should NOT create transactions
-        # Only payment receipt creates transactions (double-entry)
+    # Step 4: REMOVED - Invoice finalization does NOT create finance transactions
+    # Financial transactions are ONLY created when PAYMENT is received
+    # This ensures correct accounting: invoices do not move money, payments do
     
     # Step 5: Outstanding balance is automatically updated
     # The balance_due field in the invoice record already tracks outstanding amount
