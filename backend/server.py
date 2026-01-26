@@ -8503,6 +8503,16 @@ async def create_return(
         total_weight_grams = sum(float(item.get('weight_grams', 0)) for item in items)
         total_amount = sum(float(item.get('amount', 0)) for item in items)
         
+        # Validate return amount doesn't exceed original invoice/purchase total
+        await validate_return_against_original(
+            db=db,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            reference_doc=reference_doc,
+            return_total_amount=total_amount,
+            current_return_id=None  # New return, no existing ID to exclude
+        )
+        
         # Create return object
         return_obj = Return(
             return_number=return_number,
