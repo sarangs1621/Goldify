@@ -1178,6 +1178,64 @@ def user_has_permission(user: User, required_permission: str) -> bool:
     user_permissions = user.permissions if user.permissions else get_user_permissions(user.role)
     return required_permission in user_permissions
 
+async def validate_return_against_original(
+    db,
+    reference_type: str,
+    reference_id: str,
+    reference_doc: dict,
+    return_total_amount: float,
+    current_return_id: Optional[str] = None
+) -> None:
+    """
+    Validate that return amount doesn't exceed original invoice/purchase total.
+    
+    Args:
+        db: MongoDB database instance
+        reference_type: 'invoice' or 'purchase'
+        reference_id: ID of the invoice or purchase
+        reference_doc: The invoice or purchase document
+        return_total_amount: Total amount of the current return being created/updated
+        current_return_id: ID of current return (for update operations, to exclude it from calculation)
+    
+    Raises:
+        HTTPException: If return exceeds original amount
+    """
+    # Get original total
+    if reference_type == 'invoice':
+        original_total = reference_doc.get('grand_total', 0)
+        entity_name = f"Invoice {reference_doc.get('invoice_number')}"
+    else:  # purchase
+        original_total = reference_doc.get('amount_total', 0)
+        entity_name = f"Purchase {reference_id[:8]}..."
+    
+    # Calculate total already returned (finalized returns only)
+    query = {
+        'reference_type': reference_type,
+        'reference_id': reference_id,
+        'status': 'finalized',
+        'is_deleted': False
+    }
+    
+    # Exclude current return if updating
+    if current_return_id:
+        query['id'] = {'$ne': current_return_id}
+    
+    existing_returns = await db.returns.find(query).to_list(length=None)
+    total_already_returned = sum(r.get('total_amount', 0) for r in existing_returns)
+    
+    # Check if new return would exceed original
+    total_with_new_return = total_already_returned + return_total_amount
+    
+    if total_with_new_return > original_total:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot return more than original {entity_name} total. "
+                   f"Original: {original_total:.2f} OMR, "
+                   f"Already returned: {total_already_returned:.2f} OMR, "
+                   f"Current return: {return_total_amount:.2f} OMR, "
+                   f"Total would be: {total_with_new_return:.2f} OMR"
+        )
+
 # ============================================================================
 # PERMISSION DECORATOR
 # ============================================================================
