@@ -20,6 +20,7 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import SettingsPage from './pages/SettingsPage';
 import PurchasesPage from './pages/PurchasesPage';
 import WorkersPage from './pages/WorkersPage';
+import ReturnsPage from './pages/ReturnsPage';
 
 function App() {
   return (
