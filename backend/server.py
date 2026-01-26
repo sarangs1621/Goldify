@@ -5318,7 +5318,7 @@ async def add_payment_to_invoice(
                         "status": "finalized",
                         "finalized_at": finalized_at.isoformat(),
                         "jobcard_locked": bool(invoice.jobcard_id),
-                        "ledger_entry_created": bool(invoice.grand_total > 0),
+                        "ledger_entry_created": False,  # No extra ledger entry - payment already created double-entry
                         "customer_type": invoice.customer_type,
                         "trigger": "full_payment_received"
                     }
