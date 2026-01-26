@@ -967,6 +967,76 @@ class Purchase(BaseModel):
     deleted_at: Optional[datetime] = None
     deleted_by: Optional[str] = None
 
+class ReturnItem(BaseModel):
+    """Item in a return (sales or purchase return)"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    description: str
+    qty: int
+    weight_grams: float  # 3 decimal precision
+    purity: int
+    amount: float = 0.0  # 2 decimal precision - calculated value for this item
+
+class Return(BaseModel):
+    """
+    Return model for tracking sales returns and purchase returns.
+    
+    Sales Return: Customer returns items from an invoice
+    - Stock IN (returned goods back to inventory)
+    - Money refund → Transaction (Debit)
+    - Gold refund → GoldLedgerEntry (OUT - shop gives gold to customer)
+    - Update customer outstanding
+    
+    Purchase Return: Shop returns items to vendor from a purchase
+    - Stock OUT (returned to vendor)
+    - Money refund → Transaction (Credit - vendor refunds money to us)
+    - Gold refund → GoldLedgerEntry (IN - vendor returns gold to us)
+    - Update vendor payable
+    """
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    return_number: str  # Auto-generated return number
+    return_type: str  # "sale_return" or "purchase_return"
+    reference_type: str  # "invoice" or "purchase"
+    reference_id: str  # UUID of the related invoice or purchase
+    reference_number: Optional[str] = None  # Display number of invoice/purchase
+    party_id: str  # Customer (for sale_return) or Vendor (for purchase_return)
+    party_name: str  # Party name for display
+    party_type: str  # "customer" or "vendor"
+    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    items: List[ReturnItem] = []
+    total_weight_grams: float = 0.0  # Total weight being returned (3 decimals)
+    total_amount: float = 0.0  # Total monetary value being returned (2 decimals)
+    reason: Optional[str] = None  # Return reason
+    
+    # Refund details
+    refund_mode: str  # "money" | "gold" | "mixed"
+    refund_money_amount: float = 0.0  # Money refund amount (2 decimals)
+    refund_gold_grams: float = 0.0  # Gold refund amount in grams (3 decimals)
+    refund_gold_purity: Optional[int] = None  # Purity of gold being refunded
+    
+    # Payment details for money refund
+    payment_mode: Optional[str] = None  # Cash | Bank Transfer | Card | UPI | Cheque
+    account_id: Optional[str] = None  # Account to/from which refund is made
+    account_name: Optional[str] = None  # Account name for display
+    
+    # Status and workflow
+    status: str = "draft"  # "draft" or "finalized"
+    finalized_at: Optional[datetime] = None
+    finalized_by: Optional[str] = None
+    
+    # Related records created on finalization
+    transaction_id: Optional[str] = None  # Transaction record for money refund
+    gold_ledger_id: Optional[str] = None  # Gold ledger entry for gold refund
+    stock_movement_ids: List[str] = []  # Stock movement records
+    
+    # Audit fields
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_by: str
+    notes: Optional[str] = None
+    is_deleted: bool = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
+
 class ShopSettings(BaseModel):
     """Shop/Company settings for invoice printing"""
     model_config = ConfigDict(extra="ignore")
