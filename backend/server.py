@@ -8734,7 +8734,7 @@ async def update_return(
                     reference_type=reference_type,
                     reference_id=reference_id,
                     reference_doc=reference_doc,
-                    return_total_amount=total_amount,
+                    return_items=return_data['items'],
                     current_return_id=return_id  # Exclude current return from calculation
                 )
         
