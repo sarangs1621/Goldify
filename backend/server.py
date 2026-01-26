@@ -8930,80 +8930,79 @@ async def finalize_return(
             {"$set": {"status": "processing", "processing_started_at": datetime.now(timezone.utc)}}
         )
                 
-                if lock_result.modified_count == 0:
-                    raise HTTPException(status_code=409, detail="Return is already being processed or was modified.")
+        if lock_result.modified_count == 0:
+            raise HTTPException(status_code=409, detail="Return is already being processed or was modified.")
+        
+        # Get return data with Decimal handling
+        return_type = return_doc.get('return_type')
+        reference_type = return_doc.get('reference_type')
+        reference_id = return_doc.get('reference_id')
+        party_id = return_doc.get('party_id')
+        refund_mode = return_doc.get('refund_mode')
+        
+        # Convert Decimal128 to Decimal for arithmetic
+        refund_money_amount = return_doc.get('refund_money_amount', 0)
+        if isinstance(refund_money_amount, Decimal128):
+            refund_money_amount = float(refund_money_amount.to_decimal())
+        else:
+            refund_money_amount = float(refund_money_amount)
+        
+        refund_gold_grams = return_doc.get('refund_gold_grams', 0)
+        if isinstance(refund_gold_grams, Decimal128):
+            refund_gold_grams = float(refund_gold_grams.to_decimal())
+        else:
+            refund_gold_grams = float(refund_gold_grams)
+        
+        stock_movement_ids = []
+        transaction_id = None
+        gold_ledger_id = None
+        
+        # ========================================================================
+        # SALES RETURN WORKFLOW
+        # ========================================================================
+        if return_type == 'sale_return':
+            # 1. Create stock movements (Stock IN - returned goods back to inventory)
+            for item in return_doc.get('items', []):
+                weight_grams = item.get('weight_grams', 0)
+                # Handle Decimal128
+                if isinstance(weight_grams, Decimal128):
+                    weight_grams = float(weight_grams.to_decimal())
                 
-                # Get return data with Decimal handling
-                return_type = return_doc.get('return_type')
-                reference_type = return_doc.get('reference_type')
-                reference_id = return_doc.get('reference_id')
-                party_id = return_doc.get('party_id')
-                refund_mode = return_doc.get('refund_mode')
-                
-                # Convert Decimal128 to Decimal for arithmetic
-                refund_money_amount = return_doc.get('refund_money_amount', 0)
-                if isinstance(refund_money_amount, Decimal128):
-                    refund_money_amount = float(refund_money_amount.to_decimal())
-                else:
-                    refund_money_amount = float(refund_money_amount)
-                
-                refund_gold_grams = return_doc.get('refund_gold_grams', 0)
-                if isinstance(refund_gold_grams, Decimal128):
-                    refund_gold_grams = float(refund_gold_grams.to_decimal())
-                else:
-                    refund_gold_grams = float(refund_gold_grams)
-                
-                stock_movement_ids = []
-                transaction_id = None
-                gold_ledger_id = None
-                
-                # ========================================================================
-                # SALES RETURN WORKFLOW
-                # ========================================================================
-                if return_type == 'sale_return':
-                    # 1. Create stock movements (Stock IN - returned goods back to inventory)
-                    for item in return_doc.get('items', []):
-                        weight_grams = item.get('weight_grams', 0)
-                        # Handle Decimal128
-                        if isinstance(weight_grams, Decimal128):
-                            weight_grams = float(weight_grams.to_decimal())
-                        
-                        if weight_grams > 0:
-                            movement_id = str(uuid.uuid4())
-                            stock_movement = StockMovement(
-                                id=movement_id,
-                                type="IN",
-                                category=item.get('description'),
-                                weight=round(weight_grams, 3),
-                                purity=item.get('purity'),
-                                date=datetime.now(timezone.utc),
-                                purpose=f"Sales Return - {return_doc.get('return_number')}",
-                                reference_type="return",
-                                reference_id=return_id,
-                                notes=return_doc.get('reason'),
-                                created_by=current_user.id
-                            )
-                            await db.stock_movements.insert_one(stock_movement.model_dump(), session=session)
-                            stock_movement_ids.append(movement_id)
-                            
-                            # Update inventory header stock
-                            await db.inventory_headers.update_one(
-                                {"name": item.get('description')},
-                                {
-                                    "$inc": {
-                                        "current_qty": item.get('qty', 0),
-                                        "current_weight": round(weight_grams, 3)
-                                    }
-                                },
-                                session=session
-                            )
+                if weight_grams > 0:
+                    movement_id = str(uuid.uuid4())
+                    stock_movement = StockMovement(
+                        id=movement_id,
+                        type="IN",
+                        category=item.get('description'),
+                        weight=round(weight_grams, 3),
+                        purity=item.get('purity'),
+                        date=datetime.now(timezone.utc),
+                        purpose=f"Sales Return - {return_doc.get('return_number')}",
+                        reference_type="return",
+                        reference_id=return_id,
+                        notes=return_doc.get('reason'),
+                        created_by=current_user.id
+                    )
+                    await db.stock_movements.insert_one(stock_movement.model_dump())
+                    stock_movement_ids.append(movement_id)
                     
-                    # 2. Create money refund (Transaction - Debit)
-                    if refund_mode in ['money', 'mixed'] and refund_money_amount > 0:
-                        account_id = return_doc.get('account_id')
-                        account = await db.accounts.find_one({"id": account_id}, session=session)
-                        if not account:
-                            raise HTTPException(status_code=400, detail="Account not found for money refund")
+                    # Update inventory header stock
+                    await db.inventory_headers.update_one(
+                        {"name": item.get('description')},
+                        {
+                            "$inc": {
+                                "current_qty": item.get('qty', 0),
+                                "current_weight": round(weight_grams, 3)
+                            }
+                        }
+                    )
+            
+            # 2. Create money refund (Transaction - Debit)
+            if refund_mode in ['money', 'mixed'] and refund_money_amount > 0:
+                account_id = return_doc.get('account_id')
+                account = await db.accounts.find_one({"id": account_id})
+                if not account:
+                    raise HTTPException(status_code=400, detail="Account not found for money refund")
                 
                 # Generate transaction number
                 transactions_count = await db.transactions.count_documents({})
