@@ -4725,13 +4725,13 @@ async def add_payment_to_invoice(
         await db.gold_ledger.insert_one(gold_ledger_entry.model_dump())
         
         # Fetch or create default account for gold exchange transactions
-        account = await db.accounts.find_one({"name": "Gold Exchange", "is_deleted": False}, {"_id": 0})
+        account = await db.accounts.find_one({"name": "Gold Exchange Income", "is_deleted": False}, {"_id": 0})
         if not account:
-            # Create default Gold Exchange account
+            # Create default Gold Exchange Income account (INCOME type, not asset)
             account = {
                 "id": str(uuid.uuid4()),
-                "name": "Gold Exchange",
-                "account_type": "asset",
+                "name": "Gold Exchange Income",
+                "account_type": "income",
                 "opening_balance": 0,
                 "current_balance": 0,
                 "created_at": datetime.now(timezone.utc),
