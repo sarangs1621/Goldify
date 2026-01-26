@@ -56,6 +56,7 @@ pip install motor bleach fastapi slowapi python-dotenv uvicorn passlib httpx
 pip install bcrypt==4.2.0
 pip install openpyxl
 pip install PyJWT==2.10.1
+pip install reportlab
 ```
 
 ### Step 5: Initialize Database
