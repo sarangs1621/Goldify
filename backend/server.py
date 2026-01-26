@@ -9003,86 +9003,86 @@ async def finalize_return(
                 account = await db.accounts.find_one({"id": account_id})
                 if not account:
                     raise HTTPException(status_code=400, detail="Account not found for money refund")
-                
-                # Generate transaction number
-                transactions_count = await db.transactions.count_documents({})
-                transaction_number = f"TXN-{transactions_count + 1:05d}"
-                
-                transaction_id = str(uuid.uuid4())
-                transaction = Transaction(
-                    id=transaction_id,
-                    transaction_number=transaction_number,
-                    date=datetime.now(timezone.utc),
-                    transaction_type="debit",  # Money going out to customer
-                    mode=return_doc.get('payment_mode', 'cash'),
-                    account_id=account_id,
-                    account_name=account.get('name'),
-                    party_id=party_id,
-                    party_name=return_doc.get('party_name'),
-                    amount=round(refund_money_amount, 2),
-                    category="sales_return",
-                    notes=f"Sales Return Refund - {return_doc.get('return_number')}",
-                    reference_type="return",
-                    reference_id=return_id,
-                    created_by=current_user.id
-                )
-                await db.transactions.insert_one(transaction.model_dump())
-                
-                # Update account balance (debit = decrease balance)
-                await db.accounts.update_one(
-                    {"id": account_id},
-                    {"$inc": {"current_balance": -round(refund_money_amount, 2)}}
-                )
             
-            # 3. Create gold refund (GoldLedgerEntry - OUT)
-            if refund_mode in ['gold', 'mixed'] and refund_gold_grams > 0:
-                gold_ledger_id = str(uuid.uuid4())
-                gold_entry = GoldLedgerEntry(
-                    id=gold_ledger_id,
-                    party_id=party_id,
-                    date=datetime.now(timezone.utc),
-                    type="OUT",  # Shop gives gold to customer
-                    weight_grams=round(refund_gold_grams, 3),
-                    purity_entered=return_doc.get('refund_gold_purity', 916),
-                    purpose="sales_return",
-                    reference_type="return",
-                    reference_id=return_id,
-                    notes=f"Sales Return Gold Refund - {return_doc.get('return_number')}",
-                    created_by=current_user.id
-                )
-                await db.gold_ledger.insert_one(gold_entry.model_dump())
+            # Generate transaction number
+            transactions_count = await db.transactions.count_documents({})
+            transaction_number = f"TXN-{transactions_count + 1:05d}"
             
-            # 4. Update invoice (adjust paid_amount and balance_due)
-            if reference_type == 'invoice':
-                invoice = await db.invoices.find_one({"id": reference_id})
-                if invoice:
-                    # Reduce paid amount by refund amount (as we're returning money)
-                    new_paid = invoice.get('paid_amount', 0) - refund_money_amount
-                    new_balance = invoice.get('grand_total', 0) - new_paid
-                    
-                    await db.invoices.update_one(
-                        {"id": reference_id},
-                        {
-                            "$set": {
-                                "paid_amount": round(max(0, new_paid), 2),
-                                "balance_due": round(max(0, new_balance), 2),
-                                "payment_status": "unpaid" if new_balance > 0 else "paid"
-                            }
+            transaction_id = str(uuid.uuid4())
+            transaction = Transaction(
+                id=transaction_id,
+                transaction_number=transaction_number,
+                date=datetime.now(timezone.utc),
+                transaction_type="debit",  # Money going out to customer
+                mode=return_doc.get('payment_mode', 'cash'),
+                account_id=account_id,
+                account_name=account.get('name'),
+                party_id=party_id,
+                party_name=return_doc.get('party_name'),
+                amount=round(refund_money_amount, 2),
+                category="sales_return",
+                notes=f"Sales Return Refund - {return_doc.get('return_number')}",
+                reference_type="return",
+                reference_id=return_id,
+                created_by=current_user.id
+            )
+            await db.transactions.insert_one(transaction.model_dump())
+            
+            # Update account balance (debit = decrease balance)
+            await db.accounts.update_one(
+                {"id": account_id},
+                {"$inc": {"current_balance": -round(refund_money_amount, 2)}}
+            )
+        
+        # 3. Create gold refund (GoldLedgerEntry - OUT)
+        if refund_mode in ['gold', 'mixed'] and refund_gold_grams > 0:
+            gold_ledger_id = str(uuid.uuid4())
+            gold_entry = GoldLedgerEntry(
+                id=gold_ledger_id,
+                party_id=party_id,
+                date=datetime.now(timezone.utc),
+                type="OUT",  # Shop gives gold to customer
+                weight_grams=round(refund_gold_grams, 3),
+                purity_entered=return_doc.get('refund_gold_purity', 916),
+                purpose="sales_return",
+                reference_type="return",
+                reference_id=return_id,
+                notes=f"Sales Return Gold Refund - {return_doc.get('return_number')}",
+                created_by=current_user.id
+            )
+            await db.gold_ledger.insert_one(gold_entry.model_dump())
+        
+        # 4. Update invoice (adjust paid_amount and balance_due)
+        if reference_type == 'invoice':
+            invoice = await db.invoices.find_one({"id": reference_id})
+            if invoice:
+                # Reduce paid amount by refund amount (as we're returning money)
+                new_paid = invoice.get('paid_amount', 0) - refund_money_amount
+                new_balance = invoice.get('grand_total', 0) - new_paid
+                
+                await db.invoices.update_one(
+                    {"id": reference_id},
+                    {
+                        "$set": {
+                            "paid_amount": round(max(0, new_paid), 2),
+                            "balance_due": round(max(0, new_balance), 2),
+                            "payment_status": "unpaid" if new_balance > 0 else "paid"
                         }
-                    )
-            
-            # 5. Update customer outstanding (if saved customer)
-            if party_id:
-                party = await db.parties.find_one({"id": party_id})
-                if party and party.get('party_type') == 'customer':
-                    # Increase outstanding (customer owes less due to refund)
-                    current_outstanding = party.get('outstanding_balance', 0)
-                    # For sales return, we're reducing what customer paid, so increase outstanding
-                    new_outstanding = current_outstanding + refund_money_amount
-                    await db.parties.update_one(
-                        {"id": party_id},
-                        {"$set": {"outstanding_balance": round(new_outstanding, 2)}}
-                    )
+                    }
+                )
+        
+        # 5. Update customer outstanding (if saved customer)
+        if party_id:
+            party = await db.parties.find_one({"id": party_id})
+            if party and party.get('party_type') == 'customer':
+                # Increase outstanding (customer owes less due to refund)
+                current_outstanding = party.get('outstanding_balance', 0)
+                # For sales return, we're reducing what customer paid, so increase outstanding
+                new_outstanding = current_outstanding + refund_money_amount
+                await db.parties.update_one(
+                    {"id": party_id},
+                    {"$set": {"outstanding_balance": round(new_outstanding, 2)}}
+                )
         
         # ========================================================================
         # PURCHASE RETURN WORKFLOW
