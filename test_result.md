@@ -6631,6 +6631,7 @@ test_plan:
     - "Return Validation - Prevent Exceeding Original Amount"
     - "POST /api/returns - Create Return"
     - "POST /api/returns/{id}/finalize - Finalize Return"
+    - "Finalization Atomicity with Rollback"
     - "ReturnsPage.js - Main Returns Management Page"
   stuck_tasks: []
   test_all: true
