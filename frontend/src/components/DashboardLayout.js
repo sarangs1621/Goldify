@@ -25,6 +25,7 @@ const allNavItems = [
   { path: '/invoices', icon: FileText, label: 'Invoices', permission: 'invoices.view' },
   { path: '/parties', icon: Users, label: 'Parties', permission: 'parties.view' },
   { path: '/purchases', icon: ShoppingCart, label: 'Purchases', permission: 'purchases.view' },
+  { path: '/returns', icon: RotateCcw, label: 'Returns', permission: 'returns.view' },
   { path: '/finance', icon: Wallet, label: 'Finance', permission: 'finance.view' },
   { path: '/daily-closing', icon: CalendarCheck, label: 'Daily Closing', permission: 'finance.view' },
   { path: '/reports', icon: BarChart3, label: 'Reports', permission: 'reports.view' },
