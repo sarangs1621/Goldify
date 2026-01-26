@@ -8867,6 +8867,9 @@ async def update_return(
         if 'notes' in return_data:
             update_fields['notes'] = return_data['notes']
         
+        # Convert float values to Decimal128 for precise storage
+        update_fields = convert_return_to_decimal(update_fields)
+        
         # Update database
         await db.returns.update_one(
             {"id": return_id},
