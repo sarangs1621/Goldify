@@ -4580,8 +4580,9 @@ async def finalize_invoice(invoice_id: str, current_user: User = Depends(require
             "status": "finalized", 
             "finalized_at": finalized_at.isoformat(),
             "jobcard_locked": bool(invoice.jobcard_id),
-            "ledger_entry_created": bool(invoice.grand_total > 0),
-            "customer_type": invoice.customer_type
+            "ledger_entry_created": False,  # No ledger entry on finalization
+            "customer_type": invoice.customer_type,
+            "note": "Finance transactions NOT created - only on payment"
         }
     )
     
