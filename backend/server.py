@@ -8392,7 +8392,7 @@ async def get_purchase_history_report(
     current_user: User = Depends(require_permission('reports.view'))
 ):
     """
-    Get purchase history report showing ONLY finalized purchases.
+    Get purchase history report showing ALL committed purchases (Paid, Partially Paid, Finalized Unpaid).
     
     Filters:
     - date_from/date_to: Date range filter
@@ -8412,10 +8412,10 @@ async def get_purchase_history_report(
     - total_weight (sum of all weights)
     - total_purchases (count)
     """
-    # Query for FINALIZED purchases only
+    # Query for ALL COMMITTED purchases (excludes only Draft/Voided)
     query = {
         "is_deleted": False,
-        "status": "finalized"  # CRITICAL: Only finalized purchases
+        "status": {"$in": ["Paid", "Partially Paid", "Finalized (Unpaid)"]}  # CRITICAL: All committed purchases
     }
     
     # Date filters
@@ -8526,7 +8526,8 @@ async def export_purchase_history(
     # Add summary section
     ws.merge_cells('A1:H1')
     title_cell = ws['A1']
-    title_cell.value = "Purchase History Report (Finalized Purchases)"
+    title_cell.value = "Purchase History Report (All Committed Purchases)"
+
     title_cell.font = Font(bold=True, size=14)
     title_cell.alignment = Alignment(horizontal='center')
     
@@ -8618,7 +8619,7 @@ async def export_purchase_history_pdf(
     
     # Header
     c.setFont("Helvetica-Bold", 16)
-    c.drawString(inch, height - inch, "Purchase History Report")
+    c.drawString(inch, height - inch, "Purchase History Report (All Committed)")
     
     c.setFont("Helvetica", 10)
     date_str = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"

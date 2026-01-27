@@ -1244,7 +1244,7 @@ export default function ReportsPageEnhanced() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{purchaseHistoryData.summary.total_purchases}</div>
-                    <p className="text-xs text-gray-500 mt-1">Finalized only</p>
+                    <p className="text-xs text-gray-500 mt-1">All committed purchases</p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -1271,7 +1271,7 @@ export default function ReportsPageEnhanced() {
               <Card>
                 <CardHeader>
                   <CardTitle>Purchase History ({purchaseHistoryData.purchase_records.length})</CardTitle>
-                  <p className="text-sm text-gray-500">Showing finalized purchases only</p>
+                  <p className="text-sm text-gray-500">Showing all committed purchases</p>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -1291,7 +1291,7 @@ export default function ReportsPageEnhanced() {
                         {purchaseHistoryData.purchase_records.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                              No purchase history found. Only finalized purchases are displayed.
+                              No purchase history found for the selected filters.
                             </TableCell>
                           </TableRow>
                         ) : (
