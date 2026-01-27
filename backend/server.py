@@ -3350,18 +3350,47 @@ async def create_purchase(request: Request, purchase_data: dict, current_user: U
     if vendor.get("party_type") != "vendor":
         raise HTTPException(status_code=400, detail="Party must be a vendor type")
     
-    # Round numeric fields to proper precision
-    if "weight_grams" in purchase_data:
-        purchase_data["weight_grams"] = round(float(purchase_data["weight_grams"]), 3)
-    if "rate_per_gram" in purchase_data:
-        purchase_data["rate_per_gram"] = round(float(purchase_data["rate_per_gram"]), 2)
-    if "amount_total" in purchase_data:
-        purchase_data["amount_total"] = round(float(purchase_data["amount_total"]), 2)
+    # ========== CRITICAL VALIDATION: NEVER TRUST FRONTEND ==========
+    # Extract and validate weight
+    try:
+        weight_grams = float(purchase_data.get("weight_grams", 0))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid weight value")
     
-    # MODULE 4: Handle payment and gold settlement fields
-    paid_amount = purchase_data.get("paid_amount_money", 0.0)
-    purchase_data["paid_amount_money"] = round(float(paid_amount), 2)
-    purchase_data["balance_due_money"] = round(purchase_data["amount_total"] - purchase_data["paid_amount_money"], 2)
+    if weight_grams <= 0:
+        raise HTTPException(status_code=400, detail="Weight must be greater than 0")
+    
+    # Extract and validate rate
+    try:
+        rate_per_gram = float(purchase_data.get("rate_per_gram", 0))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid rate value")
+    
+    if rate_per_gram <= 0:
+        raise HTTPException(status_code=400, detail="Rate per gram must be greater than 0")
+    
+    # RECALCULATE total_amount on backend (SINGLE SOURCE OF TRUTH)
+    # Never trust client-sent total_amount
+    calculated_total = round(weight_grams * rate_per_gram, 2)
+    
+    # Validate paid amount
+    try:
+        paid_amount = float(purchase_data.get("paid_amount_money", 0))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid paid amount value")
+    
+    if paid_amount < 0:
+        raise HTTPException(status_code=400, detail="Paid amount cannot be negative")
+    
+    if paid_amount > calculated_total:
+        raise HTTPException(status_code=400, detail=f"Paid amount ({paid_amount}) cannot exceed total amount ({calculated_total})")
+    
+    # Set validated and calculated values
+    purchase_data["weight_grams"] = round(weight_grams, 3)
+    purchase_data["rate_per_gram"] = round(rate_per_gram, 2)
+    purchase_data["amount_total"] = calculated_total  # Backend-calculated, not from client
+    purchase_data["paid_amount_money"] = round(paid_amount, 2)
+    purchase_data["balance_due_money"] = round(calculated_total - paid_amount, 2)
     
     # Round gold settlement fields to 3 decimals
     if purchase_data.get("advance_in_gold_grams") is not None:
@@ -3484,26 +3513,64 @@ async def update_purchase(
         if vendor.get("party_type") != "vendor":
             raise HTTPException(status_code=400, detail="Party must be a vendor type")
     
-    # Round numeric fields to proper precision
+    # ========== CRITICAL VALIDATION: NEVER TRUST FRONTEND ==========
+    # Get current values or updated values
+    weight_grams = updates.get("weight_grams", existing.get("weight_grams", 0))
+    rate_per_gram = updates.get("rate_per_gram", existing.get("rate_per_gram", 0))
+    
+    # Validate weight if provided
     if "weight_grams" in updates:
-        updates["weight_grams"] = round(updates["weight_grams"], 3)
+        try:
+            weight_grams = float(updates["weight_grams"])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid weight value")
+        
+        if weight_grams <= 0:
+            raise HTTPException(status_code=400, detail="Weight must be greater than 0")
+        
+        updates["weight_grams"] = round(weight_grams, 3)
+    
+    # Validate rate if provided
     if "rate_per_gram" in updates:
-        updates["rate_per_gram"] = round(updates["rate_per_gram"], 2)
-    if "amount_total" in updates:
-        updates["amount_total"] = round(updates["amount_total"], 2)
+        try:
+            rate_per_gram = float(updates["rate_per_gram"])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid rate value")
+        
+        if rate_per_gram <= 0:
+            raise HTTPException(status_code=400, detail="Rate per gram must be greater than 0")
+        
+        updates["rate_per_gram"] = round(rate_per_gram, 2)
     
-    # MODULE 4: Handle payment and gold settlement fields
-    if "paid_amount_money" in updates:
-        updates["paid_amount_money"] = round(updates["paid_amount_money"], 2)
-    if "advance_in_gold_grams" in updates and updates["advance_in_gold_grams"] is not None:
-        updates["advance_in_gold_grams"] = round(updates["advance_in_gold_grams"], 3)
-    if "exchange_in_gold_grams" in updates and updates["exchange_in_gold_grams"] is not None:
-        updates["exchange_in_gold_grams"] = round(updates["exchange_in_gold_grams"], 3)
+    # RECALCULATE total_amount on backend (SINGLE SOURCE OF TRUTH)
+    # Never trust client-sent total_amount
+    calculated_total = round(float(weight_grams) * float(rate_per_gram), 2)
+    updates["amount_total"] = calculated_total
     
-    # Auto-calculate balance_due_money if amount_total or paid_amount_money changed
-    amount_total = updates.get("amount_total", existing.get("amount_total", 0))
+    # Validate paid amount
     paid_amount = updates.get("paid_amount_money", existing.get("paid_amount_money", 0))
-    updates["balance_due_money"] = round(amount_total - paid_amount, 2)
+    if "paid_amount_money" in updates:
+        try:
+            paid_amount = float(updates["paid_amount_money"])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Invalid paid amount value")
+        
+        if paid_amount < 0:
+            raise HTTPException(status_code=400, detail="Paid amount cannot be negative")
+        
+        if paid_amount > calculated_total:
+            raise HTTPException(status_code=400, detail=f"Paid amount ({paid_amount}) cannot exceed total amount ({calculated_total})")
+        
+        updates["paid_amount_money"] = round(paid_amount, 2)
+    
+    # Auto-calculate balance_due_money
+    updates["balance_due_money"] = round(calculated_total - float(paid_amount), 2)
+    
+    # Round gold settlement fields to 3 decimals
+    if "advance_in_gold_grams" in updates and updates["advance_in_gold_grams"] is not None:
+        updates["advance_in_gold_grams"] = round(float(updates["advance_in_gold_grams"]), 3)
+    if "exchange_in_gold_grams" in updates and updates["exchange_in_gold_grams"] is not None:
+        updates["exchange_in_gold_grams"] = round(float(updates["exchange_in_gold_grams"]), 3)
     
     # Validate account exists if payment made
     if "paid_amount_money" in updates and updates["paid_amount_money"] > 0:
@@ -3533,6 +3600,7 @@ async def update_purchase(
     # Get updated purchase
     updated = await db.purchases.find_one({"id": purchase_id})
     return updated
+
 
 @api_router.get("/purchases/{purchase_id}/impact")
 async def get_purchase_impact(purchase_id: str, current_user: User = Depends(require_permission('purchases.view'))):

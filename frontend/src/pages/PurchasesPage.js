@@ -81,6 +81,29 @@ export default function PurchasesPage() {
   // Get current page from URL, default to 1
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
+  // AUTO-CALCULATION: total_amount = weight × rate (SOURCE OF TRUTH)
+  useEffect(() => {
+    const weight = parseFloat(formData.weight_grams) || 0;
+    const rate = parseFloat(formData.rate_per_gram) || 0;
+    
+    if (weight > 0 && rate > 0) {
+      const calculatedTotal = (weight * rate).toFixed(2);
+      // Only update if different to avoid infinite loop
+      if (formData.amount_total !== calculatedTotal) {
+        setFormData(prev => ({
+          ...prev,
+          amount_total: calculatedTotal
+        }));
+      }
+    } else if (formData.amount_total !== '') {
+      // Clear total if weight or rate becomes invalid
+      setFormData(prev => ({
+        ...prev,
+        amount_total: ''
+      }));
+    }
+  }, [formData.weight_grams, formData.rate_per_gram]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -741,29 +764,8 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Total Amount (OMR) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.amount_total}
-                  onChange={(e) => setFormData({...formData, amount_total: e.target.value})}
-                  onBlur={(e) => validateField('amount_total', e.target.value)}
-                  placeholder="0.00"
-                  className={errors.amount_total ? 'border-red-500' : ''}
-                />
-                <FormErrorMessage error={errors.amount_total} />
-              </div>
-
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-                <p className="text-blue-900">
-                  <strong>Note:</strong> Stock will be added at <strong>916 purity (22K)</strong> for valuation purposes, regardless of entered purity.
-                </p>
-              </div>
-
-              {/* Cost Breakdown Preview - Option C */}
-              {formData.weight_grams && formData.rate_per_gram && formData.amount_total && (
+              {/* SINGLE SOURCE OF TRUTH: Purchase Cost Breakdown */}
+              {formData.weight_grams && formData.rate_per_gram && (
                 <div className="mt-4 p-4 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg">
                   <div className="flex items-center gap-2 mb-3">
                     <svg className="w-5 h-5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -772,44 +774,44 @@ export default function PurchasesPage() {
                     <h4 className="font-semibold text-amber-900">Purchase Cost Breakdown</h4>
                   </div>
                   
-                  <div className="space-y-2 text-sm">
-                    {/* Base Calculation */}
+                  <div className="space-y-3 text-sm">
+                    {/* Calculation Formula */}
                     <div className="flex items-center justify-between p-2 bg-white rounded border border-amber-200">
-                      <span className="text-gray-700">Weight × Rate</span>
-                      <span className="font-mono font-semibold text-amber-900">
-                        {(parseFloat(formData.weight_grams || 0) * parseFloat(formData.rate_per_gram || 0)).toFixed(2)} OMR
+                      <span className="text-gray-700">Weight × Rate per Gram</span>
+                      <span className="font-mono font-semibold text-gray-600 text-xs">
+                        {parseFloat(formData.weight_grams || 0).toFixed(3)}g × {parseFloat(formData.rate_per_gram || 0).toFixed(2)} OMR/g
                       </span>
-                    </div>
-                    <div className="text-xs text-gray-600 pl-2">
-                      {parseFloat(formData.weight_grams || 0).toFixed(3)}g × {parseFloat(formData.rate_per_gram || 0).toFixed(2)} OMR/g
                     </div>
 
                     {/* Purity Info */}
-                    <div className="flex items-center justify-between p-2 bg-white rounded border border-amber-200">
+                    <div className="flex items-center justify-between p-2 bg-blue-50 rounded border border-blue-200">
                       <span className="text-gray-700">Entered Purity</span>
-                      <span className="font-mono font-semibold">{formData.entered_purity}K</span>
+                      <span className="font-mono font-semibold">{formData.entered_purity || 999}K</span>
                     </div>
-                    <div className="text-xs text-indigo-600 pl-2 font-medium">
-                      ✓ Stock valued at 916K (22K) standard
+                    <div className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200">
+                      <span className="text-gray-700">Valuation Purity</span>
+                      <span className="font-mono font-semibold text-green-700">916K (22K) ✓</span>
                     </div>
 
-                    {/* Total Amount */}
-                    <div className="flex items-center justify-between p-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-lg mt-3">
-                      <span className="font-semibold">Total Purchase Amount</span>
-                      <span className="font-mono font-bold text-xl">
+                    {/* Total Amount - Auto-calculated and READ-ONLY */}
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-lg mt-3 shadow-md">
+                      <div>
+                        <div className="text-xs opacity-90">Total Purchase Amount</div>
+                        <div className="font-semibold">Auto-Calculated</div>
+                      </div>
+                      <span className="font-mono font-bold text-2xl">
                         {parseFloat(formData.amount_total || 0).toFixed(2)} OMR
                       </span>
                     </div>
-
-                    {/* Additional charges indicator */}
-                    {parseFloat(formData.amount_total || 0) !== (parseFloat(formData.weight_grams || 0) * parseFloat(formData.rate_per_gram || 0)) && (
-                      <div className="text-xs text-orange-600 pl-2 mt-1 font-medium">
-                        ℹ️ Amount includes adjustments: {(parseFloat(formData.amount_total || 0) - (parseFloat(formData.weight_grams || 0) * parseFloat(formData.rate_per_gram || 0))).toFixed(2)} OMR
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+                <p className="text-blue-900">
+                  <strong>Note:</strong> Total Amount is automatically calculated as Weight × Rate. Stock will be valued at <strong>916 purity (22K)</strong> regardless of entered purity.
+                </p>
+              </div>
             </div>
 
             {/* Payment Details */}
@@ -927,97 +929,8 @@ export default function PurchasesPage() {
               </div>
             </div>
 
-            {/* Cost Breakdown Section */}
-            {formData.weight_grams > 0 && formData.rate_per_gram > 0 && (
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
-                <h3 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  Purchase Cost Breakdown
-                </h3>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {/* Weight */}
-                  <div className="bg-white rounded-md p-3 border border-purple-100">
-                    <div className="text-xs text-gray-600 mb-1">Weight</div>
-                    <div className="font-mono font-bold text-amber-700">
-                      {parseFloat(formData.weight_grams || 0).toFixed(3)}g
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">Gold purchased</div>
-                  </div>
-                  
-                  {/* Rate */}
-                  <div className="bg-white rounded-md p-3 border border-purple-100">
-                    <div className="text-xs text-gray-600 mb-1">Rate per Gram</div>
-                    <div className="font-mono font-bold text-blue-700">
-                      {parseFloat(formData.rate_per_gram || 0).toFixed(3)} OMR
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">@ 916 purity</div>
-                  </div>
-                  
-                  {/* Calculated Amount */}
-                  <div className="bg-white rounded-md p-3 border border-purple-100">
-                    <div className="text-xs text-gray-600 mb-1">Calculated Amount</div>
-                    <div className="font-mono font-bold text-green-700">
-                      {(parseFloat(formData.weight_grams || 0) * parseFloat(formData.rate_per_gram || 0)).toFixed(3)} OMR
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">Weight × Rate</div>
-                  </div>
-                </div>
-                
-                {/* Payment Summary */}
-                <div className="mt-3 pt-3 border-t border-purple-200">
-                  <div className="grid grid-cols-3 gap-3 text-sm">
-                    <div className="flex flex-col">
-                      <span className="text-gray-600 text-xs">Total Amount</span>
-                      <span className="font-mono font-bold text-lg text-purple-900">
-                        {parseFloat(formData.amount_total || 0).toFixed(2)} OMR
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-col">
-                      <span className="text-gray-600 text-xs">Paid Now</span>
-                      <span className="font-mono font-semibold text-green-600">
-                        {parseFloat(formData.paid_amount_money || 0).toFixed(2)} OMR
-                      </span>
-                    </div>
-                    
-                    <div className="flex flex-col">
-                      <span className="text-gray-600 text-xs">Balance Due</span>
-                      <span className="font-mono font-semibold text-red-600">
-                        {(parseFloat(formData.amount_total || 0) - parseFloat(formData.paid_amount_money || 0)).toFixed(2)} OMR
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Gold Settlement Info */}
-                {(parseFloat(formData.advance_in_gold_grams || 0) > 0 || parseFloat(formData.exchange_in_gold_grams || 0) > 0) && (
-                  <div className="mt-3 pt-3 border-t border-purple-200">
-                    <div className="text-xs font-semibold text-purple-800 mb-2">Gold Settlement:</div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {parseFloat(formData.advance_in_gold_grams || 0) > 0 && (
-                        <div className="flex justify-between bg-orange-50 px-2 py-1 rounded">
-                          <span className="text-gray-700">Advance Settled:</span>
-                          <span className="font-mono font-semibold text-orange-700">
-                            {parseFloat(formData.advance_in_gold_grams).toFixed(3)}g
-                          </span>
-                        </div>
-                      )}
-                      {parseFloat(formData.exchange_in_gold_grams || 0) > 0 && (
-                        <div className="flex justify-between bg-green-50 px-2 py-1 rounded">
-                          <span className="text-gray-700">Gold Exchanged:</span>
-                          <span className="font-mono font-semibold text-green-700">
-                            {parseFloat(formData.exchange_in_gold_grams).toFixed(3)}g
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Duplicate breakdown section removed - using single source of truth above */}
+
 
             {/* Action Buttons */}
             <div className="flex gap-3">
