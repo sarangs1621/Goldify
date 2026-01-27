@@ -2454,11 +2454,12 @@ async def get_reports_list(current_user: User = Depends(require_permission('repo
             "category": "financial",
             "endpoints": {
                 "view": "/api/reports/transactions-view",
+                "export_excel": "/api/reports/transactions-export",
                 "export_pdf": "/api/reports/transactions-pdf"
             },
             "supports_filters": True,
             "supports_export": True,
-            "export_formats": ["pdf"]
+            "export_formats": ["excel", "pdf"]
         },
         {
             "id": "outstanding",
@@ -2467,11 +2468,12 @@ async def get_reports_list(current_user: User = Depends(require_permission('repo
             "category": "financial",
             "endpoints": {
                 "view": "/api/reports/outstanding",
+                "export_excel": "/api/reports/outstanding-export",
                 "export_pdf": "/api/reports/outstanding-pdf"
             },
             "supports_filters": True,
             "supports_export": True,
-            "export_formats": ["pdf"]
+            "export_formats": ["excel", "pdf"]
         },
         {
             "id": "sales-history",
@@ -6704,6 +6706,186 @@ async def export_invoices(
         headers={"Content-Disposition": "attachment; filename=invoices_export.xlsx"}
     )
 
+@api_router.get("/reports/transactions-export")
+async def export_transactions(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    transaction_type: Optional[str] = None,
+    party_id: Optional[str] = None,
+    current_user: User = Depends(require_permission('reports.view'))
+):
+    """Export transactions report as Excel"""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill
+    
+    # Get filtered transaction data
+    data = await view_transactions_report(
+        start_date=start_date,
+        end_date=end_date,
+        transaction_type=transaction_type,
+        party_id=party_id,
+        sort_by='date_desc',
+        current_user=current_user
+    )
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Transactions"
+    
+    # Headers
+    headers = ["Date", "Transaction #", "Type", "Mode", "Party Name", "Account", "Amount (OMR)", "Category", "Notes"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center")
+    
+    # Data
+    for row_idx, txn in enumerate(data['transactions'], 2):
+        txn_date = txn.get('date', '')
+        if isinstance(txn_date, str):
+            txn_date = txn_date[:10]
+        elif hasattr(txn_date, 'strftime'):
+            txn_date = txn_date.strftime('%Y-%m-%d')
+        
+        ws.cell(row=row_idx, column=1, value=txn_date)
+        ws.cell(row=row_idx, column=2, value=txn.get('transaction_number', ''))
+        ws.cell(row=row_idx, column=3, value=txn.get('transaction_type', ''))
+        ws.cell(row=row_idx, column=4, value=txn.get('mode', ''))
+        ws.cell(row=row_idx, column=5, value=txn.get('party_name', ''))
+        ws.cell(row=row_idx, column=6, value=txn.get('account_name', ''))
+        ws.cell(row=row_idx, column=7, value=txn.get('amount', 0))
+        ws.cell(row=row_idx, column=8, value=txn.get('category', ''))
+        ws.cell(row=row_idx, column=9, value=txn.get('notes', ''))
+    
+    # Add summary at the bottom
+    last_row = len(data['transactions']) + 3
+    ws.cell(row=last_row, column=1, value="Summary:").font = Font(bold=True)
+    ws.cell(row=last_row + 1, column=1, value="Total Credit:")
+    ws.cell(row=last_row + 1, column=2, value=data['summary']['total_credit'])
+    ws.cell(row=last_row + 2, column=1, value="Total Debit:")
+    ws.cell(row=last_row + 2, column=2, value=data['summary']['total_debit'])
+    ws.cell(row=last_row + 3, column=1, value="Net Balance:")
+    ws.cell(row=last_row + 3, column=2, value=data['summary']['net_balance'])
+    
+    # Adjust column widths
+    for col in range(1, 10):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 15
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=transactions_export_{datetime.now().strftime('%Y%m%d')}.xlsx"}
+    )
+
+@api_router.get("/reports/outstanding-export")
+async def export_outstanding(
+    party_id: Optional[str] = None,
+    party_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: User = Depends(require_permission('reports.view'))
+):
+    """Export outstanding report as Excel"""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill
+    
+    # Get filtered outstanding data
+    data = await get_outstanding_report(
+        party_id=party_id,
+        party_type=party_type,
+        start_date=start_date,
+        end_date=end_date,
+        include_paid=False,
+        current_user=current_user
+    )
+    
+    # Create workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Outstanding"
+    
+    # Headers
+    headers = [
+        "Party Name", "Type", "Total Invoiced", "Total Paid", "Outstanding", 
+        "Overdue 0-7d", "Overdue 8-30d", "Overdue 31+d", "Last Invoice Date", "Last Payment Date"
+    ]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        cell.font = Font(color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center")
+    
+    # Data
+    for row_idx, party in enumerate(data['parties'], 2):
+        last_invoice = party.get('last_invoice_date')
+        if last_invoice and hasattr(last_invoice, 'strftime'):
+            last_invoice = last_invoice.strftime('%Y-%m-%d')
+        elif isinstance(last_invoice, str):
+            last_invoice = last_invoice[:10]
+        else:
+            last_invoice = ''
+        
+        last_payment = party.get('last_payment_date')
+        if last_payment and hasattr(last_payment, 'strftime'):
+            last_payment = last_payment.strftime('%Y-%m-%d')
+        elif isinstance(last_payment, str):
+            last_payment = last_payment[:10]
+        else:
+            last_payment = ''
+        
+        ws.cell(row=row_idx, column=1, value=party.get('party_name', ''))
+        ws.cell(row=row_idx, column=2, value=party.get('party_type', ''))
+        ws.cell(row=row_idx, column=3, value=party.get('total_invoiced', 0))
+        ws.cell(row=row_idx, column=4, value=party.get('total_paid', 0))
+        ws.cell(row=row_idx, column=5, value=party.get('total_outstanding', 0))
+        ws.cell(row=row_idx, column=6, value=party.get('overdue_0_7', 0))
+        ws.cell(row=row_idx, column=7, value=party.get('overdue_8_30', 0))
+        ws.cell(row=row_idx, column=8, value=party.get('overdue_31_plus', 0))
+        ws.cell(row=row_idx, column=9, value=last_invoice)
+        ws.cell(row=row_idx, column=10, value=last_payment)
+    
+    # Add summary at the bottom
+    last_row = len(data['parties']) + 3
+    ws.cell(row=last_row, column=1, value="Summary:").font = Font(bold=True)
+    ws.cell(row=last_row + 1, column=1, value="Customer Due (Receivable):")
+    ws.cell(row=last_row + 1, column=2, value=data['summary']['customer_due'])
+    ws.cell(row=last_row + 2, column=1, value="Vendor Payable:")
+    ws.cell(row=last_row + 2, column=2, value=data['summary']['vendor_payable'])
+    ws.cell(row=last_row + 3, column=1, value="Total Outstanding:")
+    ws.cell(row=last_row + 3, column=2, value=data['summary']['total_outstanding'])
+    ws.cell(row=last_row + 4, column=1, value="Overdue 0-7 Days:")
+    ws.cell(row=last_row + 4, column=2, value=data['summary']['total_overdue_0_7'])
+    ws.cell(row=last_row + 5, column=1, value="Overdue 8-30 Days:")
+    ws.cell(row=last_row + 5, column=2, value=data['summary']['total_overdue_8_30'])
+    ws.cell(row=last_row + 6, column=1, value="Overdue 31+ Days:")
+    ws.cell(row=last_row + 6, column=2, value=data['summary']['total_overdue_31_plus'])
+    
+    # Adjust column widths
+    for col in range(1, 11):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 15
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename=outstanding_export_{datetime.now().strftime('%Y%m%d')}.xlsx"}
+    )
+
 # New VIEW endpoints for displaying reports in UI
 @api_router.get("/reports/inventory-view")
 async def view_inventory_report(
@@ -7913,11 +8095,11 @@ async def export_inventory_pdf(
         
         table_data.append([
             mov_date,
-            mov.get('header_name', '')[:15],
-            mov.get('movement_type', '')[:10],
+            (mov.get('header_name') or '')[:15],
+            (mov.get('movement_type') or '')[:10],
             f"{mov.get('qty_delta', 0):.1f}",
             f"{mov.get('weight_delta', 0):.2f}",
-            mov.get('reference_type', '')[:12]
+            (mov.get('reference_type') or '')[:12]
         ])
     
     table = Table(table_data, colWidths=[0.9*inch, 1.3*inch, 1*inch, 0.7*inch, 0.9*inch, 1.2*inch])
