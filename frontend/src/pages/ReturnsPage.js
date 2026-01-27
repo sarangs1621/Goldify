@@ -86,25 +86,27 @@ const ReturnsPage = () => {
   }, [loadReturns]);
   
   // Load reference data
-  const loadReferenceData = async () => {
+  const loadReferenceData = async (returnType = 'sale_return') => {
     try {
-      // Load invoices (finalized only)
-      const invoicesRes = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/invoices`, {
-        params: { page: 1, page_size: 100, status: 'finalized' }
-      });
-      setInvoices(invoicesRes.data.items || []);
-      
-      // Load purchases (finalized only)
-      const purchasesRes = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/purchases`, {
-        params: { page: 1, page_size: 100, status: 'finalized' }
-      });
-      setPurchases(purchasesRes.data.items || []);
+      // Load returnable invoices based on return type
+      if (returnType === 'sale_return') {
+        const invoicesRes = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/invoices/returnable`, {
+          params: { type: 'sales' }
+        });
+        setInvoices(invoicesRes.data || []);
+      } else if (returnType === 'purchase_return') {
+        const purchasesRes = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/purchases`, {
+          params: { page: 1, page_size: 100, status: 'finalized' }
+        });
+        setPurchases(purchasesRes.data.items || []);
+      }
       
       // Load accounts
       const accountsRes = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/accounts`);
       setAccounts(accountsRes.data.items || accountsRes.data || []);
     } catch (err) {
       console.error('Error loading reference data:', err);
+      setError(err.response?.data?.detail || 'Failed to load reference data');
     }
   };
   
@@ -143,7 +145,7 @@ const ReturnsPage = () => {
   
   // Open create dialog
   const openCreateDialog = () => {
-    loadReferenceData();
+    loadReferenceData('sale_return');
     setFormData({
       return_type: 'sale_return',
       reference_type: 'invoice',
@@ -554,9 +556,12 @@ const ReturnsPage = () => {
                   <select
                     value={formData.return_type}
                     onChange={(e) => {
-                      handleFormChange('return_type', e.target.value);
-                      handleFormChange('reference_type', e.target.value === 'sale_return' ? 'invoice' : 'purchase');
+                      const newReturnType = e.target.value;
+                      handleFormChange('return_type', newReturnType);
+                      handleFormChange('reference_type', newReturnType === 'sale_return' ? 'invoice' : 'purchase');
                       handleFormChange('reference_id', '');
+                      // Reload reference data based on new return type
+                      loadReferenceData(newReturnType);
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -573,14 +578,17 @@ const ReturnsPage = () => {
                     value={formData.reference_id}
                     onChange={(e) => handleFormChange('reference_id', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={formData.return_type === 'sale_return' ? invoices.length === 0 : purchases.length === 0}
                   >
                     <option value="">-- Select --</option>
                     {formData.return_type === 'sale_return' ? (
-                      invoices.map(inv => (
-                        <option key={inv.id} value={inv.id}>
-                          {inv.invoice_number} - {inv.customer_name || inv.walk_in_name} - {formatCurrency(inv.grand_total)} OMR
-                        </option>
-                      ))
+                      invoices.length > 0 ? (
+                        invoices.map(inv => (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.invoice_no} - {inv.party_name} - {formatCurrency(inv.total_amount)} OMR
+                          </option>
+                        ))
+                      ) : null
                     ) : (
                       purchases.map(pur => (
                         <option key={pur.id} value={pur.id}>
@@ -589,9 +597,15 @@ const ReturnsPage = () => {
                       ))
                     )}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    ℹ️ Only finalized {formData.return_type === 'sale_return' ? 'invoices' : 'purchases'} are shown. Draft items cannot be returned.
-                  </p>
+                  {formData.return_type === 'sale_return' && invoices.length === 0 ? (
+                    <p className="text-xs text-red-600 mt-1">
+                      ⚠️ No finalized invoices available for return
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">
+                      ℹ️ Only finalized {formData.return_type === 'sale_return' ? 'invoices' : 'purchases'} are shown. Draft items cannot be returned.
+                    </p>
+                  )}
                 </div>
               </div>
               

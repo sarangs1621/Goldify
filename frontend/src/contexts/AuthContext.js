@@ -81,13 +81,18 @@ export const AuthProvider = ({ children }) => {
       // Check if token exists before calling /me
       const token = localStorage.getItem('token');
       if (!token) {
+        console.log('No token found, skipping auth check');
         setUser(null);
         setIsAuthenticated(false);
         setLoading(false);
         return;
       }
 
-      const response = await API.get('/api/auth/me');
+      console.log('Token found, fetching user data...');
+      const response = await API.get('/api/auth/me', {
+        timeout: 5000 // 5 second timeout
+      });
+      console.log('User data fetched successfully');
       setUser(response.data);
       setIsAuthenticated(true);
     } catch (error) {
@@ -96,6 +101,7 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       localStorage.removeItem('token');
     } finally {
+      console.log('Auth check complete, setting loading to false');
       setLoading(false);
     }
   }, []);

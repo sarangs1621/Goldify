@@ -4439,6 +4439,73 @@ async def get_invoices(
     
     return create_pagination_response(invoices, total_count, page, page_size)
 
+@api_router.get("/invoices/returnable")
+async def get_returnable_invoices(
+    type: str = "sales",
+    current_user: User = Depends(require_permission('invoices.view'))
+):
+    """"
+    Get finalized invoices that are available for returns.
+    Only returns invoices that:
+    - Are finalized (not draft)
+    - Are not deleted
+    - Have a balance due > 0 (not fully returned/paid)
+    
+    Args:
+        type: "sales" or "purchase" to filter invoice type
+    """
+    if not user_has_permission(current_user, 'invoices.view'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="You don't have permission to view invoices"
+        )
+    
+    # Build query filter
+    query = {
+        "is_deleted": False,
+        "status": "finalized",
+        "balance_due": {"$gt": 0}
+    }
+    
+    # Filter by invoice type
+    if type.lower() == "sales":
+        query["invoice_type"] = "sale"
+    elif type.lower() == "purchase":
+        query["invoice_type"] = "purchase"
+
+    # Fetch matching invoices with required fields only
+    invoices = await db.invoices.find(
+        query,
+        {
+            "_id": 0,
+            "id": 1,
+            "invoice_number": 1,
+            "date": 1,
+            "customer_name": 1,
+            "walk_in_name": 1,
+            "customer_type": 1,
+            "grand_total": 1,
+            "balance_due": 1,
+            "items": 1
+        }
+    ).sort("date", -1).limit(100).to_list(100)
+
+    # Format response with party name
+    formatted_invoices = []
+    for inv in invoices:
+        party_name = inv.get("customer_name") or inv.get("walk_in_name") or "Unknown"
+        formatted_invoices.append({
+            "id": inv["id"],
+            "invoice_no": inv["invoice_number"],
+            "date": inv["date"].isoformat() if isinstance(inv["date"], datetime) else inv["date"],
+            "party_name": party_name,
+            "total_amount": float(inv.get("grand_total", 0)),
+            "balance_amount": float(inv.get("balance_due", 0)),
+            "items": inv.get("items", [])
+        })
+    
+    return formatted_invoices
+
 @api_router.get("/invoices/{invoice_id}", response_model=Invoice)
 async def get_invoice(invoice_id: str, current_user: User = Depends(require_permission('invoices.view'))):
     invoice = await db.invoices.find_one({"id": invoice_id, "is_deleted": False}, {"_id": 0})
