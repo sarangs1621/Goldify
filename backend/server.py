@@ -1956,7 +1956,7 @@ async def get_inventory_headers(
     
     return create_pagination_response(headers, total_count, page, page_size)
 
-@api_router.post("/inventory/headers", response_model=InventoryHeader)
+@api_router.post("/inventory/headers", response_model=InventoryHeader, status_code=201)
 async def create_inventory_header(header_data: dict, current_user: User = Depends(require_permission('inventory.adjust'))):
     # Validate and sanitize category name
     category_name = header_data['name'].strip()
