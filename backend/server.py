@@ -3386,11 +3386,13 @@ async def create_purchase(request: Request, purchase_data: dict, current_user: U
     """
     Create and auto-finalize a new purchase.
     
-    ⚠️ CRITICAL BUSINESS RULE: All purchases are auto-finalized on creation ⚠️
+    ⚠️ CRITICAL BUSINESS RULE: Purchase Lifecycle Matches Invoice Lifecycle ⚠️
+    - Purchase Lifecycle: Draft → Partially Paid → Paid → Finalized (Locked)
     - Inventory is updated immediately
     - Accounting entries are created immediately
-    - No "Draft" state exists for normal purchases
-    - Status is calculated based on payment: "Finalized (Unpaid)" | "Partially Paid" | "Paid"
+    - Status is calculated based on payment: "Draft" | "Partially Paid" | "Paid"
+    - Locking is allowed ONLY AFTER FULL PAYMENT (balance_due == 0)
+    - Editing and adding payments allowed until fully paid
     """
     if not user_has_permission(current_user, 'purchases.create'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You don't have permission to create purchases")
