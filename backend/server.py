@@ -3044,7 +3044,7 @@ async def get_party_ledger(party_id: str, current_user: User = Depends(require_p
     return {"invoices": invoices, "transactions": transactions, "outstanding": outstanding}
 
 # Gold Ledger Endpoints
-@api_router.post("/gold-ledger", response_model=GoldLedgerEntry)
+@api_router.post("/gold-ledger", response_model=GoldLedgerEntry, status_code=201)
 async def create_gold_ledger_entry(entry_data: dict, current_user: User = Depends(require_permission('finance.create'))):
     # Validate required fields
     if 'party_id' not in entry_data:
