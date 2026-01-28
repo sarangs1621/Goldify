@@ -142,7 +142,7 @@ class CashFlowTester:
                 self.test_data["customer"] = response.json()
                 self.log_result("Setup Customer", True, f"Created customer: {self.test_data['customer']['name']}")
             else:
-                self.log_result("Setup Customer", False, "", f"Failed to create customer: {response.text}")
+                self.log_result("Setup Customer", False, "", f"Failed to create customer: {response.status_code} - {response.text}")
                 return False
 
             # Create vendor party
