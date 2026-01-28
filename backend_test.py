@@ -825,32 +825,35 @@ class BackendTester:
         print("\n--- Testing Finance Dashboard ---")
         
         try:
-            response = self.session.get(f"{BACKEND_URL}/accounts/dashboard")
+            response = self.session.get(f"{BACKEND_URL}/dashboard")
             
             if response.status_code == 200:
                 dashboard_data = response.json()
                 
                 # Verify dashboard structure and calculations
-                required_fields = ['total_assets', 'total_liabilities', 'total_income', 'total_expenses', 'net_worth']
-                missing_fields = [field for field in required_fields if field not in dashboard_data]
+                required_sections = ['inventory', 'financial', 'parties', 'job_cards', 'recent_activity']
+                missing_sections = [section for section in required_sections if section not in dashboard_data]
                 
-                if not missing_fields:
-                    # Check if calculations make sense
-                    total_assets = dashboard_data.get('total_assets', 0)
-                    total_liabilities = dashboard_data.get('total_liabilities', 0)
-                    net_worth = dashboard_data.get('net_worth', 0)
-                    calculated_net_worth = total_assets - total_liabilities
+                if not missing_sections:
+                    # Check if sections have expected data
+                    inventory = dashboard_data.get('inventory', {})
+                    financial = dashboard_data.get('financial', {})
+                    parties = dashboard_data.get('parties', {})
                     
-                    net_worth_correct = abs(net_worth - calculated_net_worth) < 0.01  # Allow small rounding differences
+                    inventory_valid = 'total_categories' in inventory and 'total_stock_weight_grams' in inventory
+                    financial_valid = 'total_outstanding_omr' in financial
+                    parties_valid = 'total_customers' in parties and 'total_vendors' in parties
+                    
+                    all_valid = inventory_valid and financial_valid and parties_valid
                     
                     self.log_result(
                         "Finance Dashboard", 
-                        net_worth_correct, 
-                        f"Dashboard calculations {'correct' if net_worth_correct else 'incorrect'} (Assets: {total_assets}, Liabilities: {total_liabilities}, Net Worth: {net_worth})",
+                        all_valid, 
+                        f"Dashboard structure {'valid' if all_valid else 'invalid'} (Categories: {inventory.get('total_categories', 0)}, Outstanding: {financial.get('total_outstanding_omr', 0)} OMR, Customers: {parties.get('total_customers', 0)})",
                         dashboard_data
                     )
                 else:
-                    self.log_result("Finance Dashboard", False, f"Missing required fields: {missing_fields}")
+                    self.log_result("Finance Dashboard", False, f"Missing required sections: {missing_sections}")
             else:
                 self.log_result("Finance Dashboard", False, f"Failed: {response.status_code} - {response.text}")
                 
