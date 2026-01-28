@@ -11199,14 +11199,16 @@ async def get_return_finalize_impact(
     # Add specific impacts based on return type
     if return_type == 'sale_return':
         # Convert Decimal128 to float for formatting
-        total_weight = float(return_doc.get('total_weight_grams', 0))
-        refund_money = float(return_doc.get('refund_m   oney_amount', 0))
-        refund_gold = float(return_doc.get('refund_gold_grams', 0))
+        total_weight_raw = return_doc.get('total_weight_grams', 0)
+        refund_money_raw = return_doc.get('refund_money_amount', 0)
+        refund_gold_raw = return_doc.get('refund_gold_grams', 0)
+        
+        # Handle Decimal128 conversion
+        total_weight = float(total_weight_raw.to_decimal()) if isinstance(total_weight_raw, Decimal128) else float(total_weight_raw)
+        refund_money = float(refund_money_raw.to_decimal()) if isinstance(refund_money_raw, Decimal128) else float(refund_money_raw)
+        refund_gold = float(refund_gold_raw.to_decimal()) if isinstance(refund_gold_raw, Decimal128) else float(refund_gold_raw)
         
         impact["impacts"] = [
-            f"✅ Stock IN: {return_doc.get('total_weight_grams', 0):.3f}g returned to inventory",
-            f"💰 Customer Refund: {return_doc.get('refund_money_amount', 0):.2f} OMR" if refund_mode in ['money', 'mixed'] else None,
-            f"🪙 Gold Refund: {return_doc.get('refund_gold_grams', 0):.3f}g to customer" if refund_mode in ['gold', 'mixed'] else None,
             f"✅ Stock IN: {total_weight:.3f}g returned to inventory",
             f"💰 Customer Refund: {refund_money:.2f} OMR" if refund_mode in ['money', 'mixed'] else None,
             f"🪙 Gold Refund: {refund_gold:.3f}g to customer" if refund_mode in ['gold', 'mixed'] else None,
@@ -11214,14 +11216,16 @@ async def get_return_finalize_impact(
         ]
     else:  # purchase_return
         # Convert Decimal128 to float for formatting
-        total_weight = float(return_doc.get('total_weight_grams', 0))
-        refund_money = float(return_doc.get('refund_money_amount', 0))
-        refund_gold = float(return_doc.get('refund_gold_grams', 0))
+        total_weight_raw = return_doc.get('total_weight_grams', 0)
+        refund_money_raw = return_doc.get('refund_money_amount', 0)
+        refund_gold_raw = return_doc.get('refund_gold_grams', 0)
+        
+        # Handle Decimal128 conversion
+        total_weight = float(total_weight_raw.to_decimal()) if isinstance(total_weight_raw, Decimal128) else float(total_weight_raw)
+        refund_money = float(refund_money_raw.to_decimal()) if isinstance(refund_money_raw, Decimal128) else float(refund_money_raw)
+        refund_gold = float(refund_gold_raw.to_decimal()) if isinstance(refund_gold_raw, Decimal128) else float(refund_gold_raw)
         
         impact["impacts"] = [
-            f"❌ Stock OUT: {return_doc.get('total_weight_grams', 0):.3f}g returned to vendor",
-            f"💰 Vendor Refund: {return_doc.get('refund_money_amount', 0):.2f} OMR received" if refund_mode in ['money', 'mixed'] else None,
-            f"🪙 Gold Refund: {return_doc.get('refund_gold_grams', 0):.3f}g from vendor" if refund_mode in ['gold', 'mixed'] else None,
             f"❌ Stock OUT: {total_weight:.3f}g returned to vendor",
             f"💰 Vendor Refund: {refund_money:.2f} OMR received" if refund_mode in ['money', 'mixed'] else None,
             f"🪙 Gold Refund: {refund_gold:.3f}g from vendor" if refund_mode in ['gold', 'mixed'] else None,
