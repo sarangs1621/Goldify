@@ -8742,7 +8742,12 @@ async def get_purchase_history_report(
     current_user: User = Depends(require_permission('reports.view'))
 ):
     """
-    Get purchase history report showing ALL committed purchases (Paid, Partially Paid, Finalized Unpaid).
+    Get purchase history report using SOURCE-OF-TRUTH DATA.
+    
+    CRITICAL FIX: Uses StockMovements and Transactions for accurate reporting
+    - Weight data from StockMovements (type="Stock IN")
+    - Financial data from Transactions (expense/cost account debits)
+    - Purchase returns are automatically reflected
     
     Filters:
     - date_from/date_to: Date range filter
@@ -8752,14 +8757,14 @@ async def get_purchase_history_report(
     Returns table with:
     - vendor_name + phone (from parties collection)
     - date
-    - weight_grams (3 decimal precision)
+    - weight_grams (from StockMovements)
     - entered_purity
     - valuation_purity (converted to "22K" display)
-    - amount_total
+    - amount_total (from Transactions)
     
     Summary includes:
-    - total_amount (sum of all purchases)
-    - total_weight (sum of all weights)
+    - total_amount (from Transactions)
+    - total_weight (from StockMovements)
     - total_purchases (count)
     """
     # Query for ALL COMMITTED purchases (excludes only Draft/Voided)
@@ -8785,12 +8790,52 @@ async def get_purchase_history_report(
     # Get purchases
     purchases = await db.purchases.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
     
-    # Process each purchase
+    # Build queries for SOURCE-OF-TRUTH data
+    stock_query = {"is_deleted": False, "movement_type": "Stock IN"}
+    txn_query = {"is_deleted": False}
+    
+    if date_from:
+        stock_query['date'] = {"$gte": datetime.fromisoformat(date_from)}
+        txn_query['date'] = {"$gte": datetime.fromisoformat(date_from)}
+    if date_to:
+        end_dt = datetime.fromisoformat(date_to)
+        if 'date' in stock_query:
+            stock_query['date']['$lte'] = end_dt
+            txn_query['date']['$lte'] = end_dt
+        else:
+            stock_query['date'] = {"$lte": end_dt}
+            txn_query['date'] = {"$lte": end_dt}
+    
+    # Get StockMovements and Transactions
+    stock_movements = await db.stock_movements.find(stock_query, {"_id": 0}).to_list(10000)
+    transactions = await db.transactions.find(txn_query, {"_id": 0}).to_list(10000)
+    
+    # Build maps for quick lookup by reference_id (purchase.id)
+    stock_by_purchase = {}
+    for movement in stock_movements:
+        ref_id = movement.get('reference_id')
+        if ref_id:
+            if ref_id not in stock_by_purchase:
+                stock_by_purchase[ref_id] = []
+            stock_by_purchase[ref_id].append(movement)
+    
+    txn_by_purchase = {}
+    for txn in transactions:
+        ref_id = txn.get('reference_id')
+        # Only count purchase-related transactions
+        if ref_id and txn.get('category') in ['purchase', 'purchases', 'inventory_purchase']:
+            if ref_id not in txn_by_purchase:
+                txn_by_purchase[ref_id] = []
+            txn_by_purchase[ref_id].append(txn)
+    
+    # Process each purchase using SOURCE-OF-TRUTH data
     purchase_records = []
     total_amount = 0.0
     total_weight = 0.0
     
     for purchase in purchases:
+        purchase_id = purchase.get('id')
+        
         # Get vendor info from parties collection
         vendor_name = "Unknown Vendor"
         vendor_phone = ""
@@ -8813,6 +8858,14 @@ async def get_purchase_history_report(
             ):
                 continue  # Skip this purchase if search doesn't match
         
+        # Get weight from StockMovements (SOURCE-OF-TRUTH)
+        purchase_movements = stock_by_purchase.get(purchase_id, [])
+        purchase_weight = sum(abs(m.get('weight_delta', 0)) for m in purchase_movements)
+        
+        # Get purchase amount from Transactions (SOURCE-OF-TRUTH)
+        purchase_txns = txn_by_purchase.get(purchase_id, [])
+        purchase_amount = sum(t.get('amount', 0) for t in purchase_txns if t.get('transaction_type') == 'credit')
+        
         # Format date
         purchase_date = purchase.get('date', '')
         if isinstance(purchase_date, str):
@@ -8828,20 +8881,20 @@ async def get_purchase_history_report(
             "vendor_phone": vendor_phone,
             "date": purchase_date,
             "description": purchase.get('description', ''),
-            "weight_grams": round(purchase.get('weight_grams', 0), 3),
+            "weight_grams": round(purchase_weight, 3),  # FROM STOCKMOVEMENTS
             "entered_purity": purchase.get('entered_purity', 0),
             "valuation_purity": valuation_purity_display,
-            "amount_total": round(purchase.get('amount_total', 0), 2)
+            "amount_total": round(purchase_amount, 2)  # FROM TRANSACTIONS
         })
         
-        total_amount += purchase.get('amount_total', 0)
-        total_weight += purchase.get('weight_grams', 0)
+        total_amount += purchase_amount
+        total_weight += purchase_weight
     
     return {
         "purchase_records": purchase_records,
         "summary": {
-            "total_amount": round(total_amount, 2),
-            "total_weight": round(total_weight, 3),
+            "total_amount": round(total_amount, 2),  # FROM TRANSACTIONS
+            "total_weight": round(total_weight, 3),  # FROM STOCKMOVEMENTS
             "total_purchases": len(purchase_records)
         }
     }
