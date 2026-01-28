@@ -265,7 +265,8 @@ class PurchasePaymentFlowTester:
             response = self.session.post(f"{self.base_url}/purchases/{purchase_id}/add-payment", json=payment_data)
             
             if response.status_code == 200:
-                updated_purchase = response.json()
+                response_data = response.json()
+                updated_purchase = response_data.get("purchase", {})
                 
                 # Verify response
                 expected_status = "Partially Paid"
@@ -275,7 +276,7 @@ class PurchasePaymentFlowTester:
                 actual_status = updated_purchase.get("status")
                 actual_locked = updated_purchase.get("locked", True)
                 actual_balance = updated_purchase.get("balance_due_money", 0)
-                transaction_number = updated_purchase.get("transaction_number")
+                transaction_number = response_data.get("transaction_number")
                 
                 if (actual_status == expected_status and 
                     actual_locked == expected_locked and 
