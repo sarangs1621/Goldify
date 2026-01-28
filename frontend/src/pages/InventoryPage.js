@@ -143,27 +143,31 @@ export default function InventoryPage() {
 
     try {
       const data = {
-        movement_type: movementForm.movement_type,
-        header_id: movementForm.header_id,
-        description: movementForm.description,
-        qty_delta: Math.abs(parseFloat(movementForm.qty_delta)),
-        weight_delta: Math.abs(parseFloat(movementForm.weight_delta)),
-        purity: parseInt(movementForm.purity),
-        notes: movementForm.notes
-      };
+      movement_type: movementForm.movement_type,
+      header_id: movementForm.header_id,
+      description: movementForm.description,
+      qty_delta: Math.abs(parseFloat(movementForm.qty_delta)),
+      weight_delta: Math.abs(parseFloat(movementForm.weight_delta)),
+      purity: parseInt(movementForm.purity),
+      notes: movementForm.notes,
+      confirmation_reason: movementForm.confirmation_reason
+    };
+
 
       await API.post(`/api/inventory/movements`, data);
       toast.success('Stock movement added successfully');
       setShowAddMovement(false);
       setMovementForm({
-        movement_type: 'Stock IN',
-        header_id: '',
-        description: '',
-        qty_delta: 0,
-        weight_delta: 0,
-        purity: 916,
-        notes: ''
-      });
+      movement_type: 'STOCK_IN',
+      header_id: '',
+      description: '',
+      qty_delta: 0,
+      weight_delta: 0,
+      purity: 916,
+      notes: '',
+      confirmation_reason: ''
+    });
+
       loadInventoryData();
     } catch (error) {
       const errorMsg = error.response?.data?.detail || 'Failed to add movement';

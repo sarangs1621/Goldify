@@ -840,7 +840,7 @@ class StockMovement(BaseModel):
     movement_type: str
     header_id: str
     header_name: str
-    description: str
+    description: Optional[str] = None
     qty_delta: float
     weight_delta: float
     purity: int
@@ -2142,9 +2142,6 @@ async def create_stock_movement(movement_data: dict, current_user: User = Depend
       * Complete audit trail (tied to invoice)
       * Accurate accounting (revenue recorded)
       * GST compliance (tax collected)
-      
-    WORKFLOW CONTROL:
-    - confirmation_reason is REQUIRED for all manual adjustments
     """
     header = await db.inventory_headers.find_one({"id": movement_data['header_id']}, {"_id": 0})
     if not header:
@@ -2155,13 +2152,8 @@ async def create_stock_movement(movement_data: dict, current_user: User = Depend
     qty_delta = movement_data.get('qty_delta', 0)
     weight_delta = movement_data.get('weight_delta', 0)
     
-    # WORKFLOW CONTROL: Require confirmation_reason for manual adjustments
-    confirmation_reason = movement_data.get('confirmation_reason', '').strip()
-    if not confirmation_reason:
-        raise HTTPException(
-            status_code=400,
-            detail="confirmation_reason is required for all manual inventory adjustments. Please provide a reason for this stock movement."
-        )
+    # Get optional confirmation_reason for audit trail
+    confirmation_reason = movement_data.get('confirmation_reason', '').strip() if movement_data.get('confirmation_reason') else None
     
     # Block Stock OUT movement type entirely
     if movement_type == "Stock OUT":
