@@ -113,6 +113,49 @@ const ReturnsPage = () => {
     }
   };
   
+  // Load invoice returnable items when invoice is selected
+  const loadInvoiceReturnableItems = async (invoiceId) => {
+    if (!invoiceId) {
+      setReturnableItems([]);
+      return;
+    }
+    
+    setLoadingItems(true);
+    setError('');
+    try {
+      const response = await API.get(`/api/invoices/${invoiceId}/returnable-items`);
+      const items = response.data || [];
+      
+      setReturnableItems(items);
+      
+      // Auto-populate form items with returnable items
+      if (items.length > 0) {
+        const formItems = items.map(item => ({
+          description: item.description,
+          qty: item.remaining_qty,
+          weight_grams: item.remaining_weight_grams,
+          purity: item.purity,
+          amount: item.remaining_amount,
+          // Store limits for validation
+          max_qty: item.remaining_qty,
+          max_weight: item.remaining_weight_grams,
+          item_id: item.item_id
+        }));
+        setFormData(prev => ({ ...prev, items: formItems }));
+      } else {
+        // No returnable items - show message
+        setError('All items from this invoice have already been returned.');
+        setFormData(prev => ({ ...prev, items: [{ description: '', qty: 1, weight_grams: 0, purity: 916, amount: 0 }] }));
+      }
+    } catch (err) {
+      console.error('Error loading invoice returnable items:', err);
+      setError(err.response?.data?.detail || 'Failed to load returnable items');
+      setReturnableItems([]);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+  
   // Handle filter change
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }));
