@@ -4823,7 +4823,10 @@ async def get_invoice_returnable_items(
                     'weight_grams': 0.0
                 }
             returned_map[key]['qty'] += ret_item.get('qty', 0)
-            returned_map[key]['weight_grams'] += float(ret_item.get('weight_grams', 0))
+            weight_value = ret_item.get('weight_grams', 0)
+            if isinstance(weight_value, Decimal128):
+                weight_value = float(weight_value.to_decimal())
+            returned_map[key]['weight_grams'] += float(weight_value)
     
     # Calculate returnable items
     returnable_items = []
