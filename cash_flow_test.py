@@ -70,7 +70,7 @@ class CashFlowTester:
             # Login with admin credentials
             login_data = {
                 "username": "admin",
-                "password": "Admin123!@#$%"
+                "password": "admin123"
             }
             
             response = self.session.post(f"{BASE_URL}/auth/login", json=login_data)
