@@ -214,16 +214,19 @@ export default function FinancePageEnhanced() {
 
   const clearFilters = () => {
     setFilters({
-      account_id: '',
-      account_type: '',
-      transaction_type: '',
-      reference_type: '',
+      account_id: 'all',
+      account_type: 'all',
+      transaction_type: 'all',
+      reference_type: 'all',
       start_date: '',
       end_date: ''
     });
   };
 
-  const hasActiveFilters = Object.values(filters).some(v => v !== '');
+  const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+    if (key === 'start_date' || key === 'end_date') return value !== '';
+    return value !== 'all';
+  });
 
   const getTransactionSourceIcon = (source) => {
     switch(source) {
