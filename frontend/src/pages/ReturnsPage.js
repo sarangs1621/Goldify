@@ -275,6 +275,88 @@ const ReturnsPage = () => {
     }
   };
   
+  // Open edit dialog for draft returns
+  const openEditDialog = async (returnObj) => {
+    try {
+      // Load reference data
+      await loadReferenceData(returnObj.return_type);
+      
+      // Set form data from return object
+      setFormData({
+        return_type: returnObj.return_type,
+        reference_type: returnObj.reference_type,
+        reference_id: returnObj.reference_id,
+        items: returnObj.items || [{ description: '', qty: 1, weight_grams: 0, purity: 916, amount: 0 }],
+        reason: returnObj.reason || '',
+        refund_mode: returnObj.refund_mode || 'money',
+        refund_money_amount: returnObj.refund_money_amount || 0,
+        refund_gold_grams: returnObj.refund_gold_grams || 0,
+        refund_gold_purity: returnObj.refund_gold_purity || 916,
+        payment_mode: returnObj.payment_mode || 'cash',
+        account_id: returnObj.account_id || '',
+        notes: returnObj.notes || ''
+      });
+      
+      setEditingReturn(returnObj);
+      setShowEditDialog(true);
+      setError('');
+      setSuccess('');
+    } catch (err) {
+      console.error('Error opening edit dialog:', err);
+      setError('Failed to open edit dialog');
+    }
+  };
+  
+  // Close edit dialog
+  const closeEditDialog = () => {
+    setShowEditDialog(false);
+    setEditingReturn(null);
+    setFormData({
+      return_type: 'sale_return',
+      reference_type: 'invoice',
+      reference_id: '',
+      items: [{ description: '', qty: 1, weight_grams: 0, purity: 916, amount: 0 }],
+      reason: '',
+      refund_mode: 'money',
+      refund_money_amount: 0,
+      refund_gold_grams: 0,
+      refund_gold_purity: 916,
+      payment_mode: 'cash',
+      account_id: '',
+      notes: ''
+    });
+  };
+  
+  // Update return
+  const handleUpdateReturn = async () => {
+    if (!editingReturn) return;
+    
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      // Validate items
+      if (formData.items.length === 0 || !formData.items[0].description) {
+        setError('Please add at least one item');
+        setLoading(false);
+        return;
+      }
+      
+      // Update return
+      await API.patch(`/api/returns/${editingReturn.id}`, formData);
+      
+      setSuccess('Return updated successfully');
+      closeEditDialog();
+      loadReturns();
+    } catch (err) {
+      console.error('Error updating return:', err);
+      setError(err.response?.data?.detail || 'Failed to update return');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // View return
   const viewReturn = async (returnId) => {
     try {
