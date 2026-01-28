@@ -173,8 +173,8 @@ class GoldShopERPTester:
 
             # Create vendor party
             vendor_data = {
-                "name": "Gold Supplier LLC",
-                "phone": "+968-2234-5678",
+                "name": f"Gold Supplier Test {int(time.time())}",
+                "phone": f"+968-{int(time.time()) % 10000}-5678",
                 "address": "Industrial Area, Muscat",
                 "party_type": "vendor",
                 "notes": "Primary gold supplier for testing"
