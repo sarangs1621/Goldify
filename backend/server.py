@@ -6305,10 +6305,11 @@ async def get_transactions_summary(
                 bank_credit += breakdown['credit']
                 bank_debit += breakdown['debit']
         
-        # FIX: Net Flow should represent actual cash flow (Cash + Bank movements only)
-        # This gives meaningful business insight: "How much money moved in/out?"
-        cash_net = cash_credit - cash_debit
-        bank_net = bank_credit - bank_debit
+        # FIX: Net Flow for Cash/Bank (Asset accounts)
+        # For ASSET accounts: DEBIT = increase (money IN), CREDIT = decrease (money OUT)
+        # Therefore: Net Flow = DEBITS - CREDITS
+        cash_net = cash_debit - cash_credit
+        bank_net = bank_debit - bank_credit
         net_flow = cash_net + bank_net
         
         return {
