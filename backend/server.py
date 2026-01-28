@@ -2905,7 +2905,7 @@ async def get_workers(
     workers = await db.workers.find(query, {"_id": 0}).sort("name", 1).to_list(None)
     return {"items": workers}
 
-@api_router.post("/workers", response_model=Worker)
+@api_router.post("/workers", response_model=Worker, status_code=201)
 @limiter.limit("1000/hour")
 async def create_worker(request: Request, worker_data: dict, current_user: User = Depends(get_current_user)):
     """Create a new worker"""
