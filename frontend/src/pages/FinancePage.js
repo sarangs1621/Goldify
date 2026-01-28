@@ -71,10 +71,10 @@ export default function FinancePageEnhanced() {
     try {
       // Build query params for filters
       const params = { page: currentPage, page_size: 10 };
-      if (filters.account_id) params.account_id = filters.account_id;
-      if (filters.account_type) params.account_type = filters.account_type;
-      if (filters.transaction_type) params.transaction_type = filters.transaction_type;
-      if (filters.reference_type) params.reference_type = filters.reference_type;
+      if (filters.account_id && filters.account_id !== 'all') params.account_id = filters.account_id;
+      if (filters.account_type && filters.account_type !== 'all') params.account_type = filters.account_type;
+      if (filters.transaction_type && filters.transaction_type !== 'all') params.transaction_type = filters.transaction_type;
+      if (filters.reference_type && filters.reference_type !== 'all') params.reference_type = filters.reference_type;
       if (filters.start_date) params.start_date = filters.start_date;
       if (filters.end_date) params.end_date = filters.end_date;
       
