@@ -926,145 +926,27 @@ const ReturnsPage = () => {
                 )}
               </div>
               
-              {/* Refund Details - OPTIONAL FOR DRAFT */}
-              <div>
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
-                  <p className="text-sm text-blue-800">
-                    <strong>📝 Draft Mode:</strong> Refund details are OPTIONAL at creation. You can create a draft return with just items and finalize it later with refund details.
-                  </p>
-                </div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Refund Mode (Optional)</label>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  <button
-                    type="button"
-                    data-testid="refund-mode-money-btn"
-                    onClick={() => handleFormChange('refund_mode', 'money')}
-                    className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                      formData.refund_mode === 'money'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Money Only
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="refund-mode-gold-btn"
-                    onClick={() => handleFormChange('refund_mode', 'gold')}
-                    className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                      formData.refund_mode === 'gold'
-                        ? 'bg-yellow-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Gold Only
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="refund-mode-mixed-btn"
-                    onClick={() => handleFormChange('refund_mode', 'mixed')}
-                    className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                      formData.refund_mode === 'mixed'
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Mixed (Both)
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  {(formData.refund_mode === 'money' || formData.refund_mode === 'mixed') && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Money Amount (OMR) (Optional for Draft)
-                        </label>
-                        <input
-                          data-testid="refund-money-amount-input"
-                          type="number"
-                          step="0.01"
-                          value={formData.refund_money_amount}
-                          onChange={(e) => handleFormChange('refund_money_amount', parseFloat(e.target.value) || 0)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Account (Optional for Draft)</label>
-                        <select
-                          data-testid="refund-account-select"
-                          value={formData.account_id}
-                          onChange={(e) => handleFormChange('account_id', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">-- Select Account --</option>
-                          {accounts.map(acc => (
-                            <option key={acc.id} value={acc.id}>
-                              {acc.name} ({acc.account_type})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </>
-                  )}
-                  
-                  {(formData.refund_mode === 'gold' || formData.refund_mode === 'mixed') && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Gold Weight (g) (Optional for Draft)
-                        </label>
-                        <input
-                          data-testid="refund-gold-weight-input"
-                          type="number"
-                          step="0.001"
-                          value={formData.refund_gold_grams}
-                          onChange={(e) => handleFormChange('refund_gold_grams', parseFloat(e.target.value) || 0)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Gold Purity (Optional for Draft)</label>
-                        <input
-                          data-testid="refund-gold-purity-input"
-                          type="number"
-                          value={formData.refund_gold_purity}
-                          onChange={(e) => handleFormChange('refund_gold_purity', parseInt(e.target.value) || 916)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          min="1"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-                
-                {formData.refund_mode === 'mixed' && (
-                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-800">
-                      💡 <strong>Mixed Refund:</strong> Both money and gold amounts are required. Total refund value must match return amount.
-                    </p>
+              {/* Refund Details - HIDDEN IN CREATE (Added During Edit or Finalize) */}
+              <div className="bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-blue-500 rounded-md p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
                   </div>
-                )}
-                
-                {(formData.refund_mode === 'money' || formData.refund_mode === 'mixed') && (
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
-                    <select
-                      data-testid="refund-payment-mode-select"
-                      value={formData.payment_mode}
-                      onChange={(e) => handleFormChange('payment_mode', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="cash">Cash</option>
-                      <option value="bank_transfer">Bank Transfer</option>
-                      <option value="card">Card</option>
-                      <option value="upi">UPI</option>
-                      <option value="cheque">Cheque</option>
-                    </select>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-semibold text-blue-900">📝 Simple Draft Creation</h3>
+                    <div className="mt-2 text-sm text-blue-800">
+                      <p className="mb-1">✅ <strong>What you're doing now:</strong> Creating a draft return with just the items</p>
+                      <p className="mb-1">⏭️ <strong>What happens next:</strong> You can add refund details later by:</p>
+                      <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                        <li>Editing the draft to add refund mode, amounts, and account</li>
+                        <li>OR finalizing directly (which will prompt for refund details)</li>
+                      </ul>
+                      <p className="mt-2 text-xs italic">💡 This keeps draft creation quick and simple - just focus on the returned items!</p>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
               
               {/* Reason and Notes */}
