@@ -268,6 +268,23 @@ class BackendTester:
     def test_create_draft_return(self, invoice_id, returnable_items):
         """Test POST /api/returns with status='draft'"""
         try:
+            # First get the invoice to extract customer details
+            invoice_response = self.session.get(f"{BACKEND_URL}/invoices/{invoice_id}")
+            if invoice_response.status_code != 200:
+                self.log_result("Create Draft Return", False, "Failed to get invoice details")
+                return None
+            
+            invoice_data = invoice_response.json()
+            customer_id = invoice_data.get('customer_id')
+            customer_name = invoice_data.get('customer_name', 'Test Customer')
+            
+            # If customer_name is None, get it from the party
+            if not customer_name and customer_id:
+                party_response = self.session.get(f"{BACKEND_URL}/parties/{customer_id}")
+                if party_response.status_code == 200:
+                    party_data = party_response.json()
+                    customer_name = party_data.get('name', 'Test Customer')
+            
             # Prepare return items based on returnable items
             if isinstance(returnable_items, dict) and 'items' in returnable_items:
                 items_data = returnable_items['items']
@@ -287,9 +304,9 @@ class BackendTester:
             total_amount = 0.0
             
             for item in items_data[:1]:  # Return first item only for testing
-                return_qty = min(1, item.get('qty', 1))
-                return_weight = float(item.get('net_gold_weight', item.get('weight', 0))) * 0.5  # Return 50%
-                return_amount = float(item.get('line_total', 0)) * 0.5  # Return 50%
+                return_qty = min(1, item.get('remaining_qty', 1))
+                return_weight = float(item.get('remaining_weight_grams', 0)) * 0.5  # Return 50%
+                return_amount = float(item.get('remaining_amount', 0)) * 0.5  # Return 50%
                 
                 return_item = {
                     "description": item.get('description', 'Returned Item'),
@@ -306,8 +323,8 @@ class BackendTester:
                 "return_type": "sale_return",
                 "reference_type": "invoice",
                 "reference_id": invoice_id,
-                "party_id": "test-customer-id",  # This should be extracted from invoice
-                "party_name": "Ahmed Al-Rashid",
+                "party_id": customer_id or "test-customer-id",
+                "party_name": customer_name or "Test Customer",
                 "party_type": "customer",
                 "items": return_items,
                 "total_weight_grams": total_weight,
