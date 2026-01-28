@@ -678,84 +678,137 @@ const ReturnsPage = () => {
               {/* Items */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Return Items *</label>
-                {formData.items.map((item, index) => (
-                  <div key={index} className="border border-gray-300 rounded-md p-4 mb-3">
-                    <div className="grid grid-cols-5 gap-3 mb-2">
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-600 mb-1">Description</label>
-                        <input
-                          type="text"
-                          value={item.description}
-                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          placeholder="Item description"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Qty</label>
-                        <input
-                          type="number"
-                          value={item.qty}
-                          onChange={(e) => handleItemChange(index, 'qty', parseInt(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          min="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Weight (g)</label>
-                        <input
-                          type="number"
-                          step="0.001"
-                          value={item.weight_grams}
-                          onChange={(e) => handleItemChange(index, 'weight_grams', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">Purity</label>
-                        <input
-                          type="number"
-                          value={item.purity}
-                          onChange={(e) => handleItemChange(index, 'purity', parseInt(e.target.value) || 916)}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          min="1"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-5 gap-3">
-                      <div className="col-span-2">
-                        <label className="block text-xs text-gray-600 mb-1">Amount (OMR)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.amount}
-                          onChange={(e) => handleItemChange(index, 'amount', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          min="0"
-                        />
-                      </div>
-                      <div className="col-span-3 flex items-end">
-                        {formData.items.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeItem(index)}
-                            className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
-                          >
-                            Remove Item
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                
+                {/* Show loading state when loading invoice items */}
+                {loadingItems && (
+                  <div className="text-sm text-gray-600 py-2">Loading invoice items...</div>
+                )}
+                
+                {/* Invoice-linked items: Show selection interface */}
+                {formData.return_type === 'sale_return' && formData.reference_id && returnableItems.length > 0 && !loadingItems && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                    <p className="text-sm text-blue-800 mb-2">
+                      <span className="font-semibold">Invoice Items Auto-Loaded:</span> Adjust quantities/weights to return (within remaining limits)
+                    </p>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  + Add Another Item
-                </button>
+                )}
+                
+                {formData.items.map((item, index) => {
+                  const isInvoiceLinked = formData.return_type === 'sale_return' && formData.reference_id && returnableItems.length > 0;
+                  const maxQty = item.max_qty || 999;
+                  const maxWeight = item.max_weight || 99999;
+                  
+                  return (
+                    <div key={index} className="border border-gray-300 rounded-md p-4 mb-3">
+                      <div className="grid grid-cols-5 gap-3 mb-2">
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-600 mb-1">Description</label>
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="Item description"
+                            disabled={isInvoiceLinked}
+                          />
+                          {isInvoiceLinked && (
+                            <p className="text-xs text-gray-500 mt-1">From invoice (read-only)</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Qty</label>
+                          <input
+                            type="number"
+                            value={item.qty}
+                            onChange={(e) => {
+                              const newQty = parseInt(e.target.value) || 0;
+                              if (isInvoiceLinked && newQty > maxQty) {
+                                setError(`Quantity cannot exceed remaining: ${maxQty}`);
+                                return;
+                              }
+                              handleItemChange(index, 'qty', newQty);
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            min="1"
+                            max={isInvoiceLinked ? maxQty : undefined}
+                          />
+                          {isInvoiceLinked && (
+                            <p className="text-xs text-gray-500 mt-1">Max: {maxQty}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Weight (g)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            value={item.weight_grams}
+                            onChange={(e) => {
+                              const newWeight = parseFloat(e.target.value) || 0;
+                              if (isInvoiceLinked && newWeight > maxWeight) {
+                                setError(`Weight cannot exceed remaining: ${maxWeight.toFixed(3)}g`);
+                                return;
+                              }
+                              handleItemChange(index, 'weight_grams', newWeight);
+                            }}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            min="0"
+                            max={isInvoiceLinked ? maxWeight : undefined}
+                          />
+                          {isInvoiceLinked && (
+                            <p className="text-xs text-gray-500 mt-1">Max: {maxWeight.toFixed(3)}g</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Purity</label>
+                          <input
+                            type="number"
+                            value={item.purity}
+                            onChange={(e) => handleItemChange(index, 'purity', parseInt(e.target.value) || 916)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            min="1"
+                            disabled={isInvoiceLinked}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-5 gap-3">
+                        <div className="col-span-2">
+                          <label className="block text-xs text-gray-600 mb-1">Amount (OMR)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.amount}
+                            onChange={(e) => handleItemChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            min="0"
+                            disabled={isInvoiceLinked}
+                          />
+                        </div>
+                        <div className="col-span-3 flex items-end">
+                          {formData.items.length > 1 && !isInvoiceLinked && (
+                            <button
+                              type="button"
+                              onClick={() => removeItem(index)}
+                              className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                            >
+                              Remove Item
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Only allow adding items when NOT linked to invoice */}
+                {(!formData.reference_id || formData.return_type !== 'sale_return') && (
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    + Add Another Item
+                  </button>
+                )}
               </div>
               
               {/* Refund Details */}
