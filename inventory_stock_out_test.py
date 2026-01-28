@@ -230,9 +230,10 @@ class InventoryStockOutTester:
                 return False
 
             # Step 5: Create a customer
+            timestamp = int(time.time())
             customer_data = {
-                "name": "Test Gold Customer",
-                "phone": "+968-3333-4444",
+                "name": f"Test Gold Customer {timestamp}",
+                "phone": f"+968-{(timestamp + 1000) % 10000}-{((timestamp + 1000) // 10000) % 10000}",
                 "address": "Ruwi, Muscat",
                 "party_type": "customer",
                 "notes": "Test customer for inventory testing"
