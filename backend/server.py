@@ -4563,6 +4563,107 @@ async def get_returnable_invoices(
         })
     
     return formatted_invoices
+@api_router.get("/invoices/{invoice_id}/returnable-items")
+async def get_invoice_returnable_items(
+    invoice_id: str,
+    current_user: User = Depends(require_permission('invoices.view'))
+):
+    """
+    Get returnable items for a specific invoice.
+    
+    This endpoint:
+    1. Fetches the invoice and its items
+    2. Calculates already returned quantities/weights from finalized returns
+    3. Returns remaining returnable items (original - already returned)
+    
+    Returns:
+        List of items with:
+        - Original item details (description, qty, weight, purity, amount)
+        - Already returned qty/weight
+        - Remaining qty/weight available for return
+    """
+    # Fetch the invoice
+    invoice = await db.invoices.find_one({"id": invoice_id, "is_deleted": False})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Check if invoice is finalized
+    if invoice.get('status') != 'finalized':
+        raise HTTPException(status_code=400, detail="Can only return items from finalized invoices")
+    
+    invoice_items = invoice.get('items', [])
+    if not invoice_items:
+        return []
+    
+    # Fetch all finalized returns for this invoice
+    returns = await db.returns.find({
+        "reference_type": "invoice",
+        "reference_id": invoice_id,
+        "status": "finalized",
+        "is_deleted": False
+    }).to_list(None)
+    
+    # Build a map of already returned quantities by item description and purity
+    # Using description+purity as key since items in returns might not have invoice item IDs
+    returned_map = {}
+    for ret in returns:
+        for ret_item in ret.get('items', []):
+            key = f"{ret_item.get('description', '')}_{ret_item.get('purity', 0)}"
+            if key not in returned_map:
+                returned_map[key] = {
+                    'qty': 0,
+                    'weight_grams': 0.0
+                }
+            returned_map[key]['qty'] += ret_item.get('qty', 0)
+            returned_map[key]['weight_grams'] += float(ret_item.get('weight_grams', 0))
+    
+    # Calculate returnable items
+    returnable_items = []
+    for item in invoice_items:
+        item_desc = item.get('description', '')
+        item_purity = item.get('purity', 0)
+        key = f"{item_desc}_{item_purity}"
+        
+        # Original quantities
+        original_qty = item.get('qty', 0)
+        original_weight = float(item.get('net_gold_weight', 0) or item.get('weight', 0))
+        original_amount = float(item.get('line_total', 0))
+        
+        # Already returned
+        already_returned = returned_map.get(key, {'qty': 0, 'weight_grams': 0.0})
+        returned_qty = already_returned['qty']
+        returned_weight = already_returned['weight_grams']
+        
+        # Calculate remaining
+        remaining_qty = original_qty - returned_qty
+        remaining_weight = original_weight - returned_weight
+        
+        # Only include items with remaining quantity/weight
+        if remaining_qty > 0 or remaining_weight > 0:
+            # Calculate proportional amount based on remaining weight
+            remaining_amount = 0.0
+            if original_weight > 0:
+                remaining_amount = (remaining_weight / original_weight) * original_amount
+            
+            returnable_items.append({
+                'item_id': item.get('id', ''),
+                'description': item_desc,
+                'purity': item_purity,
+                'category': item.get('category', ''),
+                # Original quantities
+                'original_qty': original_qty,
+                'original_weight_grams': round(original_weight, 3),
+                'original_amount': round(original_amount, 2),
+                # Already returned
+                'returned_qty': returned_qty,
+                'returned_weight_grams': round(returned_weight, 3),
+                # Remaining available for return
+                'remaining_qty': remaining_qty,
+                'remaining_weight_grams': round(remaining_weight, 3),
+                'remaining_amount': round(remaining_amount, 2)
+            })
+    
+    return returnable_items
 
 @api_router.get("/invoices/{invoice_id}", response_model=Invoice)
 async def get_invoice(invoice_id: str, current_user: User = Depends(require_permission('invoices.view'))):
