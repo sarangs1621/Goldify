@@ -14,11 +14,18 @@ const ReturnsPage = () => {
   const [success, setSuccess] = useState('');
   
   // Permissions
+  const canCreateReturn = usePermission('returns.create');
+  const canFinalizeReturn = usePermission('returns.finalize');
   const canDeleteReturn = usePermission('returns.delete');
   
   // Pagination
   const { currentPage, setPage, pagination, setPagination } = useURLPagination();
   const pageSize = 10;
+  
+  // Delete confirmation dialog
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [returnToDelete, setReturnToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   
   // Filters
   const [filters, setFilters] = useState({
