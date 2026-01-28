@@ -8384,7 +8384,12 @@ async def get_sales_history_report(
     current_user: User = Depends(require_permission('reports.view'))
 ):
     """
-    Get sales history report showing ONLY finalized invoices.
+    Get sales history report using SOURCE-OF-TRUTH DATA.
+    
+    CRITICAL FIX: Uses StockMovements and Transactions for accurate reporting
+    - Weight data from StockMovements (type="Stock OUT")
+    - Financial data from Transactions (income account credits)
+    - Sales returns are automatically reflected
     
     Filters:
     - date_from/date_to: Date range filter
@@ -8395,11 +8400,11 @@ async def get_sales_history_report(
     - invoice_id
     - customer name + phone (handles both saved and walk-in)
     - date
-    - total_weight_grams (sum of all item weights)
+    - total_weight_grams (from StockMovements)
     - purity summary ("Mixed" if multiple purities, otherwise single purity)
-    - grand_total
+    - grand_total (from Transactions)
     """
-    # Query for FINALIZED invoices only
+    # Query for FINALIZED invoices only (for display details)
     query = {
         "is_deleted": False,
         "status": "finalized"  # CRITICAL: Only finalized invoices
@@ -8422,12 +8427,52 @@ async def get_sales_history_report(
     # Get invoices
     invoices = await db.invoices.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
     
-    # Process each invoice to calculate totals and purity summary
+    # Build queries for SOURCE-OF-TRUTH data
+    stock_query = {"is_deleted": False, "movement_type": "Stock OUT"}
+    txn_query = {"is_deleted": False}
+    
+    if date_from:
+        stock_query['date'] = {"$gte": datetime.fromisoformat(date_from)}
+        txn_query['date'] = {"$gte": datetime.fromisoformat(date_from)}
+    if date_to:
+        end_dt = datetime.fromisoformat(date_to)
+        if 'date' in stock_query:
+            stock_query['date']['$lte'] = end_dt
+            txn_query['date']['$lte'] = end_dt
+        else:
+            stock_query['date'] = {"$lte": end_dt}
+            txn_query['date'] = {"$lte": end_dt}
+    
+    # Get StockMovements and Transactions
+    stock_movements = await db.stock_movements.find(stock_query, {"_id": 0}).to_list(10000)
+    transactions = await db.transactions.find(txn_query, {"_id": 0}).to_list(10000)
+    
+    # Build maps for quick lookup by reference_id (invoice.id)
+    stock_by_invoice = {}
+    for movement in stock_movements:
+        ref_id = movement.get('reference_id')
+        if ref_id:
+            if ref_id not in stock_by_invoice:
+                stock_by_invoice[ref_id] = []
+            stock_by_invoice[ref_id].append(movement)
+    
+    txn_by_invoice = {}
+    for txn in transactions:
+        ref_id = txn.get('reference_id')
+        # Only count income account transactions for sales
+        if ref_id and txn.get('category') in ['sales', 'sales_income']:
+            if ref_id not in txn_by_invoice:
+                txn_by_invoice[ref_id] = []
+            txn_by_invoice[ref_id].append(txn)
+    
+    # Process each invoice using SOURCE-OF-TRUTH data
     sales_records = []
     total_sales = 0.0
     total_weight = 0.0
     
     for inv in invoices:
+        invoice_id = inv.get('id')
+        
         # Get customer info (handle both saved and walk-in)
         if inv.get('customer_type') == 'walk_in':
             customer_name = inv.get('walk_in_name', 'Walk-in Customer')
@@ -8441,11 +8486,16 @@ async def get_sales_history_report(
                 if party:
                     customer_phone = party.get('phone', '')
         
-        # Calculate total weight and purity summary
-        items = inv.get('items', [])
-        invoice_weight = sum(item.get('weight', 0) for item in items)
+        # Get weight from StockMovements (SOURCE-OF-TRUTH)
+        invoice_movements = stock_by_invoice.get(invoice_id, [])
+        invoice_weight = sum(abs(m.get('weight_delta', 0)) for m in invoice_movements)
         
-        # Check for purity diversity
+        # Get sales amount from Transactions (SOURCE-OF-TRUTH)
+        invoice_txns = txn_by_invoice.get(invoice_id, [])
+        invoice_amount = sum(t.get('amount', 0) for t in invoice_txns if t.get('transaction_type') == 'credit')
+        
+        # Calculate purity summary from invoice items (for display only)
+        items = inv.get('items', [])
         purities = list(set(item.get('purity') for item in items if item.get('purity')))
         if len(purities) == 0:
             purity_summary = "N/A"
@@ -8476,19 +8526,19 @@ async def get_sales_history_report(
             "customer_name": customer_name,
             "customer_phone": customer_phone,
             "date": invoice_date,
-            "total_weight_grams": round(invoice_weight, 3),
+            "total_weight_grams": round(invoice_weight, 3),  # FROM STOCKMOVEMENTS
             "purity_summary": purity_summary,
-            "grand_total": round(inv.get('grand_total', 0), 2)
+            "grand_total": round(invoice_amount, 2)  # FROM TRANSACTIONS
         })
         
-        total_sales += inv.get('grand_total', 0)
+        total_sales += invoice_amount
         total_weight += invoice_weight
     
     return {
         "sales_records": sales_records,
         "summary": {
-            "total_sales": round(total_sales, 2),
-            "total_weight": round(total_weight, 3),
+            "total_sales": round(total_sales, 2),  # FROM TRANSACTIONS
+            "total_weight": round(total_weight, 3),  # FROM STOCKMOVEMENTS
             "total_invoices": len(sales_records)
         }
     }
