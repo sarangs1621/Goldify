@@ -126,12 +126,20 @@ export default function PartiesPage() {
   const loadParties = async () => {
     try {
       setLoading(true);
-      const response = await API.get(`/api/parties`, {
-        params: {
-          page: currentPage,
-          page_size: perPage
-        }
-      });
+      const params = {
+        page: currentPage,
+        page_size: perPage
+      };
+      
+      // Add server-side filters
+      if (filterType && filterType !== 'all') {
+        params.party_type = filterType;
+      }
+      if (searchTerm && searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+      
+      const response = await API.get(`/api/parties`, { params });
       setParties(response.data.items || response.data);
       setPagination(response.data.pagination);
     } catch (error) {
