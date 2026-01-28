@@ -678,23 +678,23 @@ const ReturnsPage = () => {
                     <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                       {returnObj.return_number}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getReturnTypeBadge(returnObj.return_type)}`}>
                         {returnObj.return_type === 'sale_return' ? 'Sales' : 'Purchase'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900">
                       {returnObj.party_name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
                       {returnObj.reference_number || returnObj.reference_id.substring(0, 8)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRefundModeBadge(returnObj.refund_mode)}`}>
                         {returnObj.refund_mode}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900">
                       {returnObj.refund_mode === 'money' && `${formatCurrency(returnObj.refund_money_amount)} OMR`}
                       {returnObj.refund_mode === 'gold' && `${formatWeight(returnObj.refund_gold_grams)}g`}
                       {returnObj.refund_mode === 'mixed' && (
@@ -704,7 +704,7 @@ const ReturnsPage = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(returnObj.status)}`}>
                         {formatStatusText(returnObj.status)}
                         {returnObj.status === 'finalized' && (
@@ -714,10 +714,10 @@ const ReturnsPage = () => {
                         )}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(returnObj.date)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => viewReturn(returnObj.id)}
