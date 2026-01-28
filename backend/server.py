@@ -2127,7 +2127,7 @@ async def get_stock_movements(header_id: Optional[str] = None, current_user: Use
     movements = await db.stock_movements.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
     return movements
 
-@api_router.post("/inventory/movements", response_model=StockMovement)
+@api_router.post("/inventory/movements", response_model=StockMovement, status_code=201)
 async def create_stock_movement(movement_data: dict, current_user: User = Depends(require_permission('inventory.adjust'))):
     """
     Create manual stock movement for inventory adjustments.
