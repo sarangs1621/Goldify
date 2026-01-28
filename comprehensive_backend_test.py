@@ -207,8 +207,8 @@ class GoldShopERPTester:
 
             # Create inventory categories
             categories = [
-                {"name": "Gold Chains 22K", "current_qty": 25.0, "current_weight": 750.0},
-                {"name": "Gold Rings 18K", "current_qty": 15.0, "current_weight": 225.0}
+                {"name": f"Gold Chains 22K Test {int(time.time())}", "current_qty": 25.0, "current_weight": 750.0},
+                {"name": f"Gold Rings 18K Test {int(time.time())}", "current_qty": 15.0, "current_weight": 225.0}
             ]
             
             self.test_data["categories"] = []
