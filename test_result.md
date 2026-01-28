@@ -2065,6 +2065,241 @@ test_plan:
   test_priority: "critical"
 
 agent_communication:
+
+user_problem_statement: |
+  NET FLOW / CASH FLOW / BANK FLOW – DISPLAY FIX (CRITICAL)
+  ❌ Current Problems:
+  - Net Flow shows +0.00 OMR when there's actual money movement (In: 286,813.49, Out: 1,406.13)
+  - The In/Out values were showing all transactions (including income/expense accounts)
+  - But Net Flow only calculated from cash/bank accounts
+  - This caused inconsistency: In - Out ≠ Net Flow displayed
+  - Cash Flow and Bank Flow In/Out labels were reversed (showing credit as In, debit as Out)
+  
+  🔴 Root Cause:
+  - Backend calculated net_flow correctly from cash/bank accounts only
+  - But frontend displayed total_credit/total_debit (ALL accounts) as In/Out
+  - For asset accounts: DEBIT = money IN, CREDIT = money OUT
+  - Labels were showing the opposite: credit as In, debit as Out
+  
+  ✅ Required Fix:
+  1. Backend: Add total_in and total_out fields for cash/bank accounts only
+  2. Frontend: Display total_in/total_out instead of total_credit/total_debit
+  3. Fix Cash Flow and Bank Flow labels to show debit as In, credit as Out
+
+backend:
+  - task: "Add total_in and total_out to summary response"
+    implemented: true
+    working: "needs_testing"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ CRITICAL FIX IMPLEMENTED - Net Flow Display Consistency Fixed
+          
+          ISSUE IDENTIFIED:
+          The summary API returned total_credit/total_debit from ALL accounts (cash, bank, income, expense),
+          but net_flow was only calculated from cash/bank accounts. This caused the UI to show:
+          - In: 286,813.49 (total_credit from all accounts)
+          - Out: 1,406.13 (total_debit from all accounts)
+          - Net Flow: +0.00 (calculated from cash/bank only)
+          
+          The math didn't add up: 286,813.49 - 1,406.13 ≠ 0.00
+          
+          FIX APPLIED (Lines 6543-6546):
+          Added two new fields to the API response:
+          - total_in: Sum of debits to cash/bank/petty accounts (money IN)
+          - total_out: Sum of credits to cash/bank/petty accounts (money OUT)
+          
+          Calculation:
+          ```python
+          total_in = cash_debit + bank_debit  # Money IN to assets
+          total_out = cash_credit + bank_credit  # Money OUT from assets
+          ```
+          
+          Now the UI can display consistent values:
+          - Net Flow = total_in - total_out
+          - In = total_in (from cash/bank only)
+          - Out = total_out (from cash/bank only)
+          
+          The math will be consistent: In - Out = Net Flow ✅
+
+frontend:
+  - task: "Update Net Flow card to use total_in/total_out"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/FinancePage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ FIXED - Net Flow Card Labels Updated
+          
+          Changed Net Flow card "In" and "Out" labels (lines 254-267):
+          - BEFORE: Displayed summary.total_credit (ALL accounts)
+          - AFTER: Displays summary.total_in (cash/bank only)
+          - BEFORE: Displayed summary.total_debit (ALL accounts)
+          - AFTER: Displays summary.total_out (cash/bank only)
+          
+          Now Net Flow calculation matches displayed In/Out values.
+  
+  - task: "Fix Cash Flow In/Out labels"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/FinancePage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ FIXED - Cash Flow Labels Corrected
+          
+          For asset accounts (cash/bank), the correct mapping is:
+          - DEBIT = money IN (increases balance)
+          - CREDIT = money OUT (decreases balance)
+          
+          Changed Cash Flow card labels (lines 282-291):
+          - In: Now shows summary.cash_summary.debit (was credit)
+          - Out: Now shows summary.cash_summary.credit (was debit)
+          
+          This matches the accounting convention for asset accounts.
+  
+  - task: "Fix Bank Flow In/Out labels"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/FinancePage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ FIXED - Bank Flow Labels Corrected
+          
+          Changed Bank Flow card labels (lines 306-315):
+          - In: Now shows summary.bank_summary.debit (was credit)
+          - Out: Now shows summary.bank_summary.credit (was debit)
+          
+          This matches the accounting convention for asset accounts.
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Add total_in and total_out to summary response"
+    - "Update Net Flow card to use total_in/total_out"
+    - "Fix Cash Flow In/Out labels"
+    - "Fix Bank Flow In/Out labels"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "critical"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ NET FLOW / CASH FLOW / BANK FLOW – DISPLAY FIX COMPLETED
+      
+      CRITICAL ISSUE RESOLVED:
+      ================================================================================
+      The Finance dashboard was showing inconsistent values:
+      - Net Flow: +0.00 OMR (WRONG)
+      - In: 286,813.49 (from ALL accounts)
+      - Out: 1,406.13 (from ALL accounts)
+      - Math didn't work: 286,813.49 - 1,406.13 ≠ 0.00
+      
+      ROOT CAUSE:
+      ================================================================================
+      1. Backend calculated net_flow from cash/bank accounts only (correct)
+      2. But frontend displayed total_credit/total_debit from ALL accounts
+      3. Cash and Bank Flow labels were reversed (showing credit as In)
+      
+      FIXES IMPLEMENTED:
+      ================================================================================
+      
+      🔧 BACKEND CHANGES (server.py):
+      
+      1. ✅ Added total_in and total_out fields (lines 6543-6546)
+         ```python
+         total_in = cash_debit + bank_debit   # Money IN to assets
+         total_out = cash_credit + bank_credit # Money OUT from assets
+         ```
+         These represent actual money movement through cash/bank accounts only.
+      
+      2. ✅ Updated API response to include new fields
+         The /api/transactions/summary endpoint now returns:
+         - total_in: Sum of debits to cash/bank accounts
+         - total_out: Sum of credits to cash/bank accounts
+         - net_flow: total_in - total_out (consistent)
+      
+      🎨 FRONTEND CHANGES (FinancePage.js):
+      
+      1. ✅ Net Flow Card - Updated Labels (lines 254-267)
+         - Changed "In" from total_credit to total_in
+         - Changed "Out" from total_debit to total_out
+         - Now displays: In - Out = Net Flow (consistent math)
+      
+      2. ✅ Cash Flow Card - Fixed Labels (lines 282-291)
+         - Changed "In" to show cash_summary.debit (was credit)
+         - Changed "Out" to show cash_summary.credit (was debit)
+         - Matches accounting: DEBIT=IN, CREDIT=OUT for assets
+      
+      3. ✅ Bank Flow Card - Fixed Labels (lines 306-315)
+         - Changed "In" to show bank_summary.debit (was credit)
+         - Changed "Out" to show bank_summary.credit (was debit)
+         - Matches accounting: DEBIT=IN, CREDIT=OUT for assets
+      
+      ACCOUNTING LOGIC VERIFICATION:
+      ================================================================================
+      For ASSET accounts (Cash/Bank/Petty):
+      ✅ DEBIT = Increase = Money IN (invoice payments received)
+      ✅ CREDIT = Decrease = Money OUT (purchase payments made)
+      ✅ Net = Debits - Credits = Money IN - Money OUT
+      
+      EXPECTED RESULTS AFTER FIX:
+      ================================================================================
+      With the sample data from screenshot:
+      - If total_in (cash/bank debits) = 286,813.49
+      - If total_out (cash/bank credits) = 1,406.13
+      - Then Net Flow should show: +285,407.36 OMR ✅
+      
+      VERIFICATION NEEDED:
+      ================================================================================
+      1. Navigate to Finance page
+      2. Check Net Flow card:
+         - Net Flow should show calculated value (not 0.00)
+         - In should show money coming INTO cash/bank accounts
+         - Out should show money going OUT FROM cash/bank accounts
+         - Math should work: In - Out = Net Flow
+      3. Check Cash Flow card:
+         - In should show cash debits (receipts)
+         - Out should show cash credits (payments)
+      4. Check Bank Flow card:
+         - In should show bank debits (deposits)
+         - Out should show bank credits (withdrawals)
+      
+      🚀 SERVICES STATUS:
+      ================================================================================
+      ✅ Backend: Restarted successfully, running on port 8001
+      ✅ Frontend: Running on port 3000 with hot reload
+      ✅ MongoDB: Running
+      ✅ Health check: /api/health returns healthy
+      
+      Ready for testing. The Net Flow should now display correctly!
+
+
   - agent: "main"
     message: |
       🎯 CASH FLOW CALCULATION - COMPREHENSIVE FIX COMPLETED
