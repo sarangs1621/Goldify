@@ -1297,7 +1297,29 @@ test_plan:
   test_all: false
   test_priority: "completed"
 
-user_problem_statement: "Fix login 404 error - services were stopped and need to be restarted to restore authentication functionality."
+user_problem_statement: |
+  BUG REPORT: PURCHASE PAYMENT + STATUS FLOW IS BROKEN
+  
+  CRITICAL PROBLEMS:
+  1. Partially paid purchases cannot be paid fully - No "Add Payment / Pay Remaining" option visible
+  2. Purchases are shown as Locked even when balance > 0 - This blocks settlement and editing
+  3. No way to create an UNPAID draft purchase - System forces payment or auto-locks
+  4. Edit option missing for unpaid / partially paid purchases
+  
+  REQUIRED CORRECT BEHAVIOR (NON-NEGOTIABLE):
+  - Purchase lifecycle MUST be: DRAFT → PARTIALLY_PAID → PAID → FINALIZED (LOCKED)
+  - Locking is allowed ONLY AFTER FULL PAYMENT
+  - Users can create unpaid drafts (paid_amount = 0, status = draft)
+  - Users can pay purchases in multiple steps via "Add Payment" button
+  - Purchases are NOT locked prematurely (only when balance_due = 0)
+  - Edit allowed when status = draft or partially_paid
+  
+  REQUIRED FIXES:
+  1. Draft Purchase Creation: Allow creating purchase with paid_amount = 0, balance_due = total_amount, status = draft
+  2. Partial Payments: POST /api/purchases/{purchase_id}/add-payment endpoint must work
+  3. "Pay Remaining" UI: Show "Add Payment" button when balance_due > 0
+  4. Locking Rules: Purchase must NOT be locked when balance_due > 0
+  5. Editing Rules: Allow Edit when status = draft or partially_paid, Block when status = finalized
 
 backend:
   - task: "Returns Finalization - Remove MongoDB Transactions"
