@@ -1381,7 +1381,68 @@ backend:
       - working: "needs_testing"
         agent: "main"
         comment: "✅ CODE REVIEW - calculate_purchase_status function (line 700) returns 'Draft' when paid_amount == 0, 'Partially Paid' when 0 < paid_amount < total_amount, 'Paid' when paid_amount >= total_amount. Logic matches Invoice behavior. Implementation appears correct."
+
+frontend:
+  - task: "Purchase Add Payment Button - UI Visibility"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ CODE REVIEW - 'Add Payment' button exists (lines 646-658). Shows when balance_due_money > 0 && !locked. Button labeled 'Add Payment' with DollarSign icon. Opens payment dialog via handleOpenPaymentDialog(). Implementation looks correct but needs testing to verify it displays properly."
   
+  - task: "Purchase Payment Dialog"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ CODE REVIEW - Payment dialog exists with fields for payment_amount, payment_mode, account_id, notes (lines 1251+). Defaults payment_amount to full balance_due (line 389). Includes 'Set to full balance' helper button. Implementation looks correct."
+  
+  - task: "Purchase Payment Handler - API Integration"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ CODE REVIEW - handleAddPayment function (line 397) calls POST /api/purchases/{id}/add-payment with payment data. Shows success toast with transaction number. Shows info toast when purchase locks. Reloads purchases after payment. Implementation looks correct."
+  
+  - task: "Purchase Edit Button - Lock-Based Display"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ CODE REVIEW - Edit and Delete buttons (lines 661-682) show when !purchase.locked. Locked badge displays when purchase.locked (lines 685-689). Conditional rendering looks correct but needs testing."
+  
+  - task: "Purchase Status Badge Display"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/PurchasesPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ CODE REVIEW - getStatusBadge function (line 439) handles 'Paid', 'Partially Paid', 'Finalized (Unpaid)', 'Draft' statuses with appropriate colors and icons. Matches Invoice behavior."
+
   - task: "Returns Finalization - Remove MongoDB Transactions"
     implemented: true
     working: true
