@@ -260,6 +260,19 @@ agent_communication:
   - agent: "main"
     message: |
       ✅ DATE AND TIME HANDLING COMPREHENSIVE FIX COMPLETED
+
+backend:
+  - task: "Purchase Lifecycle - Draft Status Support"
+    implemented: true
+    working: "needs_testing"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: "✅ FIXED - Modified create_purchase endpoint (line 3385) to support Draft status. Removed safety assertion that prevented draft purchases. Changed locking logic: purchases are locked ONLY when balance_due == 0. Updated Purchase lifecycle to match Invoice: Draft → Partially Paid → Paid → Finalized (Locked)."
       
       IMPLEMENTATION STATUS: BACKEND FIXES + FRONTEND CRITICAL PAGES UPDATED
       
