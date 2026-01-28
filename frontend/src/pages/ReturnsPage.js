@@ -4,6 +4,7 @@ import { formatDateTime, formatDate } from '../utils/dateTimeUtils';
 import { safeToFixed, formatCurrency, formatWeight } from '../utils/numberFormat';
 import Pagination from '../components/Pagination';
 import useURLPagination from '../hooks/useURLPagination';
+import { usePermission } from '../hooks/usePermission';
 
 const ReturnsPage = () => {
   const [returns, setReturns] = useState([]);
