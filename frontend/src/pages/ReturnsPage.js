@@ -1479,6 +1479,97 @@ const ReturnsPage = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && returnToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Return</h3>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to delete this return? This action cannot be undone.
+              </p>
+              
+              <div className="bg-gray-50 rounded-md p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Return Number:</span>
+                  <span className="text-gray-900">{returnToDelete.return_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Type:</span>
+                  <span className="text-gray-900">
+                    {returnToDelete.return_type === 'sale_return' ? 'Sales Return' : 'Purchase Return'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Party:</span>
+                  <span className="text-gray-900">{returnToDelete.party_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Amount:</span>
+                  <span className="text-gray-900">
+                    {returnToDelete.refund_mode === 'money' && `${formatCurrency(returnToDelete.refund_money_amount)} OMR`}
+                    {returnToDelete.refund_mode === 'gold' && `${formatWeight(returnToDelete.refund_gold_grams)}g`}
+                    {returnToDelete.refund_mode === 'mixed' && (
+                      <span>
+                        {formatCurrency(returnToDelete.refund_money_amount)} OMR + {formatWeight(returnToDelete.refund_gold_grams)}g
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700">Status:</span>
+                  <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800">
+                    Draft
+                  </span>
+                </div>
+              </div>
+              
+              <div className="bg-red-50 border-l-4 border-red-400 p-3">
+                <p className="text-sm text-red-700">
+                  <strong>Warning:</strong> This return draft will be permanently deleted from the system.
+                </p>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={closeDeleteDialog}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                disabled={deleting}
+              >
+                <X size={16} />
+                <span>Cancel</span>
+              </button>
+              <button
+                onClick={handleDeleteReturn}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400 flex items-center gap-2"
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>Delete Return</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
