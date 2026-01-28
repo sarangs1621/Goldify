@@ -10891,7 +10891,7 @@ async def finalize_return(
                 )
                 await db.transactions.insert_one(transaction.model_dump())
                 
-                # Update account balance (credit = increase balance)
+                # Update account balance (debit = increase balance for asset accounts)
                 await db.accounts.update_one(
                     {"id": account_id},
                     {"$inc": {"current_balance": round(refund_money_amount, 2)}}
