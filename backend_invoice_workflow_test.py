@@ -32,9 +32,9 @@ from decimal import Decimal
 
 # Backend URL from frontend/.env
 <<<<<<< HEAD
-BACKEND_URL = "https://complete-search-fix.preview.emergentagent.com/api"
+BACKEND_URL = "https://purchase-flow-42.preview.emergentagent.com/api"
 =======
-BACKEND_URL = "https://complete-search-fix.preview.emergentagent.com/api"
+BACKEND_URL = "https://purchase-flow-42.preview.emergentagent.com/api"
 >>>>>>> b31b2899369e7f105da7aa8839d08cfdd4516b95
 
 # Test credentials

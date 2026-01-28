@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://complete-search-fix.preview.emergentagent.com/api"
+BASE_URL = "https://purchase-flow-42.preview.emergentagent.com/api"
 HEADERS = {"Content-Type": "application/json"}
 
 class PartiesFilteringTester:
