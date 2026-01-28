@@ -408,7 +408,7 @@ export default function FinancePageEnhanced() {
                       <SelectValue placeholder="All accounts" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All accounts</SelectItem>
+                      <SelectItem value="all">All accounts</SelectItem>
                       {accounts.map(acc => (
                         <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
                       ))}
@@ -423,7 +423,7 @@ export default function FinancePageEnhanced() {
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All types</SelectItem>
+                      <SelectItem value="all">All types</SelectItem>
                       <SelectItem value="cash">Cash</SelectItem>
                       <SelectItem value="bank">Bank</SelectItem>
                     </SelectContent>
@@ -437,7 +437,7 @@ export default function FinancePageEnhanced() {
                       <SelectValue placeholder="All types" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All types</SelectItem>
+                      <SelectItem value="all">All types</SelectItem>
                       <SelectItem value="credit">Credit (Money IN)</SelectItem>
                       <SelectItem value="debit">Debit (Money OUT)</SelectItem>
                     </SelectContent>
@@ -451,7 +451,7 @@ export default function FinancePageEnhanced() {
                       <SelectValue placeholder="All sources" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All sources</SelectItem>
+                      <SelectItem value="all">All sources</SelectItem>
                       <SelectItem value="invoice">Invoice Payment</SelectItem>
                       <SelectItem value="purchase">Purchase Payment</SelectItem>
                       <SelectItem value="manual">Manual Entry</SelectItem>
