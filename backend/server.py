@@ -2676,7 +2676,7 @@ async def get_parties(
     
     return create_pagination_response(parties, total_count, page, page_size)
 
-@api_router.post("/parties", response_model=Party)
+@api_router.post("/parties", response_model=Party, status_code=201)
 @limiter.limit("1000/hour")  # General authenticated rate limit: 1000 requests per hour
 async def create_party(request: Request, party_data: dict, current_user: User = Depends(require_permission('parties.create'))):
     if not user_has_permission(current_user, 'parties.create'):
