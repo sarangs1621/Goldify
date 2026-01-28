@@ -62,7 +62,7 @@ export default function PartiesPage() {
 
   useEffect(() => {
     loadParties();
-  }, [currentPage, perPage]);
+  }, [currentPage, perPage, searchTerm, filterType]);
 
   // Validation function for name
   const validateName = (name) => {
