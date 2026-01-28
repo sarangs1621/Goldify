@@ -12,9 +12,9 @@ Test Script for comprehensive testing of:
 
 Authentication: admin/admin123
 <<<<<<< HEAD
-Backend URL: https://balancesync-1.preview.emergentagent.com/api
+Backend URL: https://gold-shop-fix-1.preview.emergentagent.com/api
 =======
-Backend URL: https://decimal-precision.preview.emergentagent.com/api
+Backend URL: https://gold-shop-fix-1.preview.emergentagent.com/api
 >>>>>>> b31b2899369e7f105da7aa8839d08cfdd4516b95
 """
 
@@ -27,9 +27,9 @@ import time
 
 # Configuration
 <<<<<<< HEAD
-BASE_URL = "https://balancesync-1.preview.emergentagent.com/api"
+BASE_URL = "https://gold-shop-fix-1.preview.emergentagent.com/api"
 =======
-BASE_URL = "https://decimal-precision.preview.emergentagent.com/api"
+BASE_URL = "https://gold-shop-fix-1.preview.emergentagent.com/api"
 >>>>>>> b31b2899369e7f105da7aa8839d08cfdd4516b95
 USERNAME = "admin"
 PASSWORD = "admin123"
