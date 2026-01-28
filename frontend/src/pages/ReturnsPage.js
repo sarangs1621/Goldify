@@ -241,14 +241,14 @@ const ReturnsPage = () => {
     });
   };
   
-  // Create return
+  // Create return (Draft - refund details optional)
   const handleCreateReturn = async () => {
     setLoading(true);
     setError('');
     setSuccess('');
     
     try {
-      // Validate
+      // Validate basic requirements only (refund details are optional for draft)
       if (!formData.reference_id) {
         setError('Please select a reference invoice or purchase');
         setLoading(false);
@@ -261,34 +261,10 @@ const ReturnsPage = () => {
         return;
       }
       
-      if (formData.refund_mode === 'money' && (!formData.refund_money_amount || formData.refund_money_amount <= 0)) {
-        setError('Please enter refund money amount');
-        setLoading(false);
-        return;
-      }
+      // Create draft return (refund details are optional)
+      const response = await API.post('/api/returns', formData);
       
-      if (formData.refund_mode === 'gold' && (!formData.refund_gold_grams || formData.refund_gold_grams <= 0)) {
-        setError('Please enter refund gold amount');
-        setLoading(false);
-        return;
-      }
-      
-      if (formData.refund_mode === 'mixed' && (!formData.refund_money_amount || formData.refund_money_amount <= 0 || !formData.refund_gold_grams || formData.refund_gold_grams <= 0)) {
-        setError('Please enter both refund money and gold amounts for mixed refund');
-        setLoading(false);
-        return;
-      }
-      
-      if ((formData.refund_mode === 'money' || formData.refund_mode === 'mixed') && !formData.account_id) {
-        setError('Please select an account for money refund');
-        setLoading(false);
-        return;
-      }
-      
-      // Create return
-      await API.post('/api/returns', formData);
-      
-      setSuccess('Return created successfully');
+      setSuccess(response.data.message || 'Return draft created successfully. You can finalize it later.');
       closeCreateDialog();
       loadReturns();
     } catch (err) {
