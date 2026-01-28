@@ -10347,37 +10347,14 @@ async def create_return(
     
     except HTTPException:
         raise
+    except HTTPException:
+        raise
     except Exception as e:
-        # CRITICAL ROLLBACK - Creation failed, must revert all changes
-        try:
-            # 1. Delete return if it was inserted
-            if return_id:
-                await db.returns.delete_one({"id": return_id})
-            
-            # 2. Delete any stock movements created
-            if stock_movement_ids:
-                for movement_id in stock_movement_ids:
-                    await db.stock_movements.delete_one({"id": movement_id})
-                
-                # Revert inventory header changes
-                for item in items:
-                    if item.get('weight_grams', 0) > 0:
-                        qty_change = item.get('qty', 0)
-                        weight_change = round(float(item.get('weight_grams')), 3)
-                        
-                        if return_type == 'sale_return':
-                            # We added stock, now subtract it back
-                            await db.inventory_headers.update_one(
-                                {"name": item.get('description')},
-                                {
-                                    "$inc": {
-                                        "current_qty": -qty_change,
-                                        "current_weight": -weight_change
-                                    }
-                                }
-                            )
-                        else:  # purchase_return
-                            # We removed stock, now add it back
+        # Error creating draft return - simple exception handling (no complex rollback needed)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating return draft: {str(e)}"
+        )
                             await db.inventory_headers.update_one(
                                 {"name": item.get('description')},
                                 {
