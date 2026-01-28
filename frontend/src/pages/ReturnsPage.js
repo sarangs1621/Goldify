@@ -662,6 +662,12 @@ const ReturnsPage = () => {
                       {returnObj.status === 'draft' && (
                         <>
                           <button
+                            onClick={() => openEditDialog(returnObj)}
+                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          >
+                            Edit
+                          </button>
+                          <button
                             onClick={() => openFinalizeDialog(returnObj)}
                             className="text-green-600 hover:text-green-900 mr-3"
                           >
