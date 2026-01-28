@@ -255,14 +255,32 @@ const ReturnsPage = () => {
         return;
       }
       
-      if (formData.items.length === 0 || !formData.items[0].description) {
-        setError('Please add at least one item');
+      // Validate items exist and have content
+      const validItems = formData.items.filter(item => item.description && item.description.trim() !== '');
+      if (validItems.length === 0) {
+        setError('Please add at least one item with a description');
         setLoading(false);
         return;
       }
       
-      // Create draft return (refund details are optional)
-      const response = await API.post('/api/returns', formData);
+      // Create draft return payload (ONLY items and basic info - no refund validation)
+      const draftPayload = {
+        return_type: formData.return_type,
+        reference_type: formData.reference_type,
+        reference_id: formData.reference_id,
+        items: validItems.map(item => ({
+          description: item.description,
+          qty: parseInt(item.qty) || 1,
+          weight_grams: parseFloat(item.weight_grams) || 0,
+          purity: parseInt(item.purity) || 916,
+          amount: parseFloat(item.amount) || 0
+        })),
+        reason: formData.reason || '',
+        notes: formData.notes || ''
+      };
+      
+      // Create draft return (refund details are optional and NOT required)
+      const response = await API.post('/api/returns', draftPayload);
       
       setSuccess(response.data.message || 'Return draft created successfully. You can finalize it later.');
       closeCreateDialog();
