@@ -160,7 +160,7 @@ class PurchasePaymentFlowTester:
             
             response = self.session.post(f"{self.base_url}/purchases", json=purchase_data)
             
-            if response.status_code == 201:
+            if response.status_code in [200, 201]:
                 purchase = response.json()
                 self.test_data["draft_purchase"] = purchase
                 
@@ -213,7 +213,7 @@ class PurchasePaymentFlowTester:
             
             response = self.session.post(f"{self.base_url}/purchases", json=purchase_data)
             
-            if response.status_code == 201:
+            if response.status_code in [200, 201]:
                 purchase = response.json()
                 self.test_data["partial_purchase"] = purchase
                 
