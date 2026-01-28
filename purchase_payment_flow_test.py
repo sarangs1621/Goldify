@@ -115,7 +115,7 @@ class PurchasePaymentFlowTester:
                 self.test_data["vendor"] = response.json()
                 self.log_result("Setup - Vendor Party", True, f"Created vendor: {self.test_data['vendor']['name']}")
             else:
-                self.log_result("Setup - Vendor Party", False, "", f"Failed to create vendor: {response.text}")
+                self.log_result("Setup - Vendor Party", False, "", f"Failed to create vendor: {response.status_code} - {response.text}")
                 return False
 
             # Create cash account for payments
