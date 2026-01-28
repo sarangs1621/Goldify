@@ -7717,3 +7717,212 @@ agent_communication:
       The feature is fully implemented with all confirmed requirements and business rules.
       Testing should validate the complete workflow from creation to finalization.
 
+
+user_problem_statement: |
+  BUG REPORT: Parties Filtering Only Works on Loaded Rows (NOT Full Data)
+  ❌ Current Behavior
+  - Party filters (search / date / type) apply only to the currently loaded UI rows
+  - Data that is not already visible (paginated / not fetched) is never considered
+  - This results in: incomplete results, misleading reports, incorrect outstanding and ledger views
+  
+  ⚠️ This is NOT acceptable for accounting or reporting.
+  
+  ✅ REQUIRED CORRECT BEHAVIOR
+  - Filtering must be SERVER-SIDE, not UI-only.
+  - When a filter/search is applied:
+    • Backend must query ALL parties in the database
+    • Results must reflect the entire dataset, not just the current page
+
+backend:
+  - task: "Parties API - Implement Server-Side Filtering"
+    implemented: true
+    working: "needs_testing"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ CRITICAL BUG FIX - Server-side filtering implemented for Parties API
+          
+          ISSUE IDENTIFIED:
+          - Parties endpoint only supported party_type filtering
+          - Search filtering was done CLIENT-SIDE in frontend (only filtered loaded rows)
+          - Date filtering was not supported at all
+          - This caused incomplete results for accounting/reporting
+          
+          SOLUTION IMPLEMENTED:
+          - Added 'search' query parameter for name/phone filtering
+          - Added 'date_from' and 'date_to' query parameters for date range filtering
+          - Applied MongoDB $regex with case-insensitive search for name/phone
+          - Applied date range filter on 'created_at' field
+          - All filters now applied at DATABASE level BEFORE pagination
+          - Total count now reflects filtered results, not all records
+          
+          BACKEND CHANGES (lines 2631-2683):
+          1. Added new query parameters: search, date_from, date_to
+          2. Built MongoDB query with $or operator for search (name OR phone)
+          3. Used case-insensitive regex for flexible search
+          4. Added date range filtering with $gte and $lte operators
+          5. Applied all filters before skip/limit (pagination)
+          6. Updated docstring to reflect server-side filtering
+          
+          MONGODB QUERY EXAMPLE:
+          {
+            "is_deleted": False,
+            "party_type": "customer",  // if filter applied
+            "$or": [
+              {"name": {"$regex": "john", "$options": "i"}},
+              {"phone": {"$regex": "john", "$options": "i"}}
+            ],
+            "created_at": {"$gte": "2024-01-01", "$lte": "2024-12-31"}
+          }
+          
+          Backend restarted successfully. Ready for testing.
+
+frontend:
+  - task: "Parties Page - Remove Client-Side Filtering"
+    implemented: true
+    working: "needs_testing"
+    file: "frontend/src/pages/PartiesPage.js"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ CRITICAL BUG FIX - Replaced client-side filtering with server-side
+          
+          ISSUE IDENTIFIED:
+          - Lines 406-411: filteredParties was doing client-side filtering
+          - Only filtered the currently loaded page (10-50 records)
+          - Did not query the full database for matching records
+          
+          SOLUTION IMPLEMENTED:
+          1. Updated loadParties() function to send filter params to backend:
+             - Added 'party_type' param when filterType is not 'all'
+             - Added 'search' param when searchTerm is not empty
+          
+          2. Updated useEffect to reload data when filters change:
+             - Added searchTerm and filterType to dependency array
+             - Data now reloads from server whenever filters change
+          
+          3. Added automatic page reset on filter change:
+             - New useEffect resets page to 1 when filters change
+             - Prevents showing empty pages from previous pagination state
+          
+          4. Removed client-side filteredParties logic (lines 406-411)
+             - Replaced with direct use of 'parties' array
+             - Party count now shows pagination.total_count (server count)
+          
+          FRONTEND CHANGES:
+          - Line 63-65: Updated useEffect dependency array
+          - Line 126-145: Updated loadParties() to include filter params
+          - Line 406-466: Removed client-side filtering, updated UI to use server data
+          - Added new useEffect for page reset on filter change
+          
+          BEHAVIOR CHANGES:
+          - Search now queries ALL parties in database
+          - Type filter now queries ALL parties in database
+          - Count shows total filtered results, not just loaded page
+          - Pagination resets to page 1 when filters change
+          
+          Frontend compiling successfully. Ready for testing.
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Parties API - Implement Server-Side Filtering"
+    - "Parties Page - Remove Client-Side Filtering"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      ✅ CRITICAL BUG FIX COMPLETED: Server-Side Party Filtering
+      
+      🔴 ORIGINAL PROBLEM:
+      ================================================================================
+      - Party filters (search/date/type) only worked on currently loaded rows
+      - Pagination meant only 10-50 records were filtered at a time
+      - Users searching for parties would get INCOMPLETE results
+      - Accounting reports and ledgers were showing INCORRECT data
+      - This is unacceptable for financial/accounting systems
+      
+      ✅ SOLUTION IMPLEMENTED:
+      ================================================================================
+      
+      **BACKEND (server.py - Lines 2631-2683):**
+      1. Added 3 new query parameters to GET /api/parties:
+         - search: Text search for name OR phone (case-insensitive)
+         - date_from: Filter parties created after this date
+         - date_to: Filter parties created before this date
+      
+      2. Implemented MongoDB query building:
+         - $regex with $options: "i" for case-insensitive search
+         - $or operator to search both name AND phone fields
+         - $gte and $lte for date range filtering
+         - All filters applied BEFORE skip/limit (pagination)
+      
+      3. Updated response behavior:
+         - total_count now reflects filtered results
+         - Pagination metadata accurate for filtered dataset
+         - Empty results if no matches (not showing unrelated data)
+      
+      **FRONTEND (PartiesPage.js):**
+      1. Updated loadParties() to send filters to backend:
+         - Sends party_type param when filter is active
+         - Sends search param when searchTerm exists
+         - Backend now handles all filtering logic
+      
+      2. Removed client-side filtering logic:
+         - Deleted filteredParties computed value (lines 406-411)
+         - Display uses 'parties' array directly from API
+         - Count shows pagination.total_count from server
+      
+      3. Added automatic page reset on filter change:
+         - New useEffect resets to page 1 when filters change
+         - Prevents showing empty pages from stale pagination
+      
+      4. Updated useEffect dependencies:
+         - Data reloads when searchTerm or filterType changes
+         - Real-time server-side filtering as user types/selects
+      
+      📊 TESTING SCENARIOS TO VERIFY:
+      ================================================================================
+      1. Search by name - should find parties across ALL pages
+      2. Search by phone - should find parties across ALL pages
+      3. Filter by type (customer/vendor) - should query full database
+      4. Combine search + type filter - should work together
+      5. Pagination with filters - should maintain filter state
+      6. Count accuracy - should show total filtered results
+      7. Empty results - should show "No parties found" when no matches
+      8. Performance - should be fast even with large datasets
+      
+      🎯 EXPECTED BEHAVIOR AFTER FIX:
+      ================================================================================
+      ✅ Search for "john" - finds ALL Johns in database (not just current page)
+      ✅ Filter "customers" - shows ALL customers (with pagination)
+      ✅ Count shows total filtered results (e.g., "All Parties (234)")
+      ✅ Pagination works correctly with filters
+      ✅ Page resets to 1 when changing filters
+      ✅ Outstanding balances and ledgers now accurate
+      ✅ Reports reflect complete filtered data
+      
+      🚀 SERVICES STATUS:
+      ================================================================================
+      ✅ Backend: Restarted successfully (RUNNING)
+      ✅ Frontend: Compiled successfully (RUNNING)
+      ✅ MongoDB: Connected and operational
+      
+      Ready for comprehensive testing with test data.
