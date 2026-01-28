@@ -137,6 +137,7 @@ const ReturnsPage = () => {
       const response = await API.get(`/api/invoices/${invoiceId}/returnable-items`);
       const items = response.data || [];
       
+      console.log('[Returns] Loaded returnable items:', items.length, items);
       setReturnableItems(items);
       
       // Auto-populate form items with returnable items
@@ -152,7 +153,9 @@ const ReturnsPage = () => {
           max_weight: item.remaining_weight_grams,
           item_id: item.item_id
         }));
+        console.log('[Returns] Setting formData.items:', formItems.length, formItems);
         setFormData(prev => ({ ...prev, items: formItems }));
+        setSuccess(`${items.length} returnable item(s) loaded from invoice`);
       } else {
         // No returnable items - show message
         setError('All items from this invoice have already been returned.');
