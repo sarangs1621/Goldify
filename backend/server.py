@@ -10355,66 +10355,6 @@ async def create_return(
             status_code=500,
             detail=f"Error creating return draft: {str(e)}"
         )
-                            await db.inventory_headers.update_one(
-                                {"name": item.get('description')},
-                                {
-                                    "$inc": {
-                                        "current_qty": qty_change,
-                                        "current_weight": weight_change
-                                    }
-                                }
-                            )
-            
-            # 3. Delete transactions and revert account balances
-            if transaction_ids:
-                for txn_id in transaction_ids:
-                    transaction = await db.transactions.find_one({"id": txn_id})
-                    if transaction:
-                        # Revert account balance
-                        account_id = transaction.get('account_id')
-                        amount = transaction.get('amount', 0)
-                        transaction_type = transaction.get('transaction_type')
-                        if account_id:
-                            # Reverse the balance change
-                            if transaction_type == 'debit':
-                                balance_change = amount  # Reverse debit
-                            else:
-                                balance_change = -amount  # Reverse credit
-                            await db.accounts.update_one(
-                                {"id": account_id},
-                                {"$inc": {"current_balance": balance_change}}
-                            )
-                        # Delete transaction
-                        await db.transactions.delete_one({"id": txn_id})
-            
-            # 4. Delete gold ledger entry if created
-            if gold_ledger_id:
-                await db.gold_ledger.delete_one({"id": gold_ledger_id})
-            
-            # 5. Create audit log for rollback
-            if return_id:
-                await create_audit_log(
-                    user_id=current_user.id,
-                    user_name=current_user.full_name,
-                    module="returns",
-                    record_id=return_id,
-                    action="create_rollback",
-                    changes={
-                        "error": str(e),
-                        "rollback_completed": True,
-                        "stock_movements_deleted": len(stock_movement_ids),
-                        "transactions_deleted": len(transaction_ids),
-                        "gold_ledger_deleted": gold_ledger_id is not None
-                    }
-                )
-        except Exception as rollback_error:
-            # Even rollback failed - log critical error
-            print(f"CRITICAL: Rollback failed for return creation: {str(rollback_error)}")
-        
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error creating return: {str(e)}. Changes have been rolled back."
-        )
 
 
 @api_router.get("/returns")
