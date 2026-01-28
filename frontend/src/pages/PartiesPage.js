@@ -411,6 +411,64 @@ export default function PartiesPage() {
     });
   }, [moneyLedger, dateFrom, dateTo, ledgerSearchTerm]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setSearchParams({ page: '1' });
+    }
+  }, [searchTerm, filterType]);
+
+  return (
+    <div data-testid="parties-page">
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-4xl font-serif font-semibold text-gray-900 mb-2">Parties</h1>
+          <p className="text-muted-foreground">Manage customers and vendors</p>
+        </div>
+        <Button data-testid="add-party-button" onClick={() => {
+          setEditingParty(null);
+          setFormData({
+            name: '',
+            phone: '',
+            address: '',
+            party_type: 'customer',
+            notes: ''
+          });
+          setValidationErrors({
+            name: '',
+            phone: ''
+          });
+          setShowDialog(true);
+        }}>
+          <Plus className="w-4 h-4 mr-2" /> Add Party
+        </Button>
+      </div>
+
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Search by name or phone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="customer">Customers</SelectItem>
+                <SelectItem value="vendor">Vendors</SelectItem>
+                {/* <SelectItem value="worker">Workers</SelectItem> */}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-xl font-serif">All Parties ({pagination?.total_count || parties.length})</CardTitle>
