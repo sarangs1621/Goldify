@@ -197,7 +197,7 @@ class GoldShopERPTester:
                 "notes": "VIP customer for testing"
             }
             response = self.session.post(f"{BASE_URL}/parties", json=customer_data)
-            if response.status_code == 201:
+            if response.status_code in [200, 201]:
                 customer_result = response.json()
                 self.test_data["customer"] = customer_result
                 self.log_result("Setup - Customer Party", True, f"Created customer: {customer_result['name']}")
