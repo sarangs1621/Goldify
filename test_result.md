@@ -1428,6 +1428,93 @@ test_plan:
   test_all: true
   test_priority: "critical_first"
 
+user_problem_statement: |
+  INVENTORY – NOT REDUCING ON INVOICE FINALIZE (BLOCKER)
+  ❌ Current Problems:
+  - Inventory report shows only Stock IN
+  - Sales do NOT reduce stock
+  - Reports misleading
+  
+  ✅ Required Fix (NON-NEGOTIABLE):
+  On Invoice Finalization, for each invoice item:
+  - Create StockMovement: type = OUT, qty = -x, weight = -y, reference = invoice_id
+  - Ensure movement is saved atomically with finalize
+  - Inventory Totals Rule: Current Stock = SUM(Stock IN) − SUM(Stock OUT)
+
+backend:
+  - task: "Invoice Finalization - ALWAYS Create Stock OUT Movements"
+    implemented: true
+    working: "needs_testing"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "critical"
+    needs_retesting: true
+    status_history:
+      - working: "needs_testing"
+        agent: "main"
+        comment: |
+          ✅ CRITICAL FIX IMPLEMENTED - Stock OUT Movement Creation Now MANDATORY
+          
+          ROOT CAUSE IDENTIFIED:
+          The previous code had nested conditions that prevented Stock OUT movements from being created:
+          1. Line 4787: `if item.weight > 0 and item.category:` - skipped items without category
+          2. Line 4794: `if header:` - skipped items where category didn't match inventory header
+          
+          This meant if invoice items had no category OR category didn't match any inventory header,
+          NO Stock OUT movements were created, even though invoice was finalized. This caused:
+          - Inventory reports to only show Stock IN (from purchases)
+          - No Stock OUT movements for sales
+          - Misleading inventory totals
+          
+          SOLUTION IMPLEMENTED (Lines 4782-4834):
+          Restructured invoice finalization logic to ALWAYS create Stock OUT movements:
+          
+          1. ✅ ALWAYS create Stock OUT movement for items with weight > 0 (MANDATORY)
+          2. ✅ Use category as header_name if available, otherwise use description or "Uncategorized"
+          3. ✅ Inventory header reduction remains conditional (only if header exists and has sufficient stock)
+          4. ✅ Stock OUT movement created EVEN IF no matching inventory header exists
+          5. ✅ Movement includes all required fields: type="Stock OUT", qty_delta=-qty, weight_delta=-weight, reference_id=invoice.id
+          
+          NEW LOGIC FLOW:
+          ```
+          For each invoice item with weight > 0:
+            1. Determine header_name (category OR description OR "Uncategorized")
+            2. Try to find matching inventory header by category name
+            3. IF header found AND sufficient stock:
+                 - Reduce inventory header stock
+                 - Use header.id and header.name for movement
+            4. ALWAYS create Stock OUT movement (even if no header match)
+                 - Use header_id from step 3 OR None
+                 - Use determined header_name
+                 - Record qty_delta = -item.qty, weight_delta = -item.weight
+          ```
+          
+          COMPATIBILITY FIX:
+          - Updated StockMovement model to make header_id Optional (line 845)
+          - This allows movements to be created without a matching inventory header
+          - Maintains audit trail completeness
+          
+          IMPACT:
+          - ALL invoice finalizations now create Stock OUT movements
+          - Inventory reports will show accurate Stock IN and Stock OUT
+          - Inventory Totals: Current Stock = SUM(Stock IN) - SUM(Stock OUT) ✅
+          - Complete audit trail for all sales, regardless of category matching
+          
+          Backend restarted successfully, ready for testing.
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Invoice Finalization - ALWAYS Create Stock OUT Movements"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "critical"
+
 agent_communication:
   - agent: "main"
     message: |
