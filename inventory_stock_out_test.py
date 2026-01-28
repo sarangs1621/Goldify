@@ -225,7 +225,7 @@ class InventoryStockOutTester:
                     return False
             else:
                 self.log_result("Step 4 - Verify Stock IN Movement", False, "", 
-                              f"Failed to get stock movements: {response.text}")
+                              f"Failed to get stock movements: {response.status_code} - {response.text}")
                 return False
 
             # Step 5: Create a customer
