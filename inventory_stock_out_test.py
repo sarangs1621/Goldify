@@ -142,9 +142,10 @@ class InventoryStockOutTester:
         
         try:
             # Step 1: Create a vendor
+            timestamp = int(time.time())
             vendor_data = {
-                "name": "Test Gold Vendor",
-                "phone": "+968-1111-2222",
+                "name": f"Test Gold Vendor {timestamp}",
+                "phone": f"+968-{timestamp % 10000}-{(timestamp // 10000) % 10000}",
                 "address": "Gold Souk, Muscat",
                 "party_type": "vendor",
                 "notes": "Test vendor for inventory testing"
