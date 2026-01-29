@@ -75,6 +75,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -128,6 +129,12 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Show logout animation
+      setLoggingOut(true);
+      
+      // Wait for animation to display (2 seconds)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Call backend logout to clear cookies
       await API.post('/api/auth/logout');
     } catch (error) {
@@ -136,8 +143,10 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem('token');
+      setLoggingOut(false);
     }
   };
+
 
   const register = async (userData) => {
     await API.post('/api/auth/register', userData);
@@ -172,6 +181,7 @@ export const AuthProvider = ({ children }) => {
       logout, 
       register, 
       loading,
+      loggingOut,
       hasPermission,
       hasAnyPermission,
       hasAllPermissions

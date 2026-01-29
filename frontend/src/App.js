@@ -1,10 +1,11 @@
 import '@/App.css';
 import '@/index.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PermissionProtectedRoute } from './components/PermissionProtectedRoute';
 import { DashboardLayout } from './components/DashboardLayout';
+import { LogoutOverlay } from './components/LogoutOverlay';
 import { Toaster } from './components/ui/sonner';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './pages/LoginPage';
@@ -22,11 +23,13 @@ import PurchasesPage from './pages/PurchasesPage';
 import WorkersPage from './pages/WorkersPage';
 import ReturnsPage from './pages/ReturnsPage';
 
-function App() {
+function AppContent() {
+  const { loggingOut } = useAuth();
+  
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <BrowserRouter>
+    <>
+      {loggingOut && <LogoutOverlay />}
+      <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route
@@ -183,7 +186,16 @@ function App() {
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
-    </AuthProvider>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
