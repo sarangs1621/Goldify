@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { error } from 'ajv/dist/vocabularies/applicator/dependencies';
 
 const AuthContext = createContext(null);
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:5000';
@@ -115,6 +116,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     // Await POST /api/auth/login
     const response = await API.post('/api/auth/login', { username, password });
+    console.log(error.response);
     const { access_token, user: userData } = response.data;
     
     // Store token FIRST using localStorage
